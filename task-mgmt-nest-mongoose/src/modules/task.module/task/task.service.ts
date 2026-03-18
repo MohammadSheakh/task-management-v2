@@ -1,26 +1,31 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Redis } from 'ioredis';
+import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, Types } from "mongoose";
+import { Redis } from "ioredis";
 
-import { GenericService } from '../../../common/generic/generic.service';
-import { Task, TaskDocument, TaskStatus } from './task.schema';
-import { REDIS_CLIENT } from '../../../helpers/redis/redis.module';
+import { GenericService } from "../../../common/generic/generic.service";
+import { Task, TaskDocument, TaskStatus } from "./task.schema";
+import { REDIS_CLIENT } from "../../../helpers/redis/redis.module";
+
+import { SubTaskService } from "../subTask/subTask.service";
 
 /**
  * Task Service
- * 
+ *
  * Manages task operations
  * Extends GenericService for CRUD operations
+ * Delegates subtask operations to SubTaskService (separate collection)
  */
 @Injectable()
 export class TaskService extends GenericService<typeof Task, TaskDocument> {
-  private readonly TASK_CACHE_PREFIX = 'task:';
+  private readonly TASK_CACHE_PREFIX = "task:";
   private readonly TASK_CACHE_TTL = 300; // 5 minutes
 
   constructor(
     @InjectModel(Task.name) taskModel: Model<TaskDocument>,
     @Inject(REDIS_CLIENT) private redisClient: Redis,
+
+    private subTaskService: SubTaskService,
   ) {
     super(taskModel);
   }
@@ -74,27 +79,32 @@ export class TaskService extends GenericService<typeof Task, TaskDocument> {
       isDeleted: false,
     };
 
-    const tasks = await this.findAll(filters);
+    const tasks = await this.findAll(filters, [], { populate: "subtasks" });
 
     const total = tasks.length;
-    const completed = tasks.filter(t => t.status === TaskStatus.COMPLETED).length;
-    const pending = tasks.filter(t => t.status === TaskStatus.PENDING).length;
-    const inProgress = tasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length;
+    const completed = tasks.filter(
+      (t) => t.status === TaskStatus.COMPLETED,
+    ).length;
+    const pending = tasks.filter((t) => t.status === TaskStatus.PENDING).length;
+    const inProgress = tasks.filter(
+      (t) => t.status === TaskStatus.IN_PROGRESS,
+    ).length;
 
     return {
-      date: date.toISOString().split('T')[0],
+      date: date.toISOString().split("T")[0],
       total,
       completed,
       pending,
       inProgress,
       progressPercentage: total > 0 ? Math.round((completed / total) * 100) : 0,
-      tasks: tasks.map(t => ({
+      tasks: tasks.map((t) => ({
         _id: t._id,
         title: t.title,
         status: t.status,
         startTime: t.startTime,
         taskType: t.taskType,
-        subtasks: t.subtasks?.map(s => ({
+
+        subtasks: (t.subtasks || []).map((s) => ({
           title: s.title,
           isCompleted: s.isCompleted,
         })),
@@ -154,65 +164,49 @@ export class TaskService extends GenericService<typeof Task, TaskDocument> {
 
   /**
    * Add subtask to task
+   * Delegates to SubTaskService (separate collection)
    */
   async addSubtask(
     taskId: string,
     title: string,
     order: number,
-  ): Promise<TaskDocument | null> {
-    const task = await this.findById(taskId);
 
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    if (!task.subtasks) {
-      task.subtasks = [];
-    }
-
-    task.subtasks.push({ title, isCompleted: false, order });
-
-    const result = await this.updateById(taskId, {
-      subtasks: task.subtasks,
-    } as any);
-
-    // Invalidate cache
-    if (result) {
-      await this.invalidateCache(taskId);
-    }
-
-    return result;
+    userId: string,
+  ): Promise<any> {
+    // Delegate to SubTaskService - subtasks are now in separate collection
+    return await this.subTaskService.createSubTask(
+      { taskId, title, order },
+      userId,
+    );
   }
 
   /**
    * Update subtask status
+
+   * Delegates to SubTaskService (separate collection)
+
    */
   async updateSubtaskStatus(
     taskId: string,
     subtaskIndex: number,
     isCompleted: boolean,
-  ): Promise<TaskDocument | null> {
-    const task = await this.findById(taskId);
 
-    if (!task || !task.subtasks || subtaskIndex >= task.subtasks.length) {
-      throw new NotFoundException('Subtask not found');
+    userId: string,
+  ): Promise<any> {
+    // Get subtask by taskId and index
+    const subtasks = await this.subTaskService.getSubTasksByTaskId(taskId);
+    const subtask = subtasks[subtaskIndex];
+
+    if (!subtask) {
+      throw new NotFoundException("Subtask not found");
     }
 
-    task.subtasks[subtaskIndex].isCompleted = isCompleted;
-    if (isCompleted) {
-      task.subtasks[subtaskIndex].completedAt = new Date();
-    }
-
-    const result = await this.updateById(taskId, {
-      subtasks: task.subtasks,
-    } as any);
-
-    // Invalidate cache
-    if (result) {
-      await this.invalidateCache(taskId);
-    }
-
-    return result;
+    // Delegate to SubTaskService
+    return await this.subTaskService.toggleSubTaskStatus(
+      subtask._id.toString(),
+      isCompleted,
+      userId,
+    );
   }
 
   /**

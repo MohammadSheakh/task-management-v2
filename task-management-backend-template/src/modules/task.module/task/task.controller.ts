@@ -228,6 +228,12 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    * Includes subtasks with progress information
    * Figma: home-flow.png (Task Details screen)
    */
+  /**
+   * Get Task by ID
+   *
+   * Figma: home-flow.png (Task Details screen)
+   * Shows: Task details + SubTask list (5 subtasks in screenshot)
+   */
   getTaskById = async (req: Request, res: Response) => {
     const taskId = req.params.id;
     const userId = req.user?.userId;
@@ -237,11 +243,12 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     }
 
     // Use the generic getById with proper population
-    // Note: subtasks are EMBEDDED, not a separate collection
+    // ⭐ IMPORTANT: Populate subtasks via VIRTUAL POPULATE from SubTask collection
     const populateOptions = [
       { path: 'createdById', select: 'name email profileImage' },
       { path: 'ownerUserId', select: 'name email profileImage' },
       { path: 'assignedUserIds', select: 'name email profileImage' },
+      { path: 'subtasks', select: '-__v -isDeleted' }, // ⭐ VIRTUAL POPULATE
     ];
 
     const select = '-__v';

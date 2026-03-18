@@ -1,0 +1,47 @@
+erDiagram
+    Task ||--o{ SubTask : has
+    Task ||--o| User : ownedBy
+    Task ||--o| User : createdBy
+    Task ||--o{ User : assignedTo
+    SubTask ||--o| User : createdBy
+
+    Task {
+        ObjectId _id PK
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        Enum taskType "personal|singleAssignment|collaborative"
+        ObjectId[] assignedUserIds FK
+        String title
+        String description
+        String scheduledTime
+        Enum priority "low|medium|high"
+        Enum status "pending|inProgress|completed"
+        Date startTime
+        Date completedTime
+        Date dueDate
+        Number totalSubtasks
+        Number completedSubtasks
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    SubTask {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId createdById FK
+        String title
+        Boolean isCompleted
+        Date completedAt
+        Number order
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    User {
+        ObjectId _id PK
+        String name
+        String email
+        String role
+    }

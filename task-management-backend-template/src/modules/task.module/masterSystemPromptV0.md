@@ -258,3 +258,12 @@ want in parent level @task-mgmt-nest-mongoose folder .. like you create this fol
 applications nestjs version .. 1000x scalable .. top senior level thing .. and generate like so that i can
 learn the express to nest transition .. i know you cant generate all at once .. generate one by one .. pause
 .. take rest .. know issue ..
+
+=========================>
+
+ i know you migrate express to nest js based on
+    @task-mgmt-nest-mongoose/__Documentation/qwen/MASTER_SYSTEM_PROMPT_NESTJS-17-03-26.md .. now i think you should generate  
+    some docs under @task-mgmt-nest-mongoose/__Documentation/  so that i can learn nest js .. concept that you have in nest js
+
+    codebase .. make different different markdown file for different different concept .. teach me like i am a kid .. i know you
+     cant generate at once .. generate one by one .. take time .. no issue ,, master me in nest js ..

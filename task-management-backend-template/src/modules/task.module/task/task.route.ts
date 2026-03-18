@@ -133,11 +133,13 @@ router.route('/daily-progress').get(
 );
 
 /*-───────────────────────────────── ✔️
-|  Child | Business | Task | task-details-with-subTasks.png | Get task details by ID
-|  @desc Get single task with populated user details and subtasks
+|  Child | Business | Task | home-flow.png | Get task details by ID
+|  @desc Get single task with populated user details and subtasks (VIRTUAL POPULATE)
 |  @auth All authenticated users (child, business)
 |  @rateLimit 100 requests per minute
 |  @access Task creator, owner, or assigned users only
+|  @figma app-user/group-children-user/home-flow.png (Task Details screen)
+|  @response Task details + subtasks array (5 subtasks in screenshot)
 └──────────────────────────────────*/
 router.route('/:id').get(
   auth(TRole.commonUser),
@@ -148,6 +150,7 @@ router.route('/:id').get(
       { path: 'createdById', select: 'name email profileImage' },
       { path: 'ownerUserId', select: 'name email profileImage' },
       { path: 'assignedUserIds', select: 'name email profileImage' },
+      { path: 'subtasks', select: '-__v -isDeleted' }, // ⭐ VIRTUAL POPULATE from SubTask collection
     ],
     select: '-__v'
   }),

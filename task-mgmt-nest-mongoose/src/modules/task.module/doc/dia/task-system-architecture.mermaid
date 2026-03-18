@@ -1,0 +1,82 @@
+flowchart TB
+    subgraph Client["Client Layer"]
+        Flutter[Flutter App]
+        Web[Web Dashboard]
+    end
+
+    subgraph API["API Gateway Layer"]
+        LB[Load Balancer]
+        RateLimit[Rate Limiter]
+        Auth[Auth Middleware]
+    end
+
+    subgraph App["Application Layer - NestJS"]
+        subgraph TaskModule["Task Module"]
+            TC[TaskController]
+            TS[TaskService]
+            STC[SubTaskController]
+            STS[SubTaskService]
+        end
+        
+        GC[GenericController]
+        GS[GenericService]
+        SM[SocketGateway]
+    end
+
+    subgraph Cache["Cache Layer"]
+        Redis[Redis Cluster]
+    end
+
+    subgraph Data["Data Layer"]
+        Mongo[(MongoDB Atlas)]
+        TaskCol[Task Collection]
+        SubTaskCol[SubTask Collection]
+    end
+
+    subgraph Queue["Background Jobs"]
+        BullMQ[BullMQ Queue]
+        Worker[Job Worker]
+    end
+
+    Flutter --> LB
+    Web --> LB
+    LB --> RateLimit
+    RateLimit --> Auth
+    Auth --> TC
+    Auth --> STC
+
+    TC --> GC
+    TC --> TS
+    STC --> STS
+
+    TS --> GS
+    TS --> Redis
+    TS --> Mongo
+    TS --> SM
+
+    STS --> GS
+    STS --> Redis
+    STS --> Mongo
+    STS --> SM
+
+    TS --> TaskCol
+    STS --> SubTaskCol
+
+    Redis -.->|Cache| TaskCol
+    Redis -.->|Cache| SubTaskCol
+
+    SM -->|Real-time| Flutter
+    SM -->|Real-time| Web
+
+    TS -->|Heavy Ops| BullMQ
+    BullMQ --> Worker
+    Worker --> Mongo
+
+    style TaskModule fill:#4A90D9,stroke:#333,stroke-width:2px,color:#fff
+    style TC fill:#6BB6FF,stroke:#333,color:#000
+    style TS fill:#6BB6FF,stroke:#333,color:#000
+    style STC fill:#6BB6FF,stroke:#333,color:#000
+    style STS fill:#6BB6FF,stroke:#333,color:#000
+    style Redis fill:#DC382D,color:#fff
+    style Mongo fill:#47A248,color:#fff
+    style BullMQ fill:#D56000,color:#fff

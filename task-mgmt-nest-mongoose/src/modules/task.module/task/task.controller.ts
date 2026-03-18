@@ -89,7 +89,9 @@ export class TaskController extends GenericController<typeof Task, TaskDocument>
    * Update task status
    */
   @Put(':id/status')
+
   @ApiOperation({ 
+
     summary: 'Update task status',
     description: 'Update task status (pending/inProgress/completed)',
   })
@@ -103,42 +105,27 @@ export class TaskController extends GenericController<typeof Task, TaskDocument>
 
   /**
    * POST /tasks/:id/subtasks
-   * Add subtask to task
+
+   * Add subtask to task (legacy endpoint - delegates to SubTaskController)
+   * @deprecated Use POST /subtasks instead
    */
   @Post(':id/subtasks')
-  @ApiOperation({ 
-    summary: 'Add subtask',
-    description: 'Add a new subtask to task',
+  @ApiOperation({
+    summary: 'Add subtask (Deprecated - use POST /subtasks)',
+    description: 'Add a new subtask to task. Deprecated: Use SubTask endpoints instead.',
+
   })
   @ApiResponse({ status: 201, description: 'Subtask added successfully' })
   async addSubtask(
     @Param('id') taskId: string,
     @Body('title') title: string,
     @Body('order') order: number,
-  ) {
-    return await this.taskService.addSubtask(taskId, title, order);
-  }
 
-  /**
-   * PUT /tasks/:id/subtasks/:index/toggle
-   * Toggle subtask status
-   */
-  @Put(':id/subtasks/:index/toggle')
-  @ApiOperation({ 
-    summary: 'Toggle subtask',
-    description: 'Toggle subtask completion status',
-  })
-  @ApiResponse({ status: 200, description: 'Subtask toggled successfully' })
-  async toggleSubtask(
-    @Param('id') taskId: string,
-    @Param('index') index: string,
-    @Body('isCompleted') isCompleted: boolean,
+    @UserPayload() user: UserPayload,
   ) {
-    return await this.taskService.updateSubtaskStatus(
-      taskId,
-      parseInt(index),
-      isCompleted,
-    );
+    // Delegate to SubTaskService via taskService
+    return await this.taskService.addSubtask(taskId, title, order, user.userId);
+
   }
 
   /**
@@ -146,6 +133,7 @@ export class TaskController extends GenericController<typeof Task, TaskDocument>
    * Get children's tasks for parent dashboard
    */
   @Get('dashboard/children-tasks')
+
   @ApiOperation({ 
     summary: 'Get children tasks',
     description: 'Get all children tasks for parent dashboard',

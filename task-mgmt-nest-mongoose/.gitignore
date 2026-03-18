@@ -55,3 +55,7 @@ uploads/
 # Misc
 .turbo
 .vercel
+
+
+# Documentation
+FILE_UPLOAD_CONFIGURATION_GUIDE.md

@@ -1,0 +1,61 @@
+flowchart TD
+    Start([User Opens App]) --> Auth{Authenticated?}
+    
+    Auth -->|No| Login[Login Screen]
+    Login --> Auth
+    
+    Auth -->|Yes| Dashboard[Task Dashboard]
+    
+    Dashboard --> Action{User Action}
+    
+    Action -->|View Tasks| ViewTasks[GET /tasks/my]
+    ViewTasks --> TaskList[Display Task List]
+    TaskList --> Filter{Filter Options}
+    Filter -->|By Status| StatusFilter[Pending/In Progress/Completed]
+    Filter -->|By Type| TypeFilter[Personal/Single/Collaborative]
+    Filter -->|By Date| DateFilter[Today/This Week]
+    StatusFilter --> TaskList
+    TypeFilter --> TaskList
+    DateFilter --> TaskList
+    
+    Action -->|Create Task| CreateForm[Show Create Form]
+    CreateForm --> FillTask[Fill Task Details]
+    FillTask --> SubmitTask[POST /tasks]
+    SubmitTask --> TaskList
+    
+    Action -->|View Task Details| TaskDetail[GET /tasks/:id]
+    TaskDetail --> DetailView[Show Task + SubTasks]
+    DetailView --> SubTaskAction{SubTask Action}
+    SubTaskAction -->|Add| AddSubTask[POST /tasks/:id/subtasks]
+    SubTaskAction -->|Toggle| ToggleSubTask[PUT /subtasks/:id/toggle]
+    SubTaskAction -->|Delete| DeleteSubTask[DELETE /subtasks/:id]
+    AddSubTask --> DetailView
+    ToggleSubTask --> DetailView
+    DeleteSubTask --> DetailView
+    
+    Action -->|Daily Progress| DailyProgress[GET /tasks/daily-progress]
+    DailyProgress --> ProgressChart[Show Progress Chart]
+    ProgressChart --> Dashboard
+    
+    Action -->|Statistics| Stats[GET /tasks/statistics]
+    Stats --> StatsChart[Show Stats Chart]
+    StatsChart --> Dashboard
+    
+    Action -->|Update Status| UpdateStatus[PUT /tasks/:id/status]
+    UpdateStatus --> TaskList
+    
+    Action -->|Delete Task| DeleteTask[DELETE /tasks/:id]
+    DeleteTask --> ConfirmTask{Confirm?}
+    ConfirmTask -->|Yes| SoftDelete[Soft Delete]
+    ConfirmTask -->|No| Dashboard
+    SoftDelete --> TaskList
+    
+    TaskList --> Dashboard
+    DetailView --> Dashboard
+    
+    style Start fill:#90EE90
+    style Dashboard fill:#87CEEB
+    style TaskList fill:#FFD700
+    style DetailView fill:#FFD700
+    style ProgressChart fill:#DDA0DD
+    style StatsChart fill:#DDA0DD
