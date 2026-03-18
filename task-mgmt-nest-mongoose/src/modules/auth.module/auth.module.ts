@@ -6,11 +6,9 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { LocalStrategy } from './strategies/local.strategy';
-import { GoogleStrategy } from './strategies/google.strategy';
-import { AppleStrategy } from './strategies/apple.strategy';
 import { OtpService } from '../otp/otp.service';
+import { EmailService } from './email/email.service';
+import { OAuthVerificationService } from './oauth/oauth-verification.service';
 
 import { User, UserSchema } from '../../user.module/user/user.schema';
 import { RedisModule } from '../../../helpers/redis/redis.module';
@@ -67,10 +65,8 @@ import { RedisModule } from '../../../helpers/redis/redis.module';
   providers: [
     AuthService,
     OtpService,
-    JwtStrategy,
-    LocalStrategy,
-    GoogleStrategy,
-    AppleStrategy,
+    EmailService,
+    OAuthVerificationService,
   ],
   exports: [AuthService],
 })

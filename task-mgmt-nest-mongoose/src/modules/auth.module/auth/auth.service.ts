@@ -16,6 +16,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { OAuthLoginDto, OAuthProvider } from './dto/oauth-login.dto';
 import { OtpService } from '../otp/otp.service';
+import { EmailService } from '../email/email.service';
+import { OAuthVerificationService } from '../oauth/oauth-verification.service';
 import { REDIS_CLIENT } from '../../../helpers/redis/redis.module';
 
 /**
@@ -50,6 +52,8 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
     private otpService: OtpService,
+    private emailService: EmailService,
+    private oauthVerificationService: OAuthVerificationService,
     @Inject(REDIS_CLIENT) private redisClient: Redis,
   ) {}
 
@@ -127,7 +131,8 @@ export class AuthService {
     // Create OTP for email verification
     const otp = await this.otpService.createOtp(email, 'verify');
 
-    // TODO: Send email with OTP
+    // Send email with OTP
+    await this.emailService.sendOtpEmail(email, otp, 'verify');
 
     return {
       user: {
@@ -137,7 +142,8 @@ export class AuthService {
         role: user.role,
       },
       message: 'Registration successful. Please verify your email.',
-      otp, // TODO: Remove in production, only for testing
+      // OTP only returned in development for testing
+      ...(process.env.NODE_ENV === 'development' && { otp }),
     };
   }
 
@@ -203,11 +209,12 @@ export class AuthService {
     }
 
     // Create OTP
-    await this.otpService.createOtp(email, 'reset');
+    const otp = await this.otpService.createOtp(email, 'reset');
 
-    // TODO: Send email with OTP
+    // Send email with OTP
+    await this.emailService.sendOtpEmail(email, otp, 'reset');
 
-    return { message: 'Password reset OTP sent' };
+    return { message: 'Password reset OTP sent to your email' };
   }
 
   /**
@@ -336,27 +343,20 @@ export class AuthService {
   }
 
   /**
-   * Verify Google ID token (placeholder)
+   * Verify Google ID token
    */
   private async verifyGoogleIdToken(idToken: string): Promise<any> {
-    // TODO: Implement with google-auth-library
-    return {
-      sub: 'google-provider-id',
-      email: 'user@example.com',
-      name: 'User Name',
-      picture: 'https://example.com/photo.jpg',
-    };
+    // Production: Uses google-auth-library
+    // Development: Mock verification
+    return await this.oauthVerificationService.verifyGoogleIdToken(idToken);
   }
 
   /**
-   * Verify Apple ID token (placeholder)
+   * Verify Apple ID token
    */
   private async verifyAppleIdToken(idToken: string): Promise<any> {
-    // TODO: Implement with apple-signin-auth
-    return {
-      sub: 'apple-provider-id',
-      email: 'user@example.com',
-      name: 'User Name',
-    };
+    // Production: Uses apple-signin-auth
+    // Development: Mock verification
+    return await this.oauthVerificationService.verifyAppleIdToken(idToken);
   }
 }
