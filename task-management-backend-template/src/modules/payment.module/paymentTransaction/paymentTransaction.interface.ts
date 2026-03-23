@@ -9,7 +9,7 @@ export interface IPaymentTransaction {
   // _taskId: undefined | Types.ObjectId;
   _id?: Types.ObjectId; // undefined |  Types.ObjectId |
   userId: Types.ObjectId; //🔗
-  referenceFor :  TTransactionFor; //🧩 
+  referenceFor :  TTransactionFor; //🧩
   referenceId: Types.ObjectId; //🔗
   //---------------------------------
   // const refModel = mongoose.model(result.type);
@@ -17,15 +17,16 @@ export interface IPaymentTransaction {
   //---------------------------------
   paymentGateway: TPaymentGateway.none |
                 TPaymentGateway.paypal |
-                TPaymentGateway.stripe;
+                TPaymentGateway.stripe |
+                TPaymentGateway.revenuecat;  // 🆕 Added RevenueCat
   transactionId : string; // from kappes
   paymentIntent : string; // from kappes
 
   amount: number;
   currency : TCurrency.usd
-  paymentStatus :  
-  
-  TPaymentStatus.pending | 
+  paymentStatus :
+
+  TPaymentStatus.pending |
     TPaymentStatus.processing |
     TPaymentStatus.completed |
     TPaymentStatus.failed |
@@ -37,9 +38,14 @@ export interface IPaymentTransaction {
     gatewayResponse: {
       type: Schema.Types.Mixed,
       default: null,
-    },
+    };
 
-  isDeleted? : Boolean;  
+  // 🆕 RevenueCat Specific Fields
+  revenueCatOrderId?: string;
+  revenueCatEnvironment?: 'production' | 'sandbox';
+  platform?: 'ios' | 'android' | 'web';
+
+  isDeleted? : Boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

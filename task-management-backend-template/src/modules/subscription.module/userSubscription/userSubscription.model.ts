@@ -23,12 +23,12 @@ const userSubscriptionSchema = new Schema<IUserSubscription>(
     },
     subscriptionStartDate: {
       type: Date,
-      required: false, 
+      required: false,
       /******
        * frist i think required should be true ..
        * then i thought it should be false ..
        * it should create in webhook after successful payment
-       * 
+       *
        * ** */
       validate: {
         validator: value => value <= new Date(),
@@ -49,9 +49,9 @@ const userSubscriptionSchema = new Schema<IUserSubscription>(
     renewalDate: {
       type: Date,
       required: false,
-      
+
     },
-    
+
     billingCycle: {
       type: Number,
       required: [true, 'billingCycle is required'],
@@ -96,24 +96,82 @@ const userSubscriptionSchema = new Schema<IUserSubscription>(
       /******
        * by this we can track is this subscription
        * from free trial or not
-       * 
+       *
        * true hoile amader ke
-       * Standard Subscription 
+       * Standard Subscription
        * ta assign kore dite hobe
-       * 
+       *
        * ****** */
       type: Boolean,
       required:[true, 'isFromFreeTrial is required']
     },
-    stripe_subscription_id: { 
+    
+    // Stripe Specific (for Business plans)
+    stripe_subscription_id: {
       type: String,
-      required: [false, 'stripe_subscription_id is not required'], // 🟢🟢 for recurring payment 
+      required: [false, 'stripe_subscription_id is not required'], // 🟢🟢 for recurring payment
       // default: null,
     },
 
     stripe_transaction_id : {
       type: String,
       required: [false, 'stripe_transaction_id is not required'], // 🟢🟢 for one time payment
+    },
+    
+    // 🆕 RevenueCat Specific (for Individual plans)
+    paymentGateway: {
+      type: String,
+      enum: ['stripe', 'revenuecat'],
+      required: [true, 'paymentGateway is required'],
+      default: 'stripe',
+    },
+    
+    revenueCatUserId: {
+      type: String,
+      required: [false, 'revenueCatUserId is not required'],
+    },
+    
+    revenueCatOrderId: {
+      type: String,
+      required: [false, 'revenueCatOrderId is not required'],
+    },
+    
+    revenueCatTransactionId: {
+      type: String,
+      required: [false, 'revenueCatTransactionId is not required'],
+    },
+    
+    appleReceiptData: {
+      type: String,
+      required: [false, 'appleReceiptData is not required'],
+    },
+    
+    googlePurchaseToken: {
+      type: String,
+      required: [false, 'googlePurchaseToken is not required'],
+    },
+    
+    originalTransactionId: {
+      type: String,
+      required: [false, 'originalTransactionId is not required'],
+    },
+    
+    revenueCatEnvironment: {
+      type: String,
+      enum: ['production', 'sandbox'],
+      required: [false, 'revenueCatEnvironment is not required'],
+    },
+    
+    // 🆕 Purchase Platform
+    purchasePlatform: {
+      type: String,
+      enum: ['ios', 'android', 'web'],
+      required: [false, 'purchasePlatform is not required'],
+    },
+    
+    stripe_customer_id: {
+      type: String,
+      required: [false, 'stripe_customer_id is not required'],
     },
 
     isDeleted: {
@@ -122,7 +180,7 @@ const userSubscriptionSchema = new Schema<IUserSubscription>(
       default: false,
     },
   },
-  { 
+  {
     timestamps: true,
   }
 );

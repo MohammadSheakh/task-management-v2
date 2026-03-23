@@ -52,7 +52,7 @@ export class SubscriptionController extends GenericController<
     // TODO : in middleware we have to validate this subscriptionPlanId
 
     const { subscriptionPlanId } = req.params;
-    
+
     if (!subscriptionPlanId) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
@@ -73,6 +73,89 @@ export class SubscriptionController extends GenericController<
         data: checkoutUrl,
         message: `Redirect to Checkout`,
         success: true,
+    });
+  });
+
+  //-----------------------------------------
+  // 🆕 RevenueCat Purchase Endpoint (for Mobile Apps)
+  // POST /api/v1/subscription-plans/revenuecat-purchase/:subscriptionPlanId
+  //-----------------------------------------
+  purchaseRevenueCatSubscription = catchAsync(async (req: Request, res: Response) => {
+    const { subscriptionPlanId } = req.params;
+    const user = req.user as IUser;
+
+    if (!subscriptionPlanId) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Subscription Plan ID is required in params'
+      );
+    }
+
+    // Get subscription plan
+    const subscriptionPlan = await SubscriptionPlan.findById(subscriptionPlanId);
+
+    if (!subscriptionPlan) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Subscription plan not found'
+      );
+    }
+
+    // Verify this is a RevenueCat plan
+    if (subscriptionPlan.purchaseChannel !== 'revenuecat' && subscriptionPlan.purchaseChannel !== 'both') {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'This plan is not configured for RevenueCat. Select an Individual plan.'
+      );
+    }
+
+    // Get or create user in RevenueCat
+    let revenueCatUserId = user.revenueCatUserId;
+    
+    if (!revenueCatUserId) {
+      // Generate RevenueCat user ID (using user's MongoDB ID)
+      revenueCatUserId = user.userId.toString();
+      
+      // Update user with RevenueCat ID
+      await User.findByIdAndUpdate(user.userId, {
+        $set: { revenueCatUserId }
+      });
+    }
+
+    // Return RevenueCat configuration for mobile SDK
+    const revenueCatConfig = {
+      // RevenueCat API Key (public key, safe for client-side)
+      apiKey: config.revenueCat?.apiKey || process.env.REVENUECAT_API_KEY,
+      
+      // User's RevenueCat ID
+      appUserId: revenueCatUserId,
+      
+      // Product identifier (must match RevenueCat dashboard)
+      productIdentifier: subscriptionPlan.revenueCatProductIdentifier,
+      packageIdentifier: subscriptionPlan.revenueCatPackageIdentifier,
+      
+      // Plan details
+      planDetails: {
+        subscriptionName: subscriptionPlan.subscriptionName,
+        subscriptionType: subscriptionPlan.subscriptionType,
+        amount: subscriptionPlan.amount,
+        currency: subscriptionPlan.currency,
+        availablePlatforms: subscriptionPlan.availablePlatforms,
+      },
+      
+      // Instructions for mobile app
+      instructions: {
+        ios: 'Use RevenueCat SDK to purchase package on iOS App Store',
+        android: 'Use RevenueCat SDK to purchase package on Google Play Store',
+        nextStep: 'After purchase, RevenueCat webhook will automatically update your subscription status'
+      }
+    };
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: revenueCatConfig,
+      message: 'RevenueCat purchase configuration retrieved. Use this config with RevenueCat SDK in your mobile app.',
+      success: true,
     });
   });
 
@@ -213,14 +296,14 @@ export class SubscriptionController extends GenericController<
   // ⚡⚡ For Fertie Project to suplify project
   /*
    * As Admin can create subscription plan ...
-   * // TODO : MUST : this should move to service layer .. 
-   * Lets Create 3 Subscription Plan  
+   * // TODO : MUST : this should move to service layer ..
+   * Lets Create 3 Subscription Plan
    *
-  */  
+  */
   create = catchAsync(async (req: Request, res: Response) => {
 
     //---------------------------------
-    //> make is active false of already existing subscription plan .. 
+    //> make is active false of already existing subscription plan ..
     //---------------------------------
 
     const existingPlan = await SubscriptionPlan.find({
@@ -234,33 +317,52 @@ export class SubscriptionController extends GenericController<
     });
 
     const data : ISubscriptionPlan = req.body;
-    
+
     data.subscriptionName = req.body.subscriptionName;
     data.amount = req.body.amount;
     data.subscriptionType = req.body.subscriptionType;
     data.initialDuration = TInitialDuration.month;
     data.renewalFrequncy = TRenewalFrequency.monthly;
     data.currency = TCurrency.usd;
-  
-    // now we have to create stripe product and price 
-    // and then we have to save the productId and priceId in our database
-    const product = await this.stripe.products.create({
-      name: data.subscriptionType,
-      description: `Subscription plan for ${data.subscriptionType}`,
-    });
+    
+    // 🆕 Set purchase channel based on subscription type
+    if (req.body.subscriptionType === TSubscription.individual) {
+      data.purchaseChannel = 'revenuecat';  // Individual plans use RevenueCat
+      data.availablePlatforms = ['ios', 'android'];
+    } else {
+      data.purchaseChannel = 'stripe';  // Business plans use Stripe
+      data.availablePlatforms = ['web'];
+    }
 
-    const price = await this.stripe.prices.create({
-      unit_amount: Math.round(parseFloat(data?.amount) * 100), // Amount in cents
-      currency: data.currency,
-      // -- as i dont want to make this recurring ... 
-      recurring: {
-        interval: 'month', // or 'year' for yearly subscriptions
-        interval_count: 1, // every 1 month
-      },
-      product: product.id,
-    });
-    data.stripe_product_id = product.id;
-    data.stripe_price_id = price.id;
+    // now we have to create stripe product and price (for Business plans)
+    // and then we have to save the productId and priceId in our database
+    if (data.purchaseChannel === 'stripe' || data.purchaseChannel === 'both') {
+      const product = await this.stripe.products.create({
+        name: data.subscriptionType,
+        description: `Subscription plan for ${data.subscriptionType}`,
+      });
+
+      const price = await this.stripe.prices.create({
+        unit_amount: Math.round(parseFloat(data?.amount) * 100), // Amount in cents
+        currency: data.currency,
+        // -- as i dont want to make this recurring ...
+        recurring: {
+          interval: 'month', // or 'year' for yearly subscriptions
+          interval_count: 1, // every 1 month
+        },
+        product: product.id,
+      });
+      data.stripe_product_id = product.id;
+      data.stripe_price_id = price.id;
+    }
+    
+    // 🆕 For RevenueCat plans, admin needs to create products in RevenueCat dashboard
+    // RevenueCat product identifier should be provided in request
+    if (data.purchaseChannel === 'revenuecat' || data.purchaseChannel === 'both') {
+      data.revenueCatProductIdentifier = req.body.revenueCatProductIdentifier || `${data.subscriptionType}_monthly`;
+      data.revenueCatPackageIdentifier = req.body.revenueCatPackageIdentifier || 'monthly';
+    }
+    
     data.isActive = true;
 
     const result = await this.service.create(data);

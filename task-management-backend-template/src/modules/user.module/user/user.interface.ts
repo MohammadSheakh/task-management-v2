@@ -12,20 +12,25 @@ export type TProfileImage = {
 
 export interface IUser extends Document {
   _userId: undefined | Types.ObjectId;
-  _id:  undefined; // Types.ObjectId |
-  profileId : Types.ObjectId | undefined;
+  _id: undefined; // Types.ObjectId |
+  profileId: Types.ObjectId | undefined;
   name: string;
   email: string;
   role: Role;
   password: string;
   profileImage?: TProfileImage;
   isEmailVerified: boolean;
-  phoneNumber : string;
+  phoneNumber: string;
   lastPasswordChange: Date;
   isResetPassword: boolean;
   failedLoginAttempts: number;
   lockUntil: Date | undefined;
 
+  stripe_customer_id: string;
+  stripe_subscription_id: string | null;
+  
+  // 🆕 RevenueCat User ID (for Individual subscriptions)
+  revenueCatUserId?: string;
 
   //---------- This project have no wallet feature
   // walletId?: Types.ObjectId;
@@ -58,7 +63,7 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
-export interface IUpdateUserInfo{
+export interface IUpdateUserInfo {
   name?: string;
   email?: string;
   phoneNumber?: string;

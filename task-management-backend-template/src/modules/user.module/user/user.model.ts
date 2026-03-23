@@ -94,6 +94,33 @@ const userSchema = new Schema<IUser, UserModal>(
       default: false,
     },
 
+    //---------------------------------
+    // this is for Order Something .. Like Payment Related Thing ..
+    //---------------------------------
+
+    stripe_customer_id: {
+      // > stripe er customer id ...
+      type: String,
+      required: [false, 'stripe_customer_id is not required'],
+      default: null,
+    },
+
+    stripe_subscription_id: {
+      /*********
+        This is important ..
+      ****** */
+      type: String,
+      required: [false, 'stripe_subscription_id is not required'],
+      default: null,
+    },
+    
+    // 🆕 RevenueCat User ID (for Individual subscriptions)
+    revenueCatUserId: {
+      type: String,
+      required: [false, 'revenueCatUserId is not required'],
+      default: null,
+    },
+
     /*-─────────────────────────────────
     |  Auth related
     └──────────────────────────────────*/

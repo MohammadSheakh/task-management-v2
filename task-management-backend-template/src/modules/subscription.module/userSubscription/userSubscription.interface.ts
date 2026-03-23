@@ -18,18 +18,34 @@ export interface IUserSubscription {
   cancelledAt :  Date ;
   cancelledAtPeriodEnd : boolean;
   status :
-          UserSubscriptionStatusType.active | 
-          UserSubscriptionStatusType.past_due | 
-          UserSubscriptionStatusType.cancelled | 
-          UserSubscriptionStatusType.unpaid | 
-          UserSubscriptionStatusType.incomplete | 
-          UserSubscriptionStatusType.incomplete_expired | 
+          UserSubscriptionStatusType.active |
+          UserSubscriptionStatusType.past_due |
+          UserSubscriptionStatusType.cancelled |
+          UserSubscriptionStatusType.unpaid |
+          UserSubscriptionStatusType.incomplete |
+          UserSubscriptionStatusType.incomplete_expired |
           UserSubscriptionStatusType.trialing;
-  
-  stripe_subscription_id : string; // 🟢🟢 for recurring payment 
-  stripe_transaction_id : string; // 🟢🟢 for one time payment
-  // stripe_customer_id : String; // main user collection e rakhte hobe .. 
 
+  // 🆕 Payment Gateway Tracking
+  paymentGateway: 'stripe' | 'revenuecat';
+  
+  // Stripe Specific (for Business plans)
+  stripe_subscription_id : string; // 🟢🟢 for recurring payment
+  stripe_transaction_id : string; // 🟢🟢 for one time payment
+  stripe_customer_id?: string;
+  
+  // 🆕 RevenueCat Specific (for Individual plans)
+  revenueCatUserId?: string;
+  revenueCatOrderId?: string;
+  revenueCatTransactionId?: string;
+  appleReceiptData?: string;  // iOS receipt data
+  googlePurchaseToken?: string;  // Android purchase token
+  originalTransactionId?: string;  // For cross-platform upgrades
+  revenueCatEnvironment?: 'production' | 'sandbox';
+  
+  // 🆕 Purchase Platform
+  purchasePlatform: 'ios' | 'android' | 'web';
+  
   isActive : boolean;
 
   isDeleted : boolean;

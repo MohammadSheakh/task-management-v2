@@ -21,21 +21,32 @@ export interface ISubscriptionPlan {
             TSubscription.business_starter |
             TSubscription.business_level1 |
             TSubscription.business_level2;
-  
+
   initialDuration :  TInitialDuration.month ;
   renewalFrequncy : TRenewalFrequency.monthly ;
   amount : string //number;
-  
+
   currency : TCurrency.usd;
   features: String[];
-  
+
   /*-─────────────────────────────────
   |  Subscription Specific Features
   └──────────────────────────────────*/
   maxChildrenAccount : Number;
+
+  // 🆕 Payment Gateway Configuration
+  purchaseChannel: 'stripe' | 'revenuecat' | 'both';
   
+  // Stripe Specific (for Business plans)
   stripe_product_id : String;
   stripe_price_id : String;
+  
+  // 🆕 RevenueCat Specific (for Individual plans)
+  revenueCatProductIdentifier?: String;  // e.g., "individual_monthly"
+  revenueCatPackageIdentifier?: String;  // e.g., "monthly"
+  
+  // 🆕 Platform availability
+  availablePlatforms: ('ios' | 'android' | 'web')[];
 
   isActive : Boolean;
   isDeleted : Boolean;

@@ -23,6 +23,9 @@ import { ChildrenBusinessUserRoute } from '../modules/childrenBusinessUser.modul
 import { TaskProgressRoute } from '../modules/taskProgress.module/taskProgress.route';
 import { SubTaskRoute } from '../modules/task.module/subTask/subTask.route';
 
+// 🆕 RevenueCat Routes
+import revenueCatRoutes from '../modules/subscription.module/revenueCat/revenueCat.route';
+
 // import { ChatRoutes } from '../modules/chat/chat.routes';
 // import { MessageRoutes } from '../modules/message/message.routes';
 const router = express.Router();
@@ -127,6 +130,12 @@ const apiRoutes = [
   {  // 🟢 from kappes
     path: '/ssl',
     route: stripeAccountRoutes,
+  },
+
+  // 🆕 RevenueCat Routes (Admin operations for Individual subscriptions)
+  {
+    path: '/revenuecat',
+    route: revenueCatRoutes,
   },
 ];
 

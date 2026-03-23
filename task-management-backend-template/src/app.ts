@@ -14,6 +14,7 @@ import i18next from './i18n/i18n'; // Import the i18next configuration
 //@ts-ignore
 import i18nextMiddleware from 'i18next-http-middleware';
 import webhookHandler from './modules/payment.module/stripeWebhook/webhookHandler';
+import revenueCatWebhookHandler from './modules/payment.module/revenueCatWebhook/webhookHandler';
 import { welcome } from './utils/welcome';
 // import i18nextFsBackend from 'i18next-fs-backend';
 
@@ -48,6 +49,9 @@ app.use(
 
 
 app.post('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }), webhookHandler);
+
+// 🆕 RevenueCat Webhook (must be before express.json() middleware)
+app.post('/api/v1/revenuecat-webhook', express.raw({ type: 'application/json' }), revenueCatWebhookHandler);
 
 
 app.use(express.json());

@@ -99,12 +99,19 @@ router.route('/').post(
 );
 
 //---------------------------------
-// Patient | Landing Page | Purchase Subscription by subscriptionPlanId 
+// Patient | Landing Page | Purchase Subscription by subscriptionPlanId
 //---------------------------------
 
+// Stripe Purchase (Web) - Returns Stripe Checkout URL
 router.route('/purchase/:subscriptionPlanId').post(
   auth(TRole.patient),
   controller.purchaseSubscriptionForSuplify
+);
+
+// 🆕 RevenueCat Purchase (Mobile) - Returns RevenueCat configuration
+router.route('/revenuecat-purchase/:subscriptionPlanId').post(
+  auth(TRole.patient),
+  controller.purchaseRevenueCatSubscription
 );
 
 //------------------------------// 💎✨🔍 -> V2 Found 

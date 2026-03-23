@@ -13,7 +13,7 @@ import { TSubscription } from '../../../enums/subscription';
 
 const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
   {
-    subscriptionName: { 
+    subscriptionName: {
       type: String,
       required: [true, 'Subscription name is required'],
       trim: true,
@@ -42,7 +42,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
       default: true,
       required: [false, 'freeTrialEnabled is not required'],
     },
-    freeTrialDurationDays: { //🆓🆓🆓🆓📅 TRIAL_DAYS  
+    freeTrialDurationDays: { //🆓🆓🆓🆓📅 TRIAL_DAYS
       type: Number,
       // default: 7, // 7 days free trial
       min: [0, 'Free trial duration must be non-negative'],
@@ -78,7 +78,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
         ).join(', ')}`,
       ],
     },
-    
+
     amount: {
       type: String, // Number
       required: [false, 'Initial Fee is required'],
@@ -86,7 +86,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
     },
     currency: {
       type: String,
-      enum: [TCurrency.usd], 
+      enum: [TCurrency.usd],
       required: [
         true,
         `Currency is required .. it can be  ${Object.values(TCurrency).join(
@@ -100,16 +100,16 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
     |  Subscription Specific Features
     └──────────────────────────────────*/
     maxChildrenAccount:{
-      type: Number, 
+      type: Number,
       required : [
         true,
         `maxChildrenAccount is required.`,
       ]
     },
-    
+
     //---------------------------------
     // in stripe .. we always have to create new subscription
-    // and we can not update existing subscription ... 
+    // and we can not update existing subscription ...
     //---------------------------------
     stripe_product_id : {
       type: String,
@@ -119,7 +119,31 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
       type: String,
       required: [true, 'stripe_price_id is required'],
     },
+
+    // 🆕 RevenueCat Configuration
+    purchaseChannel: {
+      type: String,
+      enum: ['stripe', 'revenuecat', 'both'],
+      required: [true, 'purchaseChannel is required'],
+      default: 'stripe',
+    },
     
+    revenueCatProductIdentifier: {
+      type: String,
+      required: [false, 'revenueCatProductIdentifier is not required'],
+    },
+    
+    revenueCatPackageIdentifier: {
+      type: String,
+      required: [false, 'revenueCatPackageIdentifier is not required'],
+    },
+    
+    // 🆕 Platform availability
+    availablePlatforms: [{
+      type: String,
+      enum: ['ios', 'android', 'web'],
+    }],
+
     isActive : {
       type: Boolean,
       required: [false, 'isActive is not required'],
@@ -132,7 +156,7 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
       default: false,
     }
   },
-  { 
+  {
     timestamps: true ,
   }
 );
