@@ -283,3 +283,23 @@ i know you migrate express to nest js based on
      generate more document .. then generate more document .. but master me what you develop ..
     also mention details of other modules if that needed also in this module .. explain
     everything ..
+
+
+
+
+
+
+yes generate one by one .. also as my previous code base was 
+    @task-management-backend-template/src/services/notification.service.ts  have 
+     enqueueWebNotification ..  i can call that in any other service .. to send 
+    notification any person .. does your generated module 
+    @task-mgmt-nest-mongoose/src/modules/notification.module/  have any this kind
+     of functionality to adopt any new use case .. lets say i have new 
+    requirement if any person write blog .. then i have to send notification to 
+    admin and that persons follower that .. he write a new blog .. then how to 
+    send notification by using  your notification implementation .. as you know 
+    my previous implementation was enqueueWebNotification function .. that 
+    related with bull mq .. socket .. .. that blog .. follower actually i tell 
+    you for example .. not real thing .. or is not related with my current 
+    project .. i just want to know how to work with your notification.module .. 
+    and how this behave
