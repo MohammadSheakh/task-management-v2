@@ -1,3 +1,21 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * Auth Service - Authentication & Authorization Business Logic
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * OTP Implementation: ✅ Using Redis-based OtpV2WithRedis
+ * 
+ * Features:
+ * - User registration with email verification
+ * - Login with JWT tokens (access + refresh)
+ * - OAuth integration (Google, Apple)
+ * - Password management (reset, change)
+ * - Session management (Redis caching)
+ * - Token rotation and blacklisting
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 //@ts-ignore
 import moment from 'moment';
 //@ts-ignore
@@ -5,13 +23,13 @@ import mongoose from "mongoose";
 import ApiError from '../../errors/ApiError';
 //@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-import eventEmitterForOTPCreateAndSendMail, { OtpService } from '../otp/otp.service';
 //@ts-ignore
 import bcryptjs from 'bcryptjs';
 import { config } from '../../config';
 import { TokenService } from '../token/token.service';
 import { TokenType } from '../token/token.interface';
-import { OtpType } from '../otp/otp.interface';
+import { OtpV2WithRedis } from '../otp/otp-v2.service';
+
 //@ts-ignore
 import { OAuth2Client } from 'google-auth-library';
 //@ts-ignore
@@ -38,6 +56,14 @@ import { TAuthProvider } from './auth.constants';
 import { redisClient } from '../../helpers/redis/redis';
 import { logger, errorLogger } from '../../shared/logger';
 import { AUTH_SESSION_CONFIG } from './auth.constants';
+import { OAuthAccountService } from '../user.module/oauthAccount/oauthAccount.service';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Service Instances
+// ═══════════════════════════════════════════════════════════════════════════════
+const oAuthAccountService = new OAuthAccountService();
+const otpService = new OtpV2WithRedis(); // ✅ Redis-based OTP service
+
 const eventEmitterForUpdateUserProfile = new EventEmitter(); // functional way
 const eventEmitterForCreateWallet = new EventEmitter();
 
@@ -76,9 +102,9 @@ const validateUserStatus = (user: IUser) => {
 
 // 💎✨🔍 -> V2 Found
 const createUser = async (userData: ICreateUser, userProfileId:string) => {
-  
+
   const existingUser = await User.findOne({ email: userData.email });
-  
+
   if (existingUser) {
     if (existingUser.isEmailVerified) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already taken');
@@ -88,8 +114,10 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
       //create verification email token
       const verificationToken =
         await TokenService.createVerifyEmailToken(existingUser);
-      //create verification email otp
-      await OtpService.createVerificationEmailOtp(existingUser.email);
+      
+      // ✅ Create verification email OTP (Redis-based)
+      await otpService.sendVerificationOtp(existingUser.email);
+      
       return { verificationToken };
     }
   }
@@ -98,26 +126,23 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
 
   const user = await User.create(userData);
 
-
-  // 📈⚙️ OPTIMIZATION: with event emmiter 
-  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', { 
+  // 📈⚙️ OPTIMIZATION: with event emitter
+  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', {
     userProfileId,
     userId : user._id
   });
 
-  const [verificationToken, otp] = await Promise.all([
-      TokenService.createVerifyEmailToken(user),
-      OtpService.createVerificationEmailOtp(user.email)
+  // ✅ Create verification token and OTP in parallel (Redis-based)
+  const [verificationToken] = await Promise.all([
+    TokenService.createVerifyEmailToken(user),
+    otpService.sendVerificationOtp(user.email)
   ]);
 
-
-  // eventEmitterForOTPCreateAndSendMail.emit('eventEmitterForOTPCreateAndSendMail', { email: user.email });
-
-  return { user, verificationToken , otp  }; // FIXME  : otp remove korte hobe ekhan theke .. 
+  return { user, verificationToken };
 };
 
  /*-─────────────────────────────────
-  |  
+  |
   └──────────────────────────────────*/
   /*-------------------------------
 
@@ -128,22 +153,22 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
   3. create the User
   4. use eventEmitter to add userProfileId to User Table [🎯Optimized]
 
-  5. if not patient 
+  5. if not patient
       |-> use eventEmitter to create wallet
       |-> send notification to admin
       |-> return user
 
   6.  if patient [🐛]
       |->  create verificationEmailToken(createdUser)
-      |-> create otp and send mail by eventEmitter 
+      |-> create otp and send mail by eventEmitter
           [🎯Optimized]
       |-> return user
 
   ---------------------------------*/
 const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
-  
+
   const existingUser = await User.findOne({ email: userData.email });
-  
+
   if (existingUser) {
     if (existingUser.isEmailVerified) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already taken');
@@ -153,8 +178,10 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
       //create verification email token
       const verificationToken =
         await TokenService.createVerifyEmailToken(existingUser);
-      //create verification email otp
-      await OtpService.createVerificationEmailOtp(existingUser.email);
+      
+      // ✅ Create verification email OTP (Redis-based)
+      await otpService.sendVerificationOtp(existingUser.email);
+      
       return { verificationToken };
     }
   }
@@ -164,27 +191,25 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
   const user = await User.create(userData);
 
   /*-─────────────────────────────────
-  | TODO : use redis bullmq 
+  | TODO : use redis bullmq
   └──────────────────────────────────*/
-  // 📈⚙️ OPTIMIZATION: with event emmiter 
-  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', { 
+  // 📈⚙️ OPTIMIZATION: with event emitter
+  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', {
     userProfileId,
     userId : user._id
   });
 
-  const [verificationToken, otp] = await Promise.all([
-      TokenService.createVerifyEmailToken(user),
-      OtpService.createVerificationEmailOtp(user.email)
+  // ✅ Create verification token and OTP in parallel (Redis-based)
+  const [verificationToken] = await Promise.all([
+    TokenService.createVerifyEmailToken(user),
+    otpService.sendVerificationOtp(user.email)
   ]);
 
-
-  // eventEmitterForOTPCreateAndSendMail.emit('eventEmitterForOTPCreateAndSendMail', { email: user.email });
-
-  return { user, verificationToken , otp  }; // FIXME  : otp remove korte hobe ekhan theke .. 
+  return { user, verificationToken };
 };
 
 // local login // 💎✨🔍 -> V2 Found
-const login = async (email: string, 
+const login = async (email: string,
   reqpassword: string,
   fcmToken? : string,
   deviceInfo?: { deviceType?: string, deviceName?: string }
@@ -200,25 +225,19 @@ const login = async (email: string,
 
   validateUserStatus(user);
 
-  // if (!user.isEmailVerified) {
-  //   //create verification email token
-  //   const verificationToken = await TokenService.createVerifyEmailToken(user);
-  //   //create verification email otp
-  //   await OtpService.createVerificationEmailOtp(user.email);
-  //   return { verificationToken };
+  // ✅ Enforce email verification before login
+  if (!user.isEmailVerified) {
+    // ✅ Create verification token and OTP for user to verify email (Redis-based)
+    await Promise.all([
+      TokenService.createVerifyEmailToken(user),
+      otpService.sendVerificationOtp(user.email)
+    ]);
 
-  //   throw new ApiError(
-  //     StatusCodes.BAD_REQUEST,
-  //     'User not verified, Please verify your email, Check your email.'
-  //   );
-  // }
-
-  // if (user.lockUntil && user.lockUntil > new Date()) {
-  //   throw new ApiError(
-  //     StatusCodes.TOO_MANY_REQUESTS,
-  //     `Account is locked. Try again after ${config.auth.lockTime} minutes`,
-  //   );
-  // }
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Please verify your email before logging in. A verification OTP has been sent to your email.',
+    );
+  }
 
   const isPasswordValid = await bcryptjs.compare(reqpassword, user.password);
 
@@ -324,6 +343,20 @@ const loginV2 = async (email: string,
 
   validateUserStatus(user);
 
+  // ✅ Enforce email verification before login
+  if (!user.isEmailVerified) {
+    // ✅ Create verification token and OTP for user to verify email (Redis-based)
+    await Promise.all([
+      TokenService.createVerifyEmailToken(user),
+      otpService.sendVerificationOtp(user.email)
+    ]);
+
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Please verify your email before logging in. A verification OTP has been sent to your email.',
+    );
+  }
+
   const isPasswordValid = await bcryptjs.compare(reqpassword, user.password);
 
   if (!isPasswordValid) {
@@ -403,15 +436,11 @@ const verifyEmail = async (email: string, token: string, otp: string) => {
   await TokenService.verifyToken(
     token,
     config.token.TokenSecret,
-    user?.isResetPassword ? TokenType.RESET_PASSWORD : TokenType.VERIFY,
+    TokenType.VERIFY,
   );
 
-  //verify otp
-  await OtpService.verifyOTP(
-    user.email,
-    otp,
-    user?.isResetPassword ? OtpType.RESET_PASSWORD : OtpType.VERIFY,
-  );
+  // ✅ Verify OTP (Redis-based)
+  await otpService.verifyOtp(user.email, otp);
 
   user.isEmailVerified = true;
   await user.save();
@@ -425,12 +454,29 @@ const forgotPassword = async (email: string) => {
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
-  //create reset password token
+
+  // ✅ Invalidate all sessions when password reset is requested (security)
+  try {
+    const sessionPattern = `session:${user._id}:*`;
+    const keys = await redisClient.keys(sessionPattern);
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      logger.info(`All sessions invalidated for user ${user._id} after forgot password request`);
+    }
+  } catch (error) {
+    errorLogger.error('Session invalidation error in forgotPassword:', error);
+    // Don't throw - forgot password should succeed even if session cleanup fails
+  }
+
+  // ✅ Create reset password token and OTP (Redis-based)
   const resetPasswordToken = await TokenService.createResetPasswordToken(user);
-  const otp = await OtpService.createResetPasswordOtp(user.email);
+  await otpService.sendResetPasswordOtp(user.email);
+  
   user.isResetPassword = true;
+  user.lastPasswordChange = new Date();  // ✅ Track password change request
   await user.save();
-  return { resetPasswordToken, otp }; // TODO : MUST : REMOVE THIS
+
+  return { resetPasswordToken };
 };
 
 const resendOtp = async (email: string) => {
@@ -442,11 +488,11 @@ const resendOtp = async (email: string) => {
   if (user?.isResetPassword) {
     const resetPasswordToken =
       await TokenService.createResetPasswordToken(user);
-    await OtpService.createResetPasswordOtp(user.email);
+    await otpService.sendResetPasswordOtp(user.email);
     return { resetPasswordToken };
   }
   const verificationToken = await TokenService.createVerifyEmailToken(user);
-  await OtpService.createVerificationEmailOtp(user.email);
+  await otpService.sendVerificationOtp(user.email);
   return { verificationToken };
 };
 
@@ -459,15 +505,28 @@ const resetPassword = async (
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
-  await OtpService.verifyOTP(
-    user.email,
-    otp,
-    user?.isResetPassword ? OtpType.RESET_PASSWORD : OtpType.VERIFY,
-  );
+  
+  // ✅ Verify reset password OTP (Redis-based)
+  await otpService.verifyResetPasswordOtp(user.email, otp);
+  
   user.password =  await bcryptjs.hash(newPassword, 12);
-
+  user.lastPasswordChange = new Date();  // ✅ Track password change
   user.isResetPassword = false;
   await user.save();
+
+  // ✅ Invalidate all sessions after password reset (security)
+  try {
+    const sessionPattern = `session:${user._id}:*`;
+    const keys = await redisClient.keys(sessionPattern);
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      logger.info(`All sessions invalidated for user ${user._id} after password reset`);
+    }
+  } catch (error) {
+    errorLogger.error('Session invalidation error in resetPassword:', error);
+    // Don't throw - password reset should succeed even if session cleanup fails
+  }
+
   const { password, ...userWithoutPassword } = user.toObject();
   return userWithoutPassword;
 };
@@ -488,8 +547,27 @@ const changePassword = async (
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Password is incorrect');
   }
 
-  user.password = await bcryptjs.hash(newPassword, 12) ;
+  user.password = await bcryptjs.hash(newPassword, 12);
+  user.lastPasswordChange = new Date();  // ✅ Track password change
   await user.save();
+  
+  // ✅ Invalidate all sessions after password change (security)
+  try {
+    const sessionPattern = `session:${user._id}:*`;
+    const keys = await redisClient.keys(sessionPattern);
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      logger.info(`All sessions invalidated for user ${user._id} after password change`);
+    }
+    
+    // Also blacklist all refresh tokens
+    await Token.deleteMany({ user: userId, type: TokenType.REFRESH });
+    logger.info(`All refresh tokens revoked for user ${user._id}`);
+  } catch (error) {
+    errorLogger.error('Session invalidation error in changePassword:', error);
+    // Don't throw - password change should succeed even if session cleanup fails
+  }
+  
   const { password, ...userWithoutPassword } = user.toObject();
   return userWithoutPassword;
 };
@@ -678,7 +756,7 @@ const refreshAuth = async (refreshToken: string) => {
 
 // -- we need to move these to OAuth modules
 const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => {
-  
+
   // Step 1: Verify Google token
   const ticket = await googleClient.verifyIdToken({
     idToken,
@@ -706,11 +784,8 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account not found or deleted');
     }
 
-    // Update token (store encrypted in production)
-    await OAuthAccount.findByIdAndUpdate(oAuthAccount._id, {
-      accessToken: idToken,
-      lastUsedAt: new Date(),
-    });
+    // ✅ Update token (encrypted)
+    await oAuthAccountService.updateOAuthTokens(oAuthAccount._id, idToken);
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens };
@@ -727,14 +802,15 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
       user.isEmailVerified = true;
     }
 
-    await OAuthAccount.create({
-      userId: user._id,
-      authProvider: TAuthProvider.google,
+    // ✅ Create OAuth account with encrypted token
+    await oAuthAccountService.createOAuthAccount(
+      user._id,
+      TAuthProvider.google,
       providerId,
       email,
-      accessToken: idToken, // encrypt this!
-      isVerified: true,
-    });
+      idToken,
+      true,
+    );
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens, isLinked: true };
@@ -768,15 +844,15 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
     userId: newUser._id,
   });
 
-  // Create OAuth account
-  await OAuthAccount.create({
-    userId: newUser._id,
-    authProvider: TAuthProvider.google,
+  // ✅ Create OAuth account with encrypted token
+  await oAuthAccountService.createOAuthAccount(
+    newUser._id,
+    TAuthProvider.google,
     providerId,
     email,
-    accessToken: idToken, // encrypt this!
-    isVerified: true,
-  });
+    idToken,
+    true,
+  );
 
   const tokens = TokenService.accessAndRefreshToken(newUser);
   return { user: newUser, ...tokens, isNewUser: true };
@@ -784,7 +860,7 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
 
 
 const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => {
-  
+
   // Apple-specific token verification
   const applePayload = await appleSignin.verifyIdToken(idToken, {
     audience: process.env.APPLE_CLIENT_ID,
@@ -811,11 +887,8 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account not found or deleted');
     }
 
-    // Update token (store encrypted in production)
-    await OAuthAccount.findByIdAndUpdate(oAuthAccount._id, {
-      accessToken: idToken,
-      lastUsedAt: new Date(),
-    });
+    // ✅ Update token (encrypted)
+    await oAuthAccountService.updateOAuthTokens(oAuthAccount._id, idToken);
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens };
@@ -832,14 +905,15 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
       user.isEmailVerified = true;
     }
 
-    await OAuthAccount.create({
-      userId: user._id,
-      authProvider: TAuthProvider.apple,  // ✅ FIXED: Was TAuthProvider.google
+    // ✅ Create OAuth account with encrypted token
+    await oAuthAccountService.createOAuthAccount(
+      user._id,
+      TAuthProvider.apple,
       providerId,
       email,
-      accessToken: idToken, // encrypt this!
-      isVerified: true,
-    });
+      idToken,
+      true,
+    );
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens, isLinked: true };
@@ -872,15 +946,15 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
     userId: newUser._id,
   });
 
-  // Create OAuth account
-  await OAuthAccount.create({
-    userId: newUser._id,
-    authProvider: TAuthProvider.apple,  // ✅ FIXED: Was TAuthProvider.google
+  // ✅ Create OAuth account with encrypted token
+  await oAuthAccountService.createOAuthAccount(
+    newUser._id,
+    TAuthProvider.apple,
     providerId,
     email,
-    accessToken: idToken, // encrypt this!
-    isVerified: true,
-  });
+    idToken,
+    true,
+  );
 
   const tokens = TokenService.accessAndRefreshToken(newUser);
   return { user: newUser, ...tokens, isNewUser: true };

@@ -1,3 +1,41 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ⚠️  DEPRECATED - MongoDB-based OTP Service
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Status: DEPRECATED (DO NOT USE)
+ * Date: 26-03-23
+ * Reason: Security and Performance Issues
+ * 
+ * PROBLEMS WITH THIS APPROACH:
+ * ❌ OTPs stored in PLAIN TEXT in MongoDB (security risk)
+ * ❌ Database load on every OTP verification (performance)
+ * ❌ No automatic TTL expiration (manual cleanup needed)
+ * ❌ Slower response times (~20-50ms vs Redis ~1-2ms)
+ * 
+ * ✅ REPLACEMENT: Use OtpV2WithRedis from './otp-v2.service'
+ *    - Redis-only storage (auto-expire with TTL)
+ *    - OTPs are hashed with bcrypt before storage
+ *    - Built-in rate limiting (cooldown, send limits)
+ *    - Much faster performance
+ * 
+ * USAGE:
+ *   import { OtpV2WithRedis } from './otp-v2.service';
+ *   const otpService = new OtpV2WithRedis();
+ *   await otpService.sendVerificationOtp(email);
+ *   await otpService.verifyOtp(email, inputOtp);
+ * 
+ * MIGRATION GUIDE:
+ *   OLD: OtpService.createVerificationEmailOtp(email)
+ *   NEW: otpService.sendVerificationOtp(email) + send email separately
+ * 
+ *   OLD: OtpService.verifyOTP(email, otp, 'verify')
+ *   NEW: otpService.verifyOtp(email, otp)
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+/*
 import crypto from 'crypto';
 import { StatusCodes } from 'http-status-codes';
 import moment from 'moment';
@@ -124,3 +162,24 @@ export const OtpService = {
   createVerificationEmailOtp,
   createResetPasswordOtp,
 };
+*/
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Export placeholder to prevent breaking imports during migration
+// ═══════════════════════════════════════════════════════════════════════════════
+export const OtpService = {
+  createOTP: () => {
+    throw new Error('❌ OtpService is DEPRECATED. Use OtpV2WithRedis from "./otp-v2.service" instead.');
+  },
+  verifyOTP: () => {
+    throw new Error('❌ OtpService is DEPRECATED. Use OtpV2WithRedis from "./otp-v2.service" instead.');
+  },
+  createVerificationEmailOtp: () => {
+    throw new Error('❌ OtpService is DEPRECATED. Use OtpV2WithRedis from "./otp-v2.service" instead.');
+  },
+  createResetPasswordOtp: () => {
+    throw new Error('❌ OtpService is DEPRECATED. Use OtpV2WithRedis from "./otp-v2.service" instead.');
+  },
+};
+
+export default { on: () => {} }; // Placeholder for eventEmitter

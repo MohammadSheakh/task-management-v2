@@ -261,9 +261,25 @@ learn the express to nest transition .. i know you cant generate all at once .. 
 
 =========================>
 
- i know you migrate express to nest js based on
-    @task-mgmt-nest-mongoose/__Documentation/qwen/MASTER_SYSTEM_PROMPT_NESTJS-17-03-26.md .. now i think you should generate  
-    some docs under @task-mgmt-nest-mongoose/__Documentation/  so that i can learn nest js .. concept that you have in nest js
+i know you migrate express to nest js based on
+@task-mgmt-nest-mongoose/**Documentation/qwen/MASTER_SYSTEM_PROMPT_NESTJS-17-03-26.md .. now i think you should generate  
+ some docs under @task-mgmt-nest-mongoose/**Documentation/ so that i can learn nest js .. concept that you have in nest js
 
     codebase .. make different different markdown file for different different concept .. teach me like i am a kid .. i know you
      cant generate at once .. generate one by one .. take time .. no issue ,, master me in nest js ..
+
+
+
+
+    dear qwen in
+    @task-management-backend-template/src/modules/auth/doc/AUTH_MODULE_ARCHITECTURE.md  and
+    @task-management-backend-template/src/modules/auth/doc/AUTH_MODULE_SYSTEM_GUIDE-08-03-26.md
+     i see you write lots of thing .. i actually want to know .. like please teach me .. how you
+     implement the registration.. login .. and other auth related things .. with all tiny
+    details .. like every steps of those registration login and other thigs ... so that i
+    understand what you develop .. create a details docs in
+    @task-management-backend-template/src/modules/auth/  folder .. if needed create more
+    document .. if you need time .. take time .. if you need rest .. take rest .. if you need to
+     generate more document .. then generate more document .. but master me what you develop ..
+    also mention details of other modules if that needed also in this module .. explain
+    everything ..
