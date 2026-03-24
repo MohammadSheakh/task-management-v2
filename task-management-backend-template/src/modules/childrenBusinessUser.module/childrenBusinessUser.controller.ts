@@ -467,6 +467,74 @@ export class ChildrenBusinessUserController {
       success: true,
     });
   });
+
+  /**
+   * Get child's own permission status
+   * GET /children-business-users/my-permission
+   *
+   * @description Get the authenticated child user's permission status
+   * @auth Child user
+   * @returns Permission info including isSecondaryUser status and capabilities
+   */
+  getMyPermission = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get child user ID from request
+    └──────────────────────────────────*/
+    const childUserId = (req.user as IUser).userId;
+
+    if (!childUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get permission status from service
+    └──────────────────────────────────*/
+    const result = await this.service.getChildPermissionStatus(childUserId as string);
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Permission status retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get child's family members (siblings)
+   * GET /children-business-users/my-family-members
+   *
+   * @description Get other children under the same parent business user
+   * @auth Child user
+   * @returns List of family members (other children with same parent)
+   */
+  getMyFamilyMembers = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get child user ID from request
+    └──────────────────────────────────*/
+    const childUserId = (req.user as IUser).userId;
+
+    if (!childUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get family members from service
+    └──────────────────────────────────*/
+    const result = await this.service.getChildFamilyMembers(childUserId as string);
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Family members retrieved successfully',
+      success: true,
+    });
+  });
 }
 
 export const childrenBusinessUserController = new ChildrenBusinessUserController();

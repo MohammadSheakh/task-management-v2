@@ -173,4 +173,32 @@ router.get(
   controller.getTeamMembersList
 );
 
+/*-───────────────────────────────── ✔️ NEW
+|  Child | ChildrenBusinessUser | add-task-flow-for-permission-account-interface.png | Get my permission status
+|  @desc Get the authenticated child user's permission status (isSecondaryUser, capabilities)
+|  @auth Child user (commonUser role)
+|  @rateLimit 100 requests per minute
+|  @response { isSecondaryUser, parentBusinessUserId, parentName, permissions }
+└──────────────────────────────────*/
+router.get(
+  '/my-permission',
+  auth(TRole.commonUser),
+  childrenLimiter,
+  controller.getMyPermission
+);
+
+/*-───────────────────────────────── ✔️ NEW
+|  Child | ChildrenBusinessUser | add-task-flow-for-permission-account-interface.png | Get my family members
+|  @desc Get other children (siblings) under the same parent business user
+|  @auth Child user (commonUser role)
+|  @rateLimit 100 requests per minute
+|  @response Array of family members with name, email, roleType, isSecondaryUser
+└──────────────────────────────────*/
+router.get(
+  '/my-family-members',
+  auth(TRole.commonUser),
+  childrenLimiter,
+  controller.getMyFamilyMembers
+);
+
 export const ChildrenBusinessUserRoute = router;

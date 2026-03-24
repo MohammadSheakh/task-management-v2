@@ -1029,4 +1029,135 @@ export class ChildrenBusinessUserService extends GenericService<
 
     return !!relationship;
   }
+
+  /**
+   * Get child's permission status (for child user themselves)
+   * GET /children-business-users/my-permission
+   *
+   * @description Returns the logged-in child's permission status
+   * @param childUserId - The child user ID (from authenticated request)
+   * @returns Permission info including isSecondaryUser status and parent info
+   */
+  async getChildPermissionStatus(childUserId: string): Promise<{
+    isSecondaryUser: boolean;
+    parentBusinessUserId: string;
+    parentName: string;
+    permissions: {
+      canCreateTasksForOthers: boolean;
+      canViewTeamTasks: boolean;
+      canAssignToTeamMembers: boolean;
+    };
+  }> {
+    const relationship = await this.model
+      .findOne({
+        childUserId: new Types.ObjectId(childUserId),
+        status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+        isDeleted: false,
+      })
+      .select('isSecondaryUser parentBusinessUserId')
+      .populate('parentBusinessUserId', 'name')
+      .lean();
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'No parent-child relationship found for this child',
+      );
+    }
+
+    const isSecondaryUser = relationship.isSecondaryUser || false;
+    const parentBusinessUserId = (relationship.parentBusinessUserId as any)._id.toString();
+    const parentName = (relationship.parentBusinessUserId as any).name;
+
+    return {
+      isSecondaryUser,
+      parentBusinessUserId,
+      parentName,
+      permissions: {
+        canCreateTasksForOthers: isSecondaryUser,
+        canViewTeamTasks: isSecondaryUser,
+        canAssignToTeamMembers: isSecondaryUser,
+      },
+    };
+  }
+
+  /**
+   * Get family members for a child user
+   * GET /children-business-users/my-family-members
+   *
+   * @description Returns other children (siblings) under the same parent
+   * @param childUserId - The child user ID (from authenticated request)
+   * @returns List of family members (other children with same parent)
+   */
+  async getChildFamilyMembers(childUserId: string): Promise<
+    Array<{
+      _id: string;
+      childUserId: string;
+      name: string;
+      email: string;
+      phoneNumber?: string;
+      profileImage?: { imageUrl: string };
+      isSecondaryUser: boolean;
+      roleType: 'Primary' | 'Secondary';
+      addedAt: Date;
+    }>
+  > {
+    // Find the parent business user for this child
+    const relationship = await this.model
+      .findOne({
+        childUserId: new Types.ObjectId(childUserId),
+        status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+        isDeleted: false,
+      })
+      .select('parentBusinessUserId')
+      .lean();
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'No parent-child relationship found for this child',
+      );
+    }
+
+    const parentBusinessUserId = (relationship.parentBusinessUserId as any)._id;
+
+    // Get all active children of this parent (excluding the current child)
+    const familyMembers = await this.model.aggregate([
+      {
+        $match: {
+          parentBusinessUserId,
+          childUserId: { $ne: new Types.ObjectId(childUserId) },
+          status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'childUserId',
+          foreignField: '_id',
+          as: 'childUser',
+        },
+      },
+      { $unwind: '$childUser' },
+      {
+        $project: {
+          _id: 1,
+          childUserId: { $toString: '$childUser._id' },
+          name: '$childUser.name',
+          email: '$childUser.email',
+          phoneNumber: '$childUser.phoneNumber',
+          profileImage: '$childUser.profileImage',
+          isSecondaryUser: 1,
+          roleType: {
+            $cond: ['$isSecondaryUser', 'Secondary', 'Primary'],
+          },
+          addedAt: 1,
+        },
+      },
+      { $sort: { addedAt: -1 } },
+    ]);
+
+    return familyMembers;
+  }
 }

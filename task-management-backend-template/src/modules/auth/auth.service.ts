@@ -57,6 +57,7 @@ import { redisClient } from '../../helpers/redis/redis';
 import { logger, errorLogger } from '../../shared/logger';
 import { AUTH_SESSION_CONFIG } from './auth.constants';
 import { OAuthAccountService } from '../user.module/oauthAccount/oauthAccount.service';
+import { Token } from '../token/token.model';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Service Instances

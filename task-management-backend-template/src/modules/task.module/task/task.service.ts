@@ -177,10 +177,19 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       ).length;
     }
 
+    // Extract subtasks from data (will create them separately after task creation)
+    const subtasksData = (data as any).subtasks;
+    delete (data as any).subtasks;
+
     const task = await this.model.create({
       ...data,
       createdById: userId,
     });
+
+    // ✅ Bulk create subtasks if provided
+    if (subtasksData && Array.isArray(subtasksData) && subtasksData.length > 0) {
+      await this.bulkCreateSubtasks(task._id.toString(), subtasksData, userId);
+    }
 
     // ✅ NEW: Auto-create TaskProgress records for all assigned children
     if (
@@ -258,11 +267,57 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     return task;
   }
 
+  /**
+   * Bulk create subtasks for a task
+   * Called during task creation when subtasks are provided inline
+   *
+   * @param taskId - Parent task ID
+   * @param subtasksData - Array of subtask data [{ title, duration, isCompleted, order }]
+   * @param userId - User creating the subtasks
+   * @returns Array of created subtasks
+   */
+  private async bulkCreateSubtasks(
+    taskId: string,
+    subtasksData: Array<{
+      title: string;
+      duration?: number;
+      isCompleted?: boolean;
+      order?: number;
+    }>,
+    userId: Types.ObjectId
+  ): Promise<void> {
+    try {
+      const { SubTask } = await import('../subTask/subTask.model');
+
+      // Prepare subtasks for bulk insertion
+      const subtasksToCreate = subtasksData.map((subtask, index) => ({
+        taskId: new Types.ObjectId(taskId),
+        title: subtask.title,
+        duration: subtask.duration || null,
+        isCompleted: subtask.isCompleted || false,
+        order: subtask.order || (index + 1),
+        createdById: userId,
+        completedAt: subtask.isCompleted ? new Date() : null,
+      }));
+
+      // Insert all subtasks in one operation
+      await SubTask.insertMany(subtasksToCreate);
+
+      logger.info(`Bulk created ${subtasksToCreate.length} subtasks for task ${taskId}`);
+    } catch (error) {
+      errorLogger.error('Error in bulk creating subtasks:', error);
+      throw new ApiError(
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Failed to create subtasks'
+      );
+    }
+  }
+
   /** ✔️
    * Get tasks for a user with filtering
    * @param userId - User ID
    * @param filters - Query filters
-   * @returns Array of tasks
+   * @returns Array of tasks with subtasks populated
    */
   async getUserTasks(userId: Types.ObjectId, filters: any): Promise<ITask[]> {
     const query: any = {
@@ -303,9 +358,53 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     const tasks = await this.model
       .find(query)
       .select('-__v')
-      .sort({ startTime: -1 });
+      .sort({ startTime: -1 })
+      .lean();
 
-    return tasks;
+    // ✅ Populate subtasks for each task using virtual populate
+    const tasksWithSubtasks = await Promise.all(
+      tasks.map(async (task) => {
+        const { SubTask } = await import('../subTask/subTask.model');
+        
+        // Get subtasks for this task
+        const subtasks = await SubTask.find({
+          taskId: task._id,
+          isDeleted: false,
+        })
+          .select('-__v')
+          .sort({ order: 1 })
+          .lean();
+
+        // Format subtasks
+        const formattedSubtasks = subtasks.map((st: any) => ({
+          _id: st._id.toString(),
+          title: st.title,
+          isCompleted: st.isCompleted || false,
+          order: st.order || 0,
+          duration: st.duration || null,
+          completedAt: st.completedAt || null,
+        }));
+
+        // Calculate subtask progress
+        const totalSubtasks = formattedSubtasks.length;
+        const completedSubtasks = formattedSubtasks.filter((st: any) => st.isCompleted).length;
+        const subtaskProgressPercentage = totalSubtasks > 0
+          ? Math.round((completedSubtasks / totalSubtasks) * 100)
+          : 0;
+
+        return {
+          ...task,
+          subtasks: formattedSubtasks,
+          subtaskProgress: {
+            total: totalSubtasks,
+            completed: completedSubtasks,
+            percentage: subtaskProgressPercentage,
+          },
+        };
+      })
+    );
+
+    return tasksWithSubtasks;
   }
 
   /**
@@ -313,7 +412,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
    * @param userId - User ID
    * @param filters - Query filters
    * @param options - Pagination options
-   * @returns Paginated tasks
+   * @returns Paginated tasks with subtasks populated
    */
   async getUserTasksWithPagination(
     userId: Types.ObjectId,
@@ -342,6 +441,54 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     }
 
     const result = await this.model.paginate(query, options);
+
+    // ✅ Populate subtasks for each task in the result
+    if (result.docs && result.docs.length > 0) {
+      const tasksWithSubtasks = await Promise.all(
+        result.docs.map(async (task: any) => {
+          const { SubTask } = await import('../subTask/subTask.model');
+          
+          // Get subtasks for this task
+          const subtasks = await SubTask.find({
+            taskId: task._id,
+            isDeleted: false,
+          })
+            .select('-__v')
+            .sort({ order: 1 })
+            .lean();
+
+          // Format subtasks
+          const formattedSubtasks = subtasks.map((st: any) => ({
+            _id: st._id.toString(),
+            title: st.title,
+            isCompleted: st.isCompleted || false,
+            order: st.order || 0,
+            duration: st.duration || null,
+            completedAt: st.completedAt || null,
+          }));
+
+          // Calculate subtask progress
+          const totalSubtasks = formattedSubtasks.length;
+          const completedSubtasks = formattedSubtasks.filter((st: any) => st.isCompleted).length;
+          const subtaskProgressPercentage = totalSubtasks > 0
+            ? Math.round((completedSubtasks / totalSubtasks) * 100)
+            : 0;
+
+          return {
+            ...task.toObject ? task.toObject() : task,
+            subtasks: formattedSubtasks,
+            subtaskProgress: {
+              total: totalSubtasks,
+              completed: completedSubtasks,
+              percentage: subtaskProgressPercentage,
+            },
+          };
+        })
+      );
+
+      result.docs = tasksWithSubtasks;
+    }
+
     return result;
   }
 

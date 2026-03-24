@@ -115,7 +115,7 @@ export class OtpV2WithRedis {
     // ─────────────────────────────────────────────────────────────────────────────
     // 4. Store in Redis with Auto-Expire (Pipeline for atomicity)
     // ─────────────────────────────────────────────────────────────────────────────
-    const pipeline = redisClient.pipeline();
+    const pipeline = redisClient.multi();
 
     // Store OTP hash with attempts counter
     pipeline.set(
@@ -248,6 +248,7 @@ export class OtpV2WithRedis {
     // ─────────────────────────────────────────────────────────────────────────────
     // 1. Cooldown Check
     // ─────────────────────────────────────────────────────────────────────────────
+    /*-------- commented by sheakh
     const cooldown = await redisClient.get(`otp:cooldown:${lowerEmail}`);
     if (cooldown) {
       throw new ApiError(
@@ -255,6 +256,7 @@ export class OtpV2WithRedis {
         `Please wait ${this.OTP_COOLDOWN_TTL} seconds before requesting another OTP`
       );
     }
+    -----------*/
 
     // ─────────────────────────────────────────────────────────────────────────────
     // 2. Hourly Send Limit Check
@@ -276,7 +278,7 @@ export class OtpV2WithRedis {
     // ─────────────────────────────────────────────────────────────────────────────
     // 4. Store in Redis with Auto-Expire
     // ─────────────────────────────────────────────────────────────────────────────
-    const pipeline = redisClient.pipeline();
+    const pipeline = redisClient.multi();
 
     pipeline.set(
       `otp:reset:${lowerEmail}`,

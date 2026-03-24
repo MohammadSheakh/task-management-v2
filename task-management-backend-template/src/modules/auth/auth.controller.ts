@@ -19,6 +19,7 @@ import { IUserProfile } from '../user.module/userProfile/userProfile.interface';
 import { detectLanguage } from '../../utils/detectLanguageByFranc';
 import { translateTextToTargetLang } from '../../utils/translateTextToTargetLang';
 import { OAuthAccountService } from '../user.module/oauthAccount/oauthAccount.service';
+import { IUser } from '../token/token.interface';
 // import * as appleSignin from 'apple-signin-auth';
 
 // const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID;
@@ -703,7 +704,13 @@ const logout = catchAsync(async (req: Request, res: Response) => {
 });
 
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
+  
+  console.log("hit 0")
+  
   const tokens = await AuthService.refreshAuth(req.body.refreshToken);
+  
+  console.log("hit 1")
+  
   sendResponse(res, {
     code: StatusCodes.OK,
     message: 'Token refreshed successfully',

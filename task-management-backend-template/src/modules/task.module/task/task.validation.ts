@@ -75,6 +75,23 @@ export const createTaskValidationSchema = z.object({
       })
       .optional(),
 
+    // ─── Subtasks (Bulk Creation) ────────────────────────────────────
+    subtasks: z
+      .array(
+        z.object({
+          title: z
+            .string({
+              required_error: 'Subtask title is required',
+            })
+            .min(1, 'Title cannot be empty')
+            .max(200, 'Title cannot exceed 200 characters'),
+          duration: z.number().optional(),
+          isCompleted: z.boolean().default(false).optional(),
+          order: z.number().optional(),
+        })
+      )
+      .optional(),
+
     // ─── Auto-generated (should not come from client) ────────────────
     totalSubtasks: z.number().default(0).optional(),
     completedSubtasks: z.number().default(0).optional(),
