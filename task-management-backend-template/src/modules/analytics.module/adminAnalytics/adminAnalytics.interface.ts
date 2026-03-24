@@ -17,6 +17,20 @@ export interface IPlatformOverview {
   activeUsersThisWeek: number;
   activeUsersThisMonth: number;
   dauMauRatio: number;  // Daily Active Users / Monthly Active Users
+  usersByRole: {  // ✅ NEW: User count by role
+    individual: number;
+    child: number;
+    business: number;
+    admin: number;
+  };
+  monthlyRegisteredUsers: {  // ✅ NEW: Monthly registered users (current year)
+    month: number;  // 1-12
+    count: number;
+  }[];
+  annualRegisteredUsers: {  // ✅ NEW: Annual registered users (last 5 years)
+    year: number;
+    count: number;
+  }[];
 }
 
 // User Growth Analytics

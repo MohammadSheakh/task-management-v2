@@ -61,4 +61,25 @@ router.get('/admin/user-ratio',
   controller.getUserRatioChartData
 );
 
+/*-─────────────────────────────────
+|  Admin | Admin Analytics | dashboard-section-flow.png | Get user registration chart data
+|  @desc Returns: user registration count by month/year for bar chart
+|  @query type - 'monthly' (current year) or 'yearly' (last 5 years)
+|  @query year - Optional year filter (defaults to current year for monthly)
+└──────────────────────────────────*/
+router.get('/admin/user-registration-chart',
+  auth(TRole.admin),
+  controller.getUserRegistrationChart
+);
+
+/*-─────────────────────────────────
+|  Admin | Admin Analytics | dashboard-section-flow.png | Get income/revenue chart data
+|  @desc Returns: revenue data for bar chart with today/weekly/monthly totals
+|  @query type - 'monthly' (current year) or 'yearly' (last 5 years)
+└──────────────────────────────────*/
+router.get('/admin/income-chart',
+  auth(TRole.admin),
+  controller.getIncomeChart
+);
+
 export const AdminAnalyticsRoutes = router;

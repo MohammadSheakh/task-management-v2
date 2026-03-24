@@ -79,6 +79,45 @@ export class AdminAnalyticsController {
       success: true,
     });
   });
+
+  /**
+   * Get user registration chart data
+   * Query: type='monthly' | 'yearly', year=optional
+   */
+  getUserRegistrationChart = catchAsync(async (req: Request, res: Response) => {
+    const { type = 'monthly', year } = req.query;
+    
+    const result = await adminAnalyticsService.getUserRegistrationChartData(
+      type as 'monthly' | 'yearly',
+      year ? parseInt(year as string) : undefined
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'User registration chart data retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get income/revenue chart data
+   * Query: type='monthly' | 'yearly'
+   */
+  getIncomeChart = catchAsync(async (req: Request, res: Response) => {
+    const { type = 'monthly' } = req.query;
+    
+    const result = await adminAnalyticsService.getIncomeChartData(
+      type as 'monthly' | 'yearly'
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Income chart data retrieved successfully',
+      success: true,
+    });
+  });
 }
 
 export const adminAnalyticsController = new AdminAnalyticsController();

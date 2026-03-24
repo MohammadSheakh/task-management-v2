@@ -43,7 +43,7 @@ export const RATE_LIMIT_PRESETS = {
 
   auth: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts per 15 minutes (brute force protection)
+    max: 50, // 5 attempts per 15 minutes (brute force protection)
     message: {
       success: false,
       message: 'Too many authentication attempts, please try again later',

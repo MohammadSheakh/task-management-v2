@@ -634,6 +634,52 @@ export class UserController extends GenericController<
     });
   });
 
+  /**
+   * Get all users for admin dashboard with pagination, search, and filters
+   * Figma: main-admin-dashboard/user-list-flow.png
+   */
+  getAllUsersForAdminDashboard = catchAsync(async (req: Request, res: Response) => {
+    const filters = {
+      search: req.query.search as string,
+      role: req.query.role as string,
+      from: req.query.from as string,
+      to: req.query.to as string,
+    };
+
+    const options = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 20,
+      sortBy: req.query.sortBy as string || '-createdAt',
+    };
+
+    const result = await this.userService.getAllUsersForAdminDashboard(filters, options);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Users retrieved successfully for admin dashboard',
+      success: true,
+    });
+  });
+
+  /**
+   * Get user registration count for chart (monthly or yearly)
+   * Figma: main-admin-dashboard/user-list-flow.png
+   */
+  getUserRegistrationCountForChart = catchAsync(async (req: Request, res: Response) => {
+    const { type = 'monthly' } = req.query;
+    
+    const result = await this.userService.getUserRegistrationCountForChart(
+      type as 'monthly' | 'yearly'
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'User registration count retrieved successfully',
+      success: true,
+    });
+  });
 }
 
 

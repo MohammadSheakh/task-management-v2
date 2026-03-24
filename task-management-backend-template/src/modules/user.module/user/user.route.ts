@@ -326,6 +326,33 @@ router.route('/softDelete/:id').put(
 ////////////
 //[🚧][🧑‍💻✅][🧪] // 🆗
 
+/*-─────────────────────────────────
+|  Admin | User Management | user-list-flow.png | Get all users with pagination and filters
+|  @desc Get paginated list of all users with search, role filter, and date range
+|  @auth Admin only
+|  @query search - Search by username or email
+|  @query role - Filter by role: 'individual' | 'child' | 'business' | 'admin' | 'all'
+|  @query from - Start date (ISO format)
+|  @query to - End date (ISO format)
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -createdAt)
+└──────────────────────────────────*/
+router.route('/admin/all-users').get(
+  auth(TRole.admin),
+  controller.getAllUsersForAdminDashboard
+);
+
+/*-─────────────────────────────────
+|  Admin | User Management | user-list-flow.png | Get user registration count for chart
+|  @desc Get user registration count by month/year for bar chart
+|  @auth Admin only
+|  @query type - 'monthly' (current year) or 'yearly' (last 5 years)
+└──────────────────────────────────*/
+router.route('/admin/user-registration-count').get(
+  auth(TRole.admin),
+  controller.getUserRegistrationCountForChart
+);
 
 export const UserRoutes = router;
 

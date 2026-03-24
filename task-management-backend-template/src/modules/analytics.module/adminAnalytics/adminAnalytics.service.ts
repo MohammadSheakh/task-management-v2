@@ -25,6 +25,7 @@ import {
   endOfMonth,
   subDays,
   subMonths,
+  subYears,
   format,
   eachDayOfInterval,
 } from 'date-fns';
@@ -58,7 +59,7 @@ export class AdminAnalyticsService {
 
   async getDashboardOverview(): Promise<IAdminDashboardAnalytics> {
     const cacheKey = this.getCacheKey('dashboard');
-    
+
     const cached = await this.getFromCache<IAdminDashboardAnalytics>(cacheKey);
     if (cached) {
       return cached;
@@ -76,6 +77,73 @@ export class AdminAnalyticsService {
       Task.countDocuments({ isDeleted: false }),
     ]);
 
+    // ✅ NEW: Get user count by role
+    const usersByRole = await User.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const roleCounts = {
+      individual: usersByRole.find((r: any) => r._id === 'individual')?.count || 0,
+      child: usersByRole.find((r: any) => r._id === 'child')?.count || 0,
+      business: usersByRole.find((r: any) => r._id === 'business')?.count || 0,
+      admin: usersByRole.find((r: any) => r._id === 'admin')?.count || 0,
+    };
+
+    // ✅ NEW: Get monthly registered users (current year)
+    const yearStart = startOfMonth(now);
+    const monthlyRegisteredUsers = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: yearStart },
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            month: { $month: '$createdAt' },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    const monthlyData = monthlyRegisteredUsers.map((m: any) => ({
+      month: m._id.month,
+      count: m.count,
+    }));
+
+    // ✅ NEW: Get annual registered users (last 5 years)
+    const annualRegisteredUsers = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: subYears(now, 5) },
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1 } },
+    ]);
+
+    const annualData = annualRegisteredUsers.map((a: any) => ({
+      year: a._id.year,
+      count: a.count,
+    }));
+
     const overview: IPlatformOverview = {
       totalUsers,
       totalGroups: 0, // ❌ REMOVED: Group module not needed
@@ -84,6 +152,9 @@ export class AdminAnalyticsService {
       activeUsersThisWeek: 0,
       activeUsersThisMonth: 0,
       dauMauRatio: 0,
+      usersByRole: roleCounts, // ✅ NEW
+      monthlyRegisteredUsers: monthlyData, // ✅ NEW
+      annualRegisteredUsers: annualData, // ✅ NEW
     };
 
     const dashboard: IAdminDashboardAnalytics = {
@@ -164,18 +235,132 @@ export class AdminAnalyticsService {
   }
 
   async getRevenueAnalytics(): Promise<IRevenueAnalytics> {
-    // Simplified - would integrate with payment.module
-    return {
-      mrr: 0,
-      arr: 0,
-      thisMonth: 0,
-      lastMonth: 0,
-      growthRate: 0,
-      bySubscriptionType: {
-        individual: { count: 0, revenue: 0 },
-        group: { count: 0, revenue: 0 },
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+    // Import PaymentTransaction model
+    const { PaymentTransaction } = await import('../../payment.module/paymentTransaction/paymentTransaction.model');
+
+    // Get revenue from successful payments
+    const [thisMonthRevenue, lastMonthRevenue] = await Promise.all([
+      PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: monthStart },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' },
+          },
+        },
+      ]),
+      PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$amount' },
+          },
+        },
+      ]),
+    ]);
+
+    const thisMonth = thisMonthRevenue[0]?.total || 0;
+    const lastMonth = lastMonthRevenue[0]?.total || 0;
+    const growthRate = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
+
+    // Calculate MRR (Monthly Recurring Revenue)
+    const mrr = thisMonth;
+    const arr = mrr * 12; // Annual Recurring Revenue
+
+    // Get revenue by subscription type
+    const { UserSubscription } = await import('../../subscription.module/userSubscription/userSubscription.model');
+
+    const activeSubscriptions = await UserSubscription.aggregate([
+      {
+        $match: {
+          status: 'active',
+          isDeleted: false,
+        },
       },
-      history: [],
+      {
+        $lookup: {
+          from: 'subscriptionplans',
+          localField: 'subscriptionPlanId',
+          foreignField: '_id',
+          as: 'plan',
+        },
+      },
+      { $unwind: '$plan' },
+      {
+        $group: {
+          _id: '$plan.subscriptionType',
+          count: { $sum: 1 },
+          revenue: { $sum: '$plan.price' },
+        },
+      },
+    ]);
+
+    const individual = activeSubscriptions.find((s: any) => s._id === 'individual') || { count: 0, revenue: 0 };
+    const group = activeSubscriptions.find((s: any) => s._id === 'group') || { count: 0, revenue: 0 };
+
+    // Get monthly revenue history (last 12 months)
+    const revenueHistory = await PaymentTransaction.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: subMonths(now, 12) },
+          paymentStatus: 'success',
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+          },
+          revenue: { $sum: '$amount' },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+    ]);
+
+    const history = revenueHistory.map((h: any) => ({
+      month: `${h._id.year}-${String(h._id.month).padStart(2, '0')}`,
+      revenue: h.revenue,
+      newSubscriptions: 0, // Can be enhanced with subscription data
+      churnedSubscriptions: 0, // Can be enhanced with subscription data
+    }));
+
+    return {
+      mrr,
+      arr,
+      thisMonth,
+      lastMonth,
+      growthRate,
+      bySubscriptionType: {
+        individual: {
+          count: individual.count || 0,
+          revenue: individual.revenue || 0,
+        },
+        group: {
+          count: group.count || 0,
+          revenue: group.revenue || 0,
+        },
+      },
+      history,
     };
   }
 
@@ -251,6 +436,336 @@ export class AdminAnalyticsService {
         day30: 0,
       },
     };
+  }
+
+  /**
+   * Get user registration data for chart
+   * @param type - 'monthly' or 'yearly'
+   * @param year - Optional year filter (defaults to current year for monthly)
+   * @returns User count data for bar chart
+   */
+  async getUserRegistrationChartData(
+    type: 'monthly' | 'yearly' = 'monthly',
+    year?: number
+  ): Promise<{
+    type: 'monthly' | 'yearly';
+    data: {
+      period: string;
+      label: string;
+      count: number;
+    }[];
+    totalUsers: number;
+    growthRate: number;
+  }> {
+    const now = new Date();
+    const currentYear = year || now.getFullYear();
+
+    if (type === 'monthly') {
+      // Get monthly data for current year (or specified year)
+      const yearStart = new Date(currentYear, 0, 1);
+      const yearEnd = new Date(currentYear, 11, 31);
+
+      const monthlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: yearStart, $lte: yearEnd },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.month': 1 } },
+      ]);
+
+      // Fill in missing months with 0
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dataMap = new Map(monthlyData.map((d: any) => [d._id.month, d.count]));
+      
+      const data = monthNames.map((name, index) => ({
+        period: (index + 1).toString(),
+        label: name,
+        count: dataMap.get(index + 1) || 0,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate (this year vs last year)
+      const lastYearStart = new Date(currentYear - 1, 0, 1);
+      const lastYearEnd = new Date(currentYear - 1, 11, 31);
+      const lastYearTotal = await User.countDocuments({
+        createdAt: { $gte: lastYearStart, $lte: lastYearEnd },
+        isDeleted: false,
+      });
+      
+      const growthRate = lastYearTotal > 0 
+        ? ((totalUsers - lastYearTotal) / lastYearTotal) * 100 
+        : 0;
+
+      return {
+        type: 'monthly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    } else {
+      // Get yearly data (last 5 years)
+      const fiveYearsAgo = subYears(now, 5);
+
+      const yearlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fiveYearsAgo },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.year': 1 } },
+      ]);
+
+      const data = yearlyData.map((d: any) => ({
+        period: d._id.year.toString(),
+        label: d._id.year.toString(),
+        count: d.count,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate (this year vs last year)
+      const thisYear = data.find(d => d.period === now.getFullYear().toString())?.count || 0;
+      const lastYear = data.find(d => d.period === (now.getFullYear() - 1).toString())?.count || 0;
+      const growthRate = lastYear > 0 ? ((thisYear - lastYear) / lastYear) * 100 : 0;
+
+      return {
+        type: 'yearly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    }
+  }
+
+  /**
+   * Get income/revenue data for chart
+   * @param type - 'monthly' or 'yearly'
+   * @returns Revenue data for bar chart
+   */
+  async getIncomeChartData(
+    type: 'monthly' | 'yearly' = 'monthly'
+  ): Promise<{
+    type: 'monthly' | 'yearly';
+    data: {
+      period: string;
+      label: string;
+      amount: number;
+    }[];
+    todayAmount: number;
+    weeklyAmount: number;
+    monthlyAmount: number;
+    growthRate: number;
+  }> {
+    const now = new Date();
+    const { PaymentTransaction } = await import('../../payment.module/paymentTransaction/paymentTransaction.model');
+
+    if (type === 'monthly') {
+      // Get monthly revenue for current year
+      const yearStart = startOfYear(now);
+      
+      const monthlyRevenue = await PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: yearStart },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+            },
+            amount: { $sum: '$amount' },
+          },
+        },
+        { $sort: { '_id.month': 1 } },
+      ]);
+
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dataMap = new Map(monthlyRevenue.map((d: any) => [d._id.month, d.amount]));
+      
+      const data = monthNames.map((name, index) => ({
+        period: (index + 1).toString(),
+        label: name,
+        amount: dataMap.get(index + 1) || 0,
+      }));
+
+      // Calculate today, weekly, monthly amounts
+      const todayStart = startOfDay(now);
+      const weekStart = startOfWeek(now);
+      const monthStart = startOfMonth(now);
+
+      const [todayData, weekData, monthData] = await Promise.all([
+        PaymentTransaction.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: todayStart },
+              paymentStatus: 'success',
+              isDeleted: false,
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        PaymentTransaction.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: weekStart },
+              paymentStatus: 'success',
+              isDeleted: false,
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        PaymentTransaction.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: monthStart },
+              paymentStatus: 'success',
+              isDeleted: false,
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+      ]);
+
+      const todayAmount = todayData[0]?.total || 0;
+      const weeklyAmount = weekData[0]?.total || 0;
+      const monthlyAmount = monthData[0]?.total || 0;
+
+      // Calculate growth rate (this month vs last month)
+      const lastMonthStart = startOfMonth(subMonths(now, 1));
+      const lastMonthEnd = endOfMonth(subMonths(now, 1));
+      const lastMonthData = await PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]);
+      const lastMonthAmount = lastMonthData[0]?.total || 0;
+      const growthRate = lastMonthAmount > 0 
+        ? ((monthlyAmount - lastMonthAmount) / lastMonthAmount) * 100 
+        : 0;
+
+      return {
+        type: 'monthly',
+        data,
+        todayAmount,
+        weeklyAmount,
+        monthlyAmount,
+        growthRate,
+      };
+    } else {
+      // Get yearly revenue (last 5 years)
+      const fiveYearsAgo = subYears(now, 5);
+
+      const yearlyRevenue = await PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fiveYearsAgo },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+            },
+            amount: { $sum: '$amount' },
+          },
+        },
+        { $sort: { '_id.year': 1 } },
+      ]);
+
+      const data = yearlyRevenue.map((d: any) => ({
+        period: d._id.year.toString(),
+        label: d._id.year.toString(),
+        amount: d.amount,
+      }));
+
+      // Calculate today, weekly, monthly amounts (same as monthly)
+      const todayStart = startOfDay(now);
+      const weekStart = startOfWeek(now);
+      const monthStart = startOfMonth(now);
+
+      const [todayData, weekData, monthData] = await Promise.all([
+        PaymentTransaction.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: todayStart },
+              paymentStatus: 'success',
+              isDeleted: false,
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        PaymentTransaction.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: weekStart },
+              paymentStatus: 'success',
+              isDeleted: false,
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        PaymentTransaction.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: monthStart },
+              paymentStatus: 'success',
+              isDeleted: false,
+            },
+          },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+      ]);
+
+      const todayAmount = todayData[0]?.total || 0;
+      const weeklyAmount = weekData[0]?.total || 0;
+      const monthlyAmount = monthData[0]?.total || 0;
+
+      // Calculate growth rate
+      const thisYear = data.find(d => d.period === now.getFullYear().toString())?.amount || 0;
+      const lastYear = data.find(d => d.period === (now.getFullYear() - 1).toString())?.amount || 0;
+      const growthRate = lastYear > 0 ? ((thisYear - lastYear) / lastYear) * 100 : 0;
+
+      return {
+        type: 'yearly',
+        data,
+        todayAmount,
+        weeklyAmount,
+        monthlyAmount,
+        growthRate,
+      };
+    }
   }
 
   async getUserRatioChartData(

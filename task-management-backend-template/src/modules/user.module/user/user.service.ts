@@ -1012,7 +1012,7 @@ export class UserService extends GenericService<typeof User, IUser> {
     };
   }
 
-}
+
 
 /*********
 const getAllUsers = async (
@@ -1033,3 +1033,176 @@ const getAllUsers = async (
 };
 
 ********** */
+
+  /**
+   * Get all users with pagination, search, and filters for admin dashboard
+   * Figma: main-admin-dashboard/user-list-flow.png
+   * 
+   * @param filters - Query filters
+   * @param options - Pagination options
+   * @returns Paginated users with statistics
+   */
+  async getAllUsersForAdminDashboard(
+    filters: {
+      search?: string;           // Search by username or email
+      role?: string;             // Filter by role: 'individual' | 'child' | 'business' | 'admin'
+      from?: string;             // Start date (ISO format)
+      to?: string;               // End date (ISO format)
+    },
+    options: {
+      page: number;
+      limit: number;
+      sortBy?: string;
+    }
+  ) {
+    const query: any = { isDeleted: false };
+
+    // Search by username or email
+    if (filters.search) {
+      query.$or = [
+        { name: { $regex: filters.search, $options: 'i' } },
+        { email: { $regex: filters.search, $options: 'i' } },
+      ];
+    }
+
+    // Filter by role
+    if (filters.role && filters.role !== 'all') {
+      query.role = filters.role;
+    }
+
+    // Filter by date range
+    if (filters.from || filters.to) {
+      query.createdAt = {};
+      if (filters.from) {
+        query.createdAt.$gte = new Date(filters.from);
+      }
+      if (filters.to) {
+        query.createdAt.$lte = new Date(filters.to);
+      }
+    }
+
+    const result = await User.paginate(query, {
+      page: options.page,
+      limit: options.limit,
+      sortBy: options.sortBy || '-createdAt',
+      populate: [
+        { path: 'profileId', select: 'location phoneNumber' },
+      ],
+      lean: true,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get user registration count for chart (monthly or yearly)
+   * Figma: main-admin-dashboard/user-list-flow.png (User ratio chart)
+   * 
+   * @param type - 'monthly' or 'yearly'
+   * @returns Chart data with user counts
+   */
+  async getUserRegistrationCountForChart(
+    type: 'monthly' | 'yearly' = 'monthly'
+  ) {
+    const now = new Date();
+
+    if (type === 'monthly') {
+      // Get monthly data for current year
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const yearEnd = new Date(now.getFullYear(), 11, 31);
+
+      const monthlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: yearStart, $lte: yearEnd },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.month': 1 } },
+      ]);
+
+      // Fill in missing months with 0
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dataMap = new Map(monthlyData.map((d: any) => [d._id.month, d.count]));
+      
+      const data = monthNames.map((name, index) => ({
+        period: (index + 1).toString(),
+        label: name,
+        count: dataMap.get(index + 1) || 0,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+      const lastYearTotal = await User.countDocuments({
+        createdAt: { $gte: lastYearStart, $lte: lastYearEnd },
+        isDeleted: false,
+      });
+      
+      const growthRate = lastYearTotal > 0 
+        ? ((totalUsers - lastYearTotal) / lastYearTotal) * 100 
+        : 0;
+
+      return {
+        type: 'monthly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    } else {
+      // Get yearly data (last 5 years)
+      const fiveYearsAgo = new Date();
+      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+      const yearlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fiveYearsAgo },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.year': 1 } },
+      ]);
+
+      const data = yearlyData.map((d: any) => ({
+        period: d._id.year.toString(),
+        label: d._id.year.toString(),
+        count: d.count,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate
+      const thisYear = data.find(d => d.period === now.getFullYear().toString())?.count || 0;
+      const lastYear = data.find(d => d.period === (now.getFullYear() - 1).toString())?.count || 0;
+      const growthRate = lastYear > 0 ? ((thisYear - lastYear) / lastYear) * 100 : 0;
+
+      return {
+        type: 'yearly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    }
+  }
+}
+

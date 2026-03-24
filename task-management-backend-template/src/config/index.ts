@@ -25,8 +25,6 @@ export const config = {
     translation : process.env.Firebase_Service_Account_Path_For_Translation,
   },
 
-  
-
   database: {
     mongoUrl:
       process.env.MONGODB_URL || 'mongodb://localhost:27017/mentor-service',
