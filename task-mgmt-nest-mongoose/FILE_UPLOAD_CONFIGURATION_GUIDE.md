@@ -37,10 +37,10 @@ CLOUDINARY_API_SECRET=your-api-secret
 ```bash
 FILE_UPLOAD_STRATEGY=s3
 
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_BUCKET_NAME=your-bucket-name
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_BUCKET_NAME=
 ```
 
 **Get credentials**: https://aws.amazon.com/s3/
@@ -52,10 +52,10 @@ AWS_BUCKET_NAME=your-bucket-name
 ```bash
 FILE_UPLOAD_STRATEGY=digitalocean
 
-AWS_REGION=nyc3
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_BUCKET_NAME=your-space-name
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_BUCKET_NAME=
 ```
 
 **Get credentials**: https://www.digitaloceans.com/products/spaces/
@@ -213,15 +213,15 @@ CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
 FILE_UPLOAD_STRATEGY=cloudinary
 
 # Cloudinary credentials (from your config)
-CLOUDINARY_CLOUD_NAME=deg4frre7
-CLOUDINARY_API_KEY=868926795637234
-CLOUDINARY_API_SECRET=Aj7w-ZF422EbqgbpNbPK4VxP6Qg
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 
 # S3 backup credentials (from your config)
-AWS_REGION=ap-south-1
-AWS_ACCESS_KEY_ID=AKIAZW3T3KEFOTJ26QLQ
-AWS_SECRET_ACCESS_KEY=yd1BW2f/ozYkrvOhB4RthlAPy+PBs1cjfLbXhfs1
-AWS_BUCKET_NAME=bucket-kaajbd-v1
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_BUCKET_NAME=
 ```
 
 ---
