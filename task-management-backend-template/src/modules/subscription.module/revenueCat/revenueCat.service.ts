@@ -1,16 +1,19 @@
-import { GenericService } from '../../../_generic-module/generic.services';
+import { GenericService } from '../../_generic-module/generic.services';
 import { UserSubscription } from '../userSubscription/userSubscription.model';
 import { IUserSubscription } from '../userSubscription/userSubscription.interface';
-import { User } from '../../../user.module/user/user.model';
+import { User } from '../../user.module/user/user.model';
 import { SubscriptionPlan } from '../subscriptionPlan/subscriptionPlan.model';
 import { ISubscriptionPlan } from '../subscriptionPlan/subscriptionPlan.interface';
 import ApiError from '../../../errors/ApiError';
+
+//@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-import { UserSubscriptionStatusType } from './userSubscription.constant';
 import { TSubscription } from '../../../enums/subscription';
-import { TTransactionFor } from '../../payment.module/paymentTransaction/paymentTransaction.constant';
 import { PaymentTransaction } from '../../payment.module/paymentTransaction/paymentTransaction.model';
 import { TPaymentGateway, TPaymentStatus } from '../../payment.module/paymentTransaction/paymentTransaction.constant';
+import { UserSubscriptionStatusType } from '../userSubscription/userSubscription.constant';
+import { TTransactionFor } from '../../../constants/TTransactionFor';
+import { IUser } from '../../user.module/user/user.interface';
 
 /**
  * RevenueCat Service
@@ -121,7 +124,7 @@ export class RevenueCatService extends GenericService<typeof UserSubscription, I
   async syncRevenueCatUserId(
     userId: string,
     revenueCatUserId: string
-  ): Promise<User> {
+  ): Promise<IUser> {
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: { revenueCatUserId } },

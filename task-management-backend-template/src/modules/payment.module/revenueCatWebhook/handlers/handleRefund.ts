@@ -1,9 +1,9 @@
-import { UserSubscription } from '../../subscription.module/userSubscription/userSubscription.model';
-import { User } from '../../../../user.module/user/user.model';
+import { UserSubscription } from '../../../subscription.module/userSubscription/userSubscription.model';
+import { User } from '../../../user.module/user/user.model';
 import { PaymentTransaction } from '../../paymentTransaction/paymentTransaction.model';
 import { TPaymentGateway, TPaymentStatus } from '../../paymentTransaction/paymentTransaction.constant';
 import { TTransactionFor } from '../../../../constants/TTransactionFor';
-import { UserSubscriptionStatusType } from '../../subscription.module/userSubscription/userSubscription.constant';
+import { UserSubscriptionStatusType } from '../../../subscription.module/userSubscription/userSubscription.constant';
 import { enqueueWebNotification } from '../../../../services/notification.service';
 import { TRole } from '../../../../middlewares/roles';
 import { TNotificationType } from '../../../notification/notification.constants';

@@ -1,6 +1,6 @@
-import { UserSubscription } from '../../subscription.module/userSubscription/userSubscription.model';
-import { User } from '../../../../user.module/user/user.model';
-import { UserSubscriptionStatusType } from '../../subscription.module/userSubscription/userSubscription.constant';
+import { UserSubscription } from '../../../subscription.module/userSubscription/userSubscription.model';
+import { User } from '../../../user.module/user/user.model';
+import { UserSubscriptionStatusType } from '../../../subscription.module/userSubscription/userSubscription.constant';
 import { TSubscription } from '../../../../enums/subscription';
 import { enqueueWebNotification } from '../../../../services/notification.service';
 import { TRole } from '../../../../middlewares/roles';

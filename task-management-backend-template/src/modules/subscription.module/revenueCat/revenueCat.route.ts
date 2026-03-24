@@ -1,6 +1,7 @@
+//@ts-ignore
 import express from 'express';
 import { RevenueCatController } from './revenueCat.controller';
-import { auth } from '../../../middlewares/auth';
+import auth from '../../../middlewares/auth';
 import { TRole } from '../../../middlewares/roles';
 
 const router = express.Router();
