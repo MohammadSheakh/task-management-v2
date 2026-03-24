@@ -8,6 +8,8 @@
 
 ---
 
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:
@@ -65,7 +67,7 @@ graph TB
 // ─────────────────────────────────────────────
 // ❌ Bad: Timer never cleared
 function startLeak() {
-  const data = new Array(1000000).fill('data');
+  const data = new Array(1000000).fill("data");
   setInterval(() => {
     console.log(data.length);
   }, 1000);
@@ -74,15 +76,15 @@ function startLeak() {
 
 // ✅ Good: Clear timer when done
 function startNoLeak() {
-  const data = new Array(1000000).fill('data');
+  const data = new Array(1000000).fill("data");
   const intervalId = setInterval(() => {
     console.log(data.length);
   }, 1000);
-  
+
   // Clear when no longer needed
   setTimeout(() => {
     clearInterval(intervalId);
-  }, 60000);  // Stop after 1 minute
+  }, 60000); // Stop after 1 minute
 }
 
 // ─────────────────────────────────────────────
@@ -90,21 +92,21 @@ function startNoLeak() {
 // ─────────────────────────────────────────────
 // ❌ Bad: Listener never removed
 function attachLeak() {
-  const element = document.getElementById('myElement');
-  const handler = () => console.log('Clicked');
-  element.addEventListener('click', handler);
+  const element = document.getElementById("myElement");
+  const handler = () => console.log("Clicked");
+  element.addEventListener("click", handler);
   // Listener persists even after element removed
 }
 
 // ✅ Good: Remove listener on cleanup
 function attachNoLeak() {
-  const element = document.getElementById('myElement');
-  const handler = () => console.log('Clicked');
-  element.addEventListener('click', handler);
-  
+  const element = document.getElementById("myElement");
+  const handler = () => console.log("Clicked");
+  element.addEventListener("click", handler);
+
   // Cleanup function
   return () => {
-    element.removeEventListener('click', handler);
+    element.removeEventListener("click", handler);
   };
 }
 
@@ -113,21 +115,21 @@ function attachNoLeak() {
 // ─────────────────────────────────────────────
 // ❌ Bad: Large data kept in closure
 function createLeak() {
-  const largeData = new Array(1000000).fill('data');
-  
-  return function() {
-    console.log('Small operation');
+  const largeData = new Array(1000000).fill("data");
+
+  return function () {
+    console.log("Small operation");
     // largeData is kept in memory even though not used
   };
 }
 
 // ✅ Good: Only capture what's needed
 function createNoLeak() {
-  const largeData = new Array(1000000).fill('data');
-  const summary = { length: largeData.length };  // Only keep summary
-  
-  return function() {
-    console.log('Summary:', summary);
+  const largeData = new Array(1000000).fill("data");
+  const summary = { length: largeData.length }; // Only keep summary
+
+  return function () {
+    console.log("Summary:", summary);
     // largeData can be garbage collected
   };
 }
@@ -139,19 +141,19 @@ function createNoLeak() {
 let cachedElement = null;
 
 function leakDOM() {
-  const element = document.getElementById('myElement');
-  cachedElement = element;  // Keep reference
-  
-  element.remove();  // Remove from DOM
+  const element = document.getElementById("myElement");
+  cachedElement = element; // Keep reference
+
+  element.remove(); // Remove from DOM
   // Element still in memory due to cachedElement reference
 }
 
 // ✅ Good: Clear references
 function noLeakDOM() {
-  const element = document.getElementById('myElement');
-  
+  const element = document.getElementById("myElement");
+
   element.remove();
-  cachedElement = null;  // Clear reference
+  cachedElement = null; // Clear reference
 }
 
 // ─────────────────────────────────────────────
@@ -159,13 +161,13 @@ function noLeakDOM() {
 // ─────────────────────────────────────────────
 // ❌ Bad: Implicit globals
 function leakGlobal() {
-  leakedVar = 'I am global';  // Forgot 'let/const/var'
-  window.anotherGlobal = 'Also global';
+  leakedVar = "I am global"; // Forgot 'let/const/var'
+  window.anotherGlobal = "Also global";
 }
 
 // ✅ Good: Use local scope
 function noLeakGlobal() {
-  const localVar = 'I am local';
+  const localVar = "I am local";
   // Automatically cleaned up after function exits
 }
 
@@ -180,8 +182,8 @@ function noLeakGlobal() {
 
 // Performance Monitor
 if (performance.memory) {
-  console.log('Used JS Heap:', performance.memory.usedJSHeapSize);
-  console.log('Total JS Heap:', performance.memory.totalJSHeapSize);
+  console.log("Used JS Heap:", performance.memory.usedJSHeapSize);
+  console.log("Total JS Heap:", performance.memory.totalJSHeapSize);
 }
 ```
 
@@ -226,8 +228,8 @@ sequenceDiagram
 // Execute function after specified delay since last call
 function debounce(fn, delay) {
   let timeoutId;
-  
-  return function(...args) {
+
+  return function (...args) {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       fn.apply(this, args);
@@ -236,13 +238,13 @@ function debounce(fn, delay) {
 }
 
 // Usage: Search input
-const searchInput = document.getElementById('search');
+const searchInput = document.getElementById("search");
 const handleSearch = debounce((query) => {
-  console.log('Searching:', query);
+  console.log("Searching:", query);
   // API call here
 }, 300);
 
-searchInput.addEventListener('input', (e) => {
+searchInput.addEventListener("input", (e) => {
   handleSearch(e.target.value);
 });
 
@@ -251,16 +253,16 @@ searchInput.addEventListener('input', (e) => {
 // ─────────────────────────────────────────────
 function debounceImmediate(fn, delay, immediate = false) {
   let timeoutId;
-  
-  return function(...args) {
+
+  return function (...args) {
     const callNow = immediate && !timeoutId;
-    
+
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => {
       timeoutId = null;
       if (!immediate) fn.apply(this, args);
     }, delay);
-    
+
     if (callNow) fn.apply(this, args);
   };
 }
@@ -271,10 +273,10 @@ function debounceImmediate(fn, delay, immediate = false) {
 // Execute function at most once per specified interval
 function throttle(fn, limit) {
   let lastCall = 0;
-  
-  return function(...args) {
+
+  return function (...args) {
     const now = Date.now();
-    
+
     if (now - lastCall >= limit) {
       lastCall = now;
       fn.apply(this, args);
@@ -283,10 +285,13 @@ function throttle(fn, limit) {
 }
 
 // Usage: Scroll event
-window.addEventListener('scroll', throttle(() => {
-  console.log('Scroll position:', window.scrollY);
-  // Update UI, load more content, etc.
-}, 100));  // Max once per 100ms
+window.addEventListener(
+  "scroll",
+  throttle(() => {
+    console.log("Scroll position:", window.scrollY);
+    // Update UI, load more content, etc.
+  }, 100),
+); // Max once per 100ms
 
 // ─────────────────────────────────────────────
 // THROTTLE WITH TRAILING EDGE
@@ -294,11 +299,11 @@ window.addEventListener('scroll', throttle(() => {
 function throttleTrailing(fn, limit) {
   let timeoutId = null;
   let lastCall = 0;
-  
-  return function(...args) {
+
+  return function (...args) {
     const now = Date.now();
     const remaining = limit - (now - lastCall);
-    
+
     if (remaining <= 0) {
       clearTimeout(timeoutId);
       timeoutId = null;
@@ -373,10 +378,10 @@ class InfiniteScroll {
     this.hasMore = true;
     this.container = options.container;
     this.onLoad = options.onLoad;
-    
+
     this.setupObserver();
   }
-  
+
   setupObserver() {
     this.observer = new IntersectionObserver(
       entries => {
@@ -386,15 +391,15 @@ class InfiniteScroll {
       },
       { rootMargin: '100px' }
     );
-    
+
     this sentinel = document.createElement('div');
     this.container.appendChild(this.sentinel);
     this.observer.observe(this.sentinel);
   }
-  
+
   async loadMore() {
     this.loading = true;
-    
+
     try {
       const data = await this.onLoad(this.page);
       this.render(data);
@@ -404,7 +409,7 @@ class InfiniteScroll {
       this.loading = false;
     }
   }
-  
+
   render(data) {
     data.forEach(item => {
       const el = document.createElement('div');
@@ -434,27 +439,27 @@ new InfiniteScroll({
 // ─────────────────────────────────────────────
 function createCache(ttl = 5000) {
   const cache = new Map();
-  
+
   return {
     get(key) {
       const item = cache.get(key);
       if (!item) return null;
-      
+
       if (Date.now() > item.expiry) {
         cache.delete(key);
         return null;
       }
-      
+
       return item.value;
     },
-    
+
     set(key, value) {
       cache.set(key, {
         value,
         expiry: Date.now() + ttl,
       });
     },
-    
+
     clear() {
       cache.clear();
     },
@@ -462,34 +467,34 @@ function createCache(ttl = 5000) {
 }
 
 // Usage
-const cache = createCache(60000);  // 1 minute TTL
-cache.set('user:1', { name: 'John' });
-console.log(cache.get('user:1'));  // { name: 'John' }
+const cache = createCache(60000); // 1 minute TTL
+cache.set("user:1", { name: "John" });
+console.log(cache.get("user:1")); // { name: 'John' }
 
 // ─────────────────────────────────────────────
 // MEMOIZATION
 // ─────────────────────────────────────────────
 function memoize(fn) {
   const cache = new Map();
-  
-  return function(...args) {
+
+  return function (...args) {
     const key = JSON.stringify(args);
-    
+
     if (cache.has(key)) {
-      console.log('Cache hit');
+      console.log("Cache hit");
       return cache.get(key);
     }
-    
+
     const result = fn.apply(this, args);
     cache.set(key, result);
-    console.log('Cache miss');
+    console.log("Cache miss");
     return result;
   };
 }
 
 // Usage: Expensive computation
 const expensiveCalculation = memoize((n) => {
-  console.log('Computing...');
+  console.log("Computing...");
   let result = 0;
   for (let i = 0; i < n * 1000000; i++) {
     result += i;
@@ -497,9 +502,9 @@ const expensiveCalculation = memoize((n) => {
   return result;
 });
 
-console.log(expensiveCalculation(10));  // Computes
-console.log(expensiveCalculation(10));  // From cache
-console.log(expensiveCalculation(20));  // Computes
+console.log(expensiveCalculation(10)); // Computes
+console.log(expensiveCalculation(10)); // From cache
+console.log(expensiveCalculation(20)); // Computes
 
 // ─────────────────────────────────────────────
 // LRU CACHE (Least Recently Used)
@@ -509,18 +514,18 @@ class LRUCache {
     this.capacity = capacity;
     this.cache = new Map();
   }
-  
+
   get(key) {
     if (!this.cache.has(key)) return null;
-    
+
     // Move to end (most recently used)
     const value = this.cache.get(key);
     this.cache.delete(key);
     this.cache.set(key, value);
-    
+
     return value;
   }
-  
+
   put(key, value) {
     if (this.cache.has(key)) {
       this.cache.delete(key);
@@ -529,17 +534,17 @@ class LRUCache {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
     }
-    
+
     this.cache.set(key, value);
   }
 }
 
 // Usage
 const lru = new LRUCache(2);
-lru.put('a', 1);
-lru.put('b', 2);
-console.log(lru.get('a'));  // 1 (now most recently used)
-lru.put('c', 3);  // Removes 'b' (least recently used)
+lru.put("a", 1);
+lru.put("b", 2);
+console.log(lru.get("a")); // 1 (now most recently used)
+lru.put("c", 3); // Removes 'b' (least recently used)
 ```
 
 ---
@@ -574,50 +579,50 @@ graph TB
 // TRIGGERING REFLOW (Avoid These)
 // ─────────────────────────────────────────────
 // Reading layout properties forces reflow:
-element.offsetTop
-element.offsetLeft
-element.offsetWidth
-element.offsetHeight
-element.clientTop
-element.clientLeft
-element.clientWidth
-element.clientHeight
-element.getBoundingClientRect()
-window.getComputedStyle(element)
+element.offsetTop;
+element.offsetLeft;
+element.offsetWidth;
+element.offsetHeight;
+element.clientTop;
+element.clientLeft;
+element.clientWidth;
+element.clientHeight;
+element.getBoundingClientRect();
+window.getComputedStyle(element);
 
 // ─────────────────────────────────────────────
 // ❌ BAD: Multiple Reflows
 // ─────────────────────────────────────────────
 function badReflow() {
-  const element = document.getElementById('myElement');
-  
-  element.style.width = '100px';   // Reflow
-  element.style.height = '200px';  // Reflow
-  element.style.padding = '10px';  // Reflow
-  element.style.margin = '5px';    // Reflow
+  const element = document.getElementById("myElement");
+
+  element.style.width = "100px"; // Reflow
+  element.style.height = "200px"; // Reflow
+  element.style.padding = "10px"; // Reflow
+  element.style.margin = "5px"; // Reflow
 }
 
 // ─────────────────────────────────────────────
 // ✅ GOOD: Batch DOM Changes
 // ─────────────────────────────────────────────
 function goodReflow() {
-  const element = document.getElementById('myElement');
-  
+  const element = document.getElementById("myElement");
+
   // Apply all changes at once
   element.style.cssText = `
     width: 100px;
     height: 200px;
     padding: 10px;
     margin: 5px;
-  `;  // Single reflow
+  `; // Single reflow
 }
 
 // ─────────────────────────────────────────────
 // ✅ GOOD: Use Classes
 // ─────────────────────────────────────────────
 function bestReflow() {
-  const element = document.getElementById('myElement');
-  element.classList.add('styled');  // Single reflow
+  const element = document.getElementById("myElement");
+  element.classList.add("styled"); // Single reflow
 }
 
 // CSS: .styled { width: 100px; height: 200px; ... }
@@ -626,36 +631,36 @@ function bestReflow() {
 // ✅ GOOD: Detach Before Bulk Changes
 // ─────────────────────────────────────────────
 function updateList() {
-  const list = document.getElementById('myList');
-  
+  const list = document.getElementById("myList");
+
   // Remove from DOM
-  list.style.display = 'none';
-  
+  list.style.display = "none";
+
   // Make changes (no reflow while hidden)
   for (let i = 0; i < 100; i++) {
-    const li = document.createElement('li');
+    const li = document.createElement("li");
     li.textContent = `Item ${i}`;
     list.appendChild(li);
   }
-  
+
   // Re-add to DOM (single reflow)
-  list.style.display = 'block';
+  list.style.display = "block";
 }
 
 // ─────────────────────────────────────────────
 // ✅ GOOD: Use DocumentFragment
 // ─────────────────────────────────────────────
 function updateListFragment() {
-  const list = document.getElementById('myList');
+  const list = document.getElementById("myList");
   const fragment = document.createDocumentFragment();
-  
+
   for (let i = 0; i < 100; i++) {
-    const li = document.createElement('li');
+    const li = document.createElement("li");
     li.textContent = `Item ${i}`;
     fragment.appendChild(li);
   }
-  
-  list.appendChild(fragment);  // Single reflow
+
+  list.appendChild(fragment); // Single reflow
 }
 
 // ─────────────────────────────────────────────
@@ -667,32 +672,36 @@ class VirtualList {
     this.items = items;
     this.itemHeight = itemHeight;
     this.visibleCount = Math.ceil(container.clientHeight / itemHeight);
-    
-    this.container.style.overflow = 'auto';
-    this.container.innerHTML = '<div class="spacer"></div><div class="content"></div>';
-    
-    this.spacer = this.container.querySelector('.spacer');
-    this.content = this.container.querySelector('.content');
-    
+
+    this.container.style.overflow = "auto";
+    this.container.innerHTML =
+      '<div class="spacer"></div><div class="content"></div>';
+
+    this.spacer = this.container.querySelector(".spacer");
+    this.content = this.container.querySelector(".content");
+
     this.updateSpacer();
-    this.container.addEventListener('scroll', () => this.render());
+    this.container.addEventListener("scroll", () => this.render());
     this.render();
   }
-  
+
   updateSpacer() {
     this.spacer.style.height = `${this.items.length * this.itemHeight}px`;
   }
-  
+
   render() {
     const scrollTop = this.container.scrollTop;
     const startIndex = Math.floor(scrollTop / this.itemHeight);
-    const endIndex = Math.min(startIndex + this.visibleCount, this.items.length);
-    
+    const endIndex = Math.min(
+      startIndex + this.visibleCount,
+      this.items.length,
+    );
+
     this.content.style.transform = `translateY(${startIndex * this.itemHeight}px)`;
-    this.content.innerHTML = '';
-    
+    this.content.innerHTML = "";
+
     for (let i = startIndex; i < endIndex; i++) {
-      const div = document.createElement('div');
+      const div = document.createElement("div");
       div.style.height = `${this.itemHeight}px`;
       div.textContent = this.items[i];
       this.content.appendChild(div);
@@ -702,9 +711,9 @@ class VirtualList {
 
 // Usage: Render 10,000 items efficiently
 const virtualList = new VirtualList(
-  document.getElementById('list'),
+  document.getElementById("list"),
   Array.from({ length: 10000 }, (_, i) => `Item ${i}`),
-  50  // Item height in pixels
+  50, // Item height in pixels
 );
 ```
 
@@ -719,19 +728,19 @@ const virtualList = new VirtualList(
 // WEB WORKER (Main Thread)
 // ─────────────────────────────────────────────
 // main.js
-const worker = new Worker('worker.js');
+const worker = new Worker("worker.js");
 
 // Send data to worker
-worker.postMessage({ type: 'COMPUTE', data: largeArray });
+worker.postMessage({ type: "COMPUTE", data: largeArray });
 
 // Receive result
 worker.onmessage = (event) => {
-  console.log('Result from worker:', event.data);
+  console.log("Result from worker:", event.data);
 };
 
 // Handle errors
 worker.onerror = (error) => {
-  console.error('Worker error:', error);
+  console.error("Worker error:", error);
 };
 
 // Terminate worker when done
@@ -743,8 +752,8 @@ worker.onerror = (error) => {
 // worker.js
 self.onmessage = (event) => {
   const { type, data } = event.data;
-  
-  if (type === 'COMPUTE') {
+
+  if (type === "COMPUTE") {
     const result = heavyComputation(data);
     self.postMessage(result);
   }
@@ -759,9 +768,9 @@ function heavyComputation(array) {
 // SHARED WORKER (Multiple Tabs)
 // ─────────────────────────────────────────────
 // main.js
-const sharedWorker = new SharedWorker('shared-worker.js');
+const sharedWorker = new SharedWorker("shared-worker.js");
 sharedWorker.port.start();
-sharedWorker.port.postMessage('Hello');
+sharedWorker.port.postMessage("Hello");
 sharedWorker.port.onmessage = (e) => console.log(e.data);
 
 // shared-worker.js
@@ -771,10 +780,10 @@ self.onconnect = (e) => {
   const port = e.ports[0];
   ports.push(port);
   port.start();
-  
+
   port.onmessage = (e) => {
     // Broadcast to all ports
-    ports.forEach(p => p.postMessage(e.data));
+    ports.forEach((p) => p.postMessage(e.data));
   };
 };
 
@@ -784,23 +793,23 @@ self.onconnect = (e) => {
 function runWorker(workerUrl, data) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(workerUrl);
-    
+
     worker.onmessage = (e) => {
       resolve(e.data);
       worker.terminate();
     };
-    
+
     worker.onerror = (e) => {
       reject(e);
       worker.terminate();
     };
-    
+
     worker.postMessage(data);
   });
 }
 
 // Usage
-const result = await runWorker('worker.js', largeArray);
+const result = await runWorker("worker.js", largeArray);
 ```
 
 ---
@@ -813,34 +822,37 @@ const result = await runWorker('worker.js', largeArray);
 // ─────────────────────────────────────────────
 // CONSOLE.TIME (Simple Profiling)
 // ─────────────────────────────────────────────
-console.time('Operation');
+console.time("Operation");
 // ... code to measure ...
-console.timeEnd('Operation');  // "Operation: 12.345ms"
+console.timeEnd("Operation"); // "Operation: 12.345ms"
 
 // ─────────────────────────────────────────────
 // PERFORMANCE MARK (Precise Timing)
 // ─────────────────────────────────────────────
-performance.mark('start');
+performance.mark("start");
 // ... code ...
-performance.mark('end');
-performance.measure('my-measure', 'start', 'end');
+performance.mark("end");
+performance.measure("my-measure", "start", "end");
 
-const measure = performance.getEntriesByName('my-measure')[0];
+const measure = performance.getEntriesByName("my-measure")[0];
 console.log(`Duration: ${measure.duration}ms`);
 
 // ─────────────────────────────────────────────
 // REQUEST IDLE CALLBACK
 // ─────────────────────────────────────────────
 // Execute during browser idle time
-requestIdleCallback((deadline) => {
-  console.log(`Time remaining: ${deadline.timeRemaining()}ms`);
-  console.log(`Did timeout: ${deadline.didTimeout}`);
-  
-  // Do non-critical work
-  while (deadline.timeRemaining() > 0) {
-    // Process items
-  }
-}, { timeout: 1000 });  // Run within 1 second if not idle
+requestIdleCallback(
+  (deadline) => {
+    console.log(`Time remaining: ${deadline.timeRemaining()}ms`);
+    console.log(`Did timeout: ${deadline.didTimeout}`);
+
+    // Do non-critical work
+    while (deadline.timeRemaining() > 0) {
+      // Process items
+    }
+  },
+  { timeout: 1000 },
+); // Run within 1 second if not idle
 
 // ─────────────────────────────────────────────
 // REQUEST ANIMATION FRAME
@@ -849,7 +861,7 @@ requestIdleCallback((deadline) => {
 function animate() {
   // Animation logic
   element.style.transform = `translateX(${position}px)`;
-  
+
   requestAnimationFrame(animate);
 }
 
@@ -864,7 +876,7 @@ const observer = new PerformanceObserver((list) => {
   });
 });
 
-observer.observe({ entryTypes: ['measure', 'resource', 'paint'] });
+observer.observe({ entryTypes: ["measure", "resource", "paint"] });
 ```
 
 ---
@@ -916,6 +928,7 @@ When would you use debounce vs throttle?
 
 **Debounce**: Search inputs (wait for user to stop typing)
 **Throttle**: Scroll handlers (limit to once per 100ms)
+
 </details>
 
 ---
@@ -926,10 +939,10 @@ Fix this code:
 
 ```javascript
 function setup() {
-  const data = new Array(1000000).fill('data');
-  const element = document.getElementById('myElement');
-  
-  element.addEventListener('click', () => {
+  const data = new Array(1000000).fill("data");
+  const element = document.getElementById("myElement");
+
+  element.addEventListener("click", () => {
     console.log(data.length);
   });
 }
@@ -940,22 +953,23 @@ function setup() {
 
 ```javascript
 function setup() {
-  const data = new Array(1000000).fill('data');
-  const element = document.getElementById('myElement');
-  const dataLength = data.length;  // Extract needed value
-  
+  const data = new Array(1000000).fill("data");
+  const element = document.getElementById("myElement");
+  const dataLength = data.length; // Extract needed value
+
   const handler = () => {
-    console.log(dataLength);  // Use extracted value
+    console.log(dataLength); // Use extracted value
   };
-  
-  element.addEventListener('click', handler);
-  
+
+  element.addEventListener("click", handler);
+
   // Return cleanup function
   return () => {
-    element.removeEventListener('click', handler);
+    element.removeEventListener("click", handler);
   };
 }
 ```
+
 </details>
 
 ---
@@ -982,6 +996,7 @@ function setup() {
 **🎉 CONGRATULATIONS!** You've completed the JavaScript Mastery series!
 
 **Next Steps**:
+
 - Practice with real projects
 - Contribute to open source
 - Learn a framework (React, Vue, Angular)
@@ -989,4 +1004,5 @@ function setup() {
 - Explore TypeScript for type safety
 
 ---
+
 -23-03-26

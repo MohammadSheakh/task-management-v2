@@ -8,6 +8,8 @@
 
 ---
 
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:
@@ -32,7 +34,7 @@ graph TB
     B -->|No| D[Finally Block]
     C --> D
     D --> E[Continue Execution]
-    
+
     subgraph "Error Flow"
         A
         B
@@ -89,9 +91,9 @@ try {
   throw new Error("Test error");
 } catch (error) {
   console.log("Catch block");
-  throw new Error("Re-thrown");  // Re-throw
+  throw new Error("Re-thrown"); // Re-throw
 } finally {
-  console.log("Finally block");  // Still runs!
+  console.log("Finally block"); // Still runs!
 }
 
 // Output:
@@ -105,15 +107,14 @@ try {
 // ─────────────────────────────────────────────
 try {
   console.log("Outer try");
-  
+
   try {
     console.log("Inner try");
     throw new Error("Inner error");
   } catch (innerError) {
     console.log("Inner catch:", innerError.message);
-    throw new Error("Outer error");  // Re-throw
+    throw new Error("Outer error"); // Re-throw
   }
-  
 } catch (outerError) {
   console.log("Outer catch:", outerError.message);
 }
@@ -158,8 +159,8 @@ throw new TypeError("Invalid type");
 throw new RangeError("Value out of range");
 
 // Throw custom values (not recommended)
-throw "String error";  // ❌ Avoid
-throw { code: 500, message: "Server error" };  // ❌ Avoid
+throw "String error"; // ❌ Avoid
+throw { code: 500, message: "Server error" }; // ❌ Avoid
 
 // Throw custom error class (recommended)
 throw new CustomError("Business logic failed", "BUSINESS_ERROR", 400);
@@ -193,7 +194,7 @@ throw new CustomError("Business logic failed", "BUSINESS_ERROR", 400);
 try {
   JSON.parse('{"invalid": }');
 } catch (error) {
-  console.log(error instanceof SyntaxError);  // true
+  console.log(error instanceof SyntaxError); // true
 }
 
 // ─────────────────────────────────────────────
@@ -203,8 +204,8 @@ try {
 try {
   console.log(undefinedVariable);
 } catch (error) {
-  console.log(error instanceof ReferenceError);  // true
-  console.log(error.name);  // "ReferenceError"
+  console.log(error instanceof ReferenceError); // true
+  console.log(error.name); // "ReferenceError"
 }
 
 // ─────────────────────────────────────────────
@@ -214,8 +215,8 @@ try {
 try {
   null.someMethod();
 } catch (error) {
-  console.log(error instanceof TypeError);  // true
-  console.log(error.message);  // "Cannot read property..."
+  console.log(error instanceof TypeError); // true
+  console.log(error.message); // "Cannot read property..."
 }
 
 // Calling non-function
@@ -223,7 +224,7 @@ try {
   const notAFunction = 123;
   notAFunction();
 } catch (error) {
-  console.log(error.name);  // "TypeError"
+  console.log(error.name); // "TypeError"
 }
 
 // ─────────────────────────────────────────────
@@ -233,14 +234,14 @@ try {
 try {
   new Array(-1);
 } catch (error) {
-  console.log(error instanceof RangeError);  // true
+  console.log(error instanceof RangeError); // true
 }
 
 // Number precision issues
 try {
-  (10).toPrecision(0);  // Must be 1-100
+  (10).toPrecision(0); // Must be 1-100
 } catch (error) {
-  console.log(error.name);  // "RangeError"
+  console.log(error.name); // "RangeError"
 }
 
 // ─────────────────────────────────────────────
@@ -248,9 +249,9 @@ try {
 // ─────────────────────────────────────────────
 // Invalid URI/URL
 try {
-  decodeURIComponent('%');
+  decodeURIComponent("%");
 } catch (error) {
-  console.log(error instanceof URIError);  // true
+  console.log(error instanceof URIError); // true
 }
 
 // ─────────────────────────────────────────────
@@ -258,9 +259,9 @@ try {
 // ─────────────────────────────────────────────
 // Invalid eval() usage (rarely used)
 try {
-  eval = 123;  // Can't reassign eval
+  eval = 123; // Can't reassign eval
 } catch (error) {
-  console.log(error.name);  // Might be TypeError depending on engine
+  console.log(error.name); // Might be TypeError depending on engine
 }
 ```
 
@@ -277,7 +278,7 @@ class CustomError extends Error {
     super(message);
     this.name = "CustomError";
     this.timestamp = new Date();
-    
+
     // Capture stack trace (V8 engines)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, CustomError);
@@ -288,8 +289,8 @@ class CustomError extends Error {
 try {
   throw new CustomError("Something custom happened");
 } catch (error) {
-  console.log(error.name);     // "CustomError"
-  console.log(error.message);  // "Something custom happened"
+  console.log(error.name); // "CustomError"
+  console.log(error.message); // "Something custom happened"
   console.log(error.timestamp); // Date object
 }
 
@@ -300,20 +301,16 @@ class AppError extends Error {
   constructor(message, code, statusCode = 500) {
     super(message);
     this.name = "AppError";
-    this.code = code;        // Application error code
-    this.statusCode = statusCode;  // HTTP status code
-    this.isOperational = true;  // Distinguish from programming errors
-    
+    this.code = code; // Application error code
+    this.statusCode = statusCode; // HTTP status code
+    this.isOperational = true; // Distinguish from programming errors
+
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
 // Usage
-throw new AppError(
-  "User not found",
-  "USER_NOT_FOUND",
-  404
-);
+throw new AppError("User not found", "USER_NOT_FOUND", 404);
 
 // ─────────────────────────────────────────────
 // ERROR HIERARCHY
@@ -373,23 +370,23 @@ function getUser(userId) {
   if (!userId) {
     throw new ValidationError("User ID is required", "userId");
   }
-  
+
   const user = database.find(userId);
-  
+
   if (!user) {
     throw new NotFoundError("User");
   }
-  
+
   return user;
 }
 
 async function deleteUser(userId, currentUser) {
   const user = getUser(userId);
-  
+
   if (currentUser.role !== "admin") {
     throw new AuthorizationError("Only admins can delete users");
   }
-  
+
   try {
     await database.delete(userId);
   } catch (dbError) {
@@ -411,28 +408,28 @@ async function handleRequest(req, res) {
         field: error.field,
       });
     }
-    
+
     if (error instanceof AuthenticationError) {
       return res.status(401).json({
         error: error.code,
         message: error.message,
       });
     }
-    
+
     if (error instanceof AuthorizationError) {
       return res.status(403).json({
         error: error.code,
         message: error.message,
       });
     }
-    
+
     if (error instanceof NotFoundError) {
       return res.status(404).json({
         error: error.code,
         message: error.message,
       });
     }
-    
+
     // Unknown error - log and return 500
     console.error("Unhandled error:", error);
     return res.status(500).json({
@@ -455,33 +452,33 @@ async function handleRequest(req, res) {
 // ─────────────────────────────────────────────
 // Method 1: .catch()
 fetchData()
-  .then(data => processData(data))
-  .catch(error => {
+  .then((data) => processData(data))
+  .catch((error) => {
     console.error("Error:", error);
   });
 
 // Method 2: .catch() at each step
 fetchData()
-  .then(data => {
+  .then((data) => {
     return processData(data);
   })
-  .catch(error => {
+  .catch((error) => {
     console.error("Fetch or process error:", error);
   });
 
 // Method 3: Multiple catches
 fetchData()
-  .then(data => {
+  .then((data) => {
     if (!data) throw new Error("No data");
     return processData(data);
   })
-  .catch(error => {
+  .catch((error) => {
     if (error.message === "No data") {
       return defaultValue;
     }
-    throw error;  // Re-throw
+    throw error; // Re-throw
   })
-  .catch(error => {
+  .catch((error) => {
     console.error("Final error handler:", error);
   });
 
@@ -489,8 +486,8 @@ fetchData()
 // FINALLY WITH PROMISES
 // ─────────────────────────────────────────────
 fetchData()
-  .then(data => console.log("Success:", data))
-  .catch(error => console.error("Error:", error))
+  .then((data) => console.log("Success:", data))
+  .catch((error) => console.error("Error:", error))
   .finally(() => {
     console.log("Request completed (cleanup)");
     hideLoadingSpinner();
@@ -500,44 +497,42 @@ fetchData()
 // UNHANDLED PROMISE REJECTIONS
 // ─────────────────────────────────────────────
 // Global handler for unhandled rejections (Node.js)
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 
 // Browser equivalent
-window.addEventListener('unhandledrejection', event => {
-  console.error('Unhandled rejection:', event.reason);
-  event.preventDefault();  // Suppress console error
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled rejection:", event.reason);
+  event.preventDefault(); // Suppress console error
 });
 
 // ─────────────────────────────────────────────
 // PROMISE.ALL ERROR HANDLING
 // ─────────────────────────────────────────────
 // Promise.all fails fast (first rejection)
-Promise.all([promise1, promise2, promise3])
-  .catch(error => {
-    // Catches first error from any promise
-    console.error("One promise failed:", error);
-  });
+Promise.all([promise1, promise2, promise3]).catch((error) => {
+  // Catches first error from any promise
+  console.error("One promise failed:", error);
+});
 
 // Promise.allSettled waits for all (no fail fast)
-Promise.allSettled([promise1, promise2, promise3])
-  .then(results => {
-    results.forEach(result => {
-      if (result.status === 'fulfilled') {
-        console.log("Success:", result.value);
-      } else {
-        console.error("Failed:", result.reason);
-      }
-    });
+Promise.allSettled([promise1, promise2, promise3]).then((results) => {
+  results.forEach((result) => {
+    if (result.status === "fulfilled") {
+      console.log("Success:", result.value);
+    } else {
+      console.error("Failed:", result.reason);
+    }
   });
+});
 
 // Promise.any - first success (ignores rejections)
 Promise.any([promise1, promise2, promise3])
-  .then(value => {
+  .then((value) => {
     console.log("First success:", value);
   })
-  .catch(error => {
+  .catch((error) => {
     // Only if ALL promises reject
     console.error("All promises failed:", error);
   });
@@ -553,12 +548,12 @@ Promise.any([promise1, promise2, promise3])
 // ─────────────────────────────────────────────
 async function fetchData() {
   try {
-    const response = await fetch('/api/data');
+    const response = await fetch("/api/data");
     const data = await response.json();
     return data;
   } catch (error) {
     console.error("Fetch error:", error);
-    throw error;  // Re-throw or return default
+    throw error; // Re-throw or return default
   }
 }
 
@@ -570,7 +565,7 @@ async function processUserData(userId) {
     const user = await fetchUser(userId);
     const posts = await fetchPosts(user.id);
     const comments = await fetchComments(posts[0].id);
-    
+
     return { user, posts, comments };
   } catch (error) {
     console.error("Error in chain:", error);
@@ -585,13 +580,13 @@ async function fetchAllData(userId) {
   let user = null;
   let posts = null;
   let comments = null;
-  
+
   try {
     user = await fetchUser(userId);
   } catch (error) {
     console.error("Failed to fetch user:", error);
   }
-  
+
   if (user) {
     try {
       posts = await fetchPosts(user.id);
@@ -599,7 +594,7 @@ async function fetchAllData(userId) {
       console.error("Failed to fetch posts:", error);
     }
   }
-  
+
   if (posts && posts.length > 0) {
     try {
       comments = await fetchComments(posts[0].id);
@@ -607,7 +602,7 @@ async function fetchAllData(userId) {
       console.error("Failed to fetch comments:", error);
     }
   }
-  
+
   return { user, posts, comments };
 }
 
@@ -615,21 +610,19 @@ async function fetchAllData(userId) {
 // PARALLEL WITH ERROR HANDLING
 // ─────────────────────────────────────────────
 async function fetchAllParallel(ids) {
-  const results = await Promise.allSettled(
-    ids.map(id => fetchUser(id))
-  );
-  
+  const results = await Promise.allSettled(ids.map((id) => fetchUser(id)));
+
   const successes = results
-    .filter(r => r.status === 'fulfilled')
-    .map(r => r.value);
-  
+    .filter((r) => r.status === "fulfilled")
+    .map((r) => r.value);
+
   const failures = results
-    .filter(r => r.status === 'rejected')
-    .map(r => r.reason);
-  
+    .filter((r) => r.status === "rejected")
+    .map((r) => r.reason);
+
   console.log("Successes:", successes);
   console.log("Failures:", failures);
-  
+
   return { successes, failures };
 }
 ```
@@ -653,7 +646,7 @@ console.debug("Debug message (hidden by default)");
 // ─────────────────────────────────────────────
 // FORMATTED OUTPUT
 // ─────────────────────────────────────────────
-const user = { name: 'John', age: 25 };
+const user = { name: "John", age: 25 };
 console.log("User:", user);
 console.log(`User: ${user.name}, Age: ${user.age}`);
 
@@ -665,15 +658,15 @@ console.log("Name: %s, Age: %d", user.name, user.age);
 // TABLE OUTPUT
 // ─────────────────────────────────────────────
 const users = [
-  { name: 'John', age: 25, city: 'NYC' },
-  { name: 'Jane', age: 30, city: 'LA' },
-  { name: 'Bob', age: 35, city: 'Chicago' },
+  { name: "John", age: 25, city: "NYC" },
+  { name: "Jane", age: 30, city: "LA" },
+  { name: "Bob", age: 35, city: "Chicago" },
 ];
 
 console.table(users);
 // Displays as formatted table
 
-console.table(users, ['name', 'age']);  // Select columns
+console.table(users, ["name", "age"]); // Select columns
 
 // ─────────────────────────────────────────────
 // GROUPING
@@ -696,7 +689,7 @@ console.groupEnd();
 // ─────────────────────────────────────────────
 console.time("Operation");
 // ... some code ...
-console.timeEnd("Operation");  // "Operation: 12.345ms"
+console.timeEnd("Operation"); // "Operation: 12.345ms"
 
 // Multiple timers
 console.time("Fetch");
@@ -711,8 +704,12 @@ console.timeEnd("Process");
 function level3() {
   console.trace("Trace called");
 }
-function level2() { level3(); }
-function level1() { level2(); }
+function level2() {
+  level3();
+}
+function level1() {
+  level2();
+}
 level1();
 
 // Output:
@@ -736,7 +733,7 @@ function handleClick() {
 }
 // "Click count: 1", "Click count: 2", etc.
 
-console.countReset("Click count");  // Reset counter
+console.countReset("Click count"); // Reset counter
 ```
 
 ---
@@ -748,11 +745,11 @@ console.countReset("Click count");  // Reset counter
 // DEBUGGER STATEMENT
 // ─────────────────────────────────────────────
 function processOrder(order) {
-  debugger;  // Execution pauses here (if dev tools open)
-  
+  debugger; // Execution pauses here (if dev tools open)
+
   const total = calculateTotal(order);
   const tax = calculateTax(total);
-  
+
   return total + tax;
 }
 
@@ -769,27 +766,29 @@ for (let i = 0; i < 1000; i++) {
 // ─────────────────────────────────────────────
 // In webpack.config.js
 module.exports = {
-  devtool: 'source-map',  // Generate source maps
+  devtool: "source-map", // Generate source maps
 };
 
 // ─────────────────────────────────────────────
 // ERROR STACK PARSING
 // ─────────────────────────────────────────────
 function parseErrorStack(error) {
-  const stack = error.stack.split('\n');
-  
-  return stack.map(line => {
-    const match = line.match(/at\s+(.+?)\s+\((.+):(\d+):(\d+)\)/);
-    if (match) {
-      return {
-        function: match[1],
-        file: match[2],
-        line: match[3],
-        column: match[4],
-      };
-    }
-    return null;
-  }).filter(Boolean);
+  const stack = error.stack.split("\n");
+
+  return stack
+    .map((line) => {
+      const match = line.match(/at\s+(.+?)\s+\((.+):(\d+):(\d+)\)/);
+      if (match) {
+        return {
+          function: match[1],
+          file: match[2],
+          line: match[3],
+          column: match[4],
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
 }
 
 // ─────────────────────────────────────────────
@@ -799,9 +798,9 @@ function measurePerformance(fn, ...args) {
   const start = performance.now();
   const result = fn(...args);
   const end = performance.now();
-  
+
   console.log(`${fn.name} took ${(end - start).toFixed(2)}ms`);
-  
+
   return result;
 }
 
@@ -868,6 +867,7 @@ Finally
 ```
 
 **Explanation**: Finally always runs, even when re-throwing.
+
 </details>
 
 ---
@@ -892,6 +892,7 @@ class TimeoutError extends Error {
 // Usage
 throw new TimeoutError("Request timed out", 5000);
 ```
+
 </details>
 
 ---
@@ -919,4 +920,5 @@ throw new TimeoutError("Request timed out", 5000);
 **Status**: ✅ Complete
 
 ---
+
 -23-03-26

@@ -8,6 +8,8 @@
 
 ---
 
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:

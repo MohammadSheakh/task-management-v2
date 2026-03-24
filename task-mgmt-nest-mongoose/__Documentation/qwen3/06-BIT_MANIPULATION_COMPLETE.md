@@ -3,7 +3,7 @@
 **Difficulty**: Medium  
 **Importance for Node.js**: ⭐⭐⭐ (Performance optimization, flags, permissions)  
 **Time to Master**: 1 week  
-
+- [LastRead](#lastRead)
 ---
 
 ## 🎯 **WHY BIT MANIPULATION MATTERS FOR NODE.JS**

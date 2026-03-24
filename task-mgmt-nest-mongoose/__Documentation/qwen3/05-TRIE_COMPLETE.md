@@ -3,7 +3,7 @@
 **Difficulty**: Medium  
 **Importance for Node.js**: ⭐⭐⭐⭐ (Search, Autocomplete, Routing)  
 **Time to Master**: 1 week  
-
+- [LastRead](#lastRead)
 ---
 
 ## 🎯 **WHAT IS A TRIE?**

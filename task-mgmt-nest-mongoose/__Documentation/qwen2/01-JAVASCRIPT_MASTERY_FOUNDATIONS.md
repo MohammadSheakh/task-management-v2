@@ -7,6 +7,10 @@
 
 ---
 
+## --
+
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:
@@ -85,25 +89,25 @@ function exampleVar() {
 // ❌ PROBLEM 2: Can Redeclare Same Variable
 // ─────────────────────────────────────────────
 var name = "John";
-var name = "Jane";  // ✅ No error (silent overwrite!)
-console.log(name);  // "Jane"
+var name = "Jane"; // ✅ No error (silent overwrite!)
+console.log(name); // "Jane"
 
 // ─────────────────────────────────────────────
 // ❌ PROBLEM 3: Hoisted and Initialized with undefined
 // ─────────────────────────────────────────────
-console.log(age);  // ✅ undefined (no error!)
+console.log(age); // ✅ undefined (no error!)
 var age = 25;
 
 // What actually happens (hoisting):
-var age;           // ← Hoisted to top, initialized as undefined
-console.log(age);  // ← undefined
-age = 25;          // ← Assignment stays here
+var age; // ← Hoisted to top, initialized as undefined
+console.log(age); // ← undefined
+age = 25; // ← Assignment stays here
 
 // ─────────────────────────────────────────────
 // ❌ PROBLEM 4: Becomes Window Property
 // ─────────────────────────────────────────────
 var globalVar = "I'm global";
-console.log(window.globalVar);  // ✅ "I'm global" (in browser)
+console.log(window.globalVar); // ✅ "I'm global" (in browser)
 
 // ─────────────────────────────────────────────
 // ✅ WHEN TO USE var (Rare Cases)
@@ -112,7 +116,7 @@ console.log(window.globalVar);  // ✅ "I'm global" (in browser)
 // 2. Intentional function-level scoping
 // 3. IIFEs (Immediately Invoked Function Expressions)
 
-(function() {
+(function () {
   var private = "I'm private";
   // This pattern is mostly obsolete with let/const + block scope
 })();
@@ -129,9 +133,9 @@ console.log(window.globalVar);  // ✅ "I'm global" (in browser)
 function exampleLet() {
   if (true) {
     let x = 10;
-    console.log(x);  // ✅ 10
+    console.log(x); // ✅ 10
   }
-  console.log(x);  // ❌ ReferenceError: x is not defined
+  console.log(x); // ❌ ReferenceError: x is not defined
 }
 
 // Block scope applies to:
@@ -161,7 +165,7 @@ let age2 = 25;
 // ✅ BENEFIT 4: Not a Window Property
 // ─────────────────────────────────────────────
 let globalLet = "I'm global";
-console.log(window.globalLet);  // ❌ undefined
+console.log(window.globalLet); // ❌ undefined
 
 // ─────────────────────────────────────────────
 // 🎯 PRACTICAL EXAMPLE: Loop with let
@@ -169,24 +173,24 @@ console.log(window.globalLet);  // ❌ undefined
 // Using var (WRONG)
 var funcs1 = [];
 for (var i = 0; i < 3; i++) {
-  funcs1.push(function() {
-    console.log(i);  // ❌ All print 3 (same shared variable!)
+  funcs1.push(function () {
+    console.log(i); // ❌ All print 3 (same shared variable!)
   });
 }
-funcs1[0]();  // 3
-funcs1[1]();  // 3
-funcs1[2]();  // 3
+funcs1[0](); // 3
+funcs1[1](); // 3
+funcs1[2](); // 3
 
 // Using let (CORRECT)
 var funcs2 = [];
 for (let i = 0; i < 3; i++) {
-  funcs2.push(function() {
-    console.log(i);  // ✅ Each has its own 'i'
+  funcs2.push(function () {
+    console.log(i); // ✅ Each has its own 'i'
   });
 }
-funcs2[0]();  // 0
-funcs2[1]();  // 1
-funcs2[2]();  // 2
+funcs2[0](); // 0
+funcs2[1](); // 1
+funcs2[2](); // 2
 
 // Why? let creates a new binding for each loop iteration
 ```
@@ -216,7 +220,7 @@ const user = { name: "John", age: 25 };
 // ✅ This works (modifying object property)
 user.age = 26;
 user.email = "john@example.com";
-console.log(user);  // { name: "John", age: 26, email: "john@example.com" }
+console.log(user); // { name: "John", age: 26, email: "john@example.com" }
 
 // ❌ This doesn't work (reassigning the variable)
 // user = { name: "Jane" };  // ❌ TypeError: Assignment to constant variable
@@ -229,7 +233,7 @@ const numbers = [1, 2, 3];
 // ✅ This works
 numbers.push(4);
 numbers[0] = 10;
-console.log(numbers);  // [10, 2, 3, 4]
+console.log(numbers); // [10, 2, 3, 4]
 
 // ❌ This doesn't work
 // numbers = [5, 6, 7];  // ❌ TypeError
@@ -239,8 +243,8 @@ console.log(numbers);  // [10, 2, 3, 4]
 // ─────────────────────────────────────────────
 // Use Object.freeze() for true immutability
 const CONFIG = Object.freeze({
-  API_URL: 'https://api.example.com',
-  VERSION: '1.0.0',
+  API_URL: "https://api.example.com",
+  VERSION: "1.0.0",
 });
 
 // CONFIG.API_URL = 'https://hacker.com';  // ❌ Silent fail (or TypeError in strict mode)
@@ -248,8 +252,8 @@ const CONFIG = Object.freeze({
 // For deep freeze, use a utility function
 function deepFreeze(obj) {
   Object.freeze(obj);
-  Object.keys(obj).forEach(key => {
-    if (typeof obj[key] === 'object' && obj[key] !== null) {
+  Object.keys(obj).forEach((key) => {
+    if (typeof obj[key] === "object" && obj[key] !== null) {
       deepFreeze(obj[key]);
     }
   });
@@ -258,7 +262,7 @@ function deepFreeze(obj) {
 
 const DEEP_CONFIG = deepFreeze({
   api: {
-    url: 'https://api.example.com',
+    url: "https://api.example.com",
     timeout: 5000,
   },
 });
@@ -280,7 +284,7 @@ graph TB
     C --> G[✅ Default choice]
     E --> G
     F --> G
-    
+
     style C fill:#4ecdc4
     style E fill:#4ecdc4
     style F fill:#4ecdc4
@@ -288,6 +292,7 @@ graph TB
 ```
 
 **Rule of Thumb**:
+
 1. **Default to `const`** (80-90% of cases)
 2. **Use `let`** when reassignment is necessary (loop counters, accumulators)
 3. **Avoid `var`** unless maintaining legacy code
@@ -331,7 +336,7 @@ graph TB
 
     A1 --> C[Stored by VALUE]
     B1 --> D[Stored by REFERENCE]
-    
+
     style C fill:#95e1d3
     style D fill:#ff6b6b
 ```
@@ -345,43 +350,43 @@ graph TB
 // 1. STRING
 // ─────────────────────────────────────────────
 const name = "John";
-const name2 = name;  // ← Copies the VALUE
+const name2 = name; // ← Copies the VALUE
 
-name2 = "Jane";  // ✅ Doesn't affect 'name'
-console.log(name);  // "John"
+name2 = "Jane"; // ✅ Doesn't affect 'name'
+console.log(name); // "John"
 
 // String methods (strings are immutable)
 const text = "Hello World";
-console.log(text.toUpperCase());  // "HELLO WORLD"
-console.log(text);  // "Hello World" (original unchanged)
+console.log(text.toUpperCase()); // "HELLO WORLD"
+console.log(text); // "Hello World" (original unchanged)
 
 // ─────────────────────────────────────────────
 // 2. NUMBER
 // ─────────────────────────────────────────────
 const age = 25;
-const age2 = age;  // ← Copies the VALUE
+const age2 = age; // ← Copies the VALUE
 
 // Number quirks
-console.log(0.1 + 0.2);  // 0.30000000000000004 (floating point precision)
-console.log(Number.isNaN(NaN));  // true
-console.log(Number.isFinite(Infinity));  // false
+console.log(0.1 + 0.2); // 0.30000000000000004 (floating point precision)
+console.log(Number.isNaN(NaN)); // true
+console.log(Number.isFinite(Infinity)); // false
 
 // Fix floating point
-console.log((0.1 + 0.2).toFixed(2));  // "0.30"
-console.log(parseFloat((0.1 + 0.2).toFixed(2)));  // 0.3
+console.log((0.1 + 0.2).toFixed(2)); // "0.30"
+console.log(parseFloat((0.1 + 0.2).toFixed(2))); // 0.3
 
 // ─────────────────────────────────────────────
 // 3. BOOLEAN
 // ─────────────────────────────────────────────
 const isActive = true;
-const isAdmin = Boolean("truthy");  // ✅ true
+const isAdmin = Boolean("truthy"); // ✅ true
 
 // Falsy values (6 total)
 const falsyValues = [
   false,
   0,
   -0,
-  0n,  // BigInt zero
+  0n, // BigInt zero
   "",
   null,
   undefined,
@@ -392,46 +397,46 @@ const falsyValues = [
 // 4. UNDEFINED
 // ─────────────────────────────────────────────
 let notInitialized;
-console.log(notInitialized);  // undefined
+console.log(notInitialized); // undefined
 
 function noReturn() {}
-console.log(noReturn());  // undefined
+console.log(noReturn()); // undefined
 
 const obj = {};
-console.log(obj.nonExistent);  // undefined
+console.log(obj.nonExistent); // undefined
 
 // ─────────────────────────────────────────────
 // 5. NULL
 // ─────────────────────────────────────────────
 // Intentional absence of value
-const user = null;  // ← Explicitly no value
+const user = null; // ← Explicitly no value
 
 // null vs undefined
-console.log(typeof undefined);  // "undefined"
-console.log(typeof null);  // "object" (historical bug!)
+console.log(typeof undefined); // "undefined"
+console.log(typeof null); // "object" (historical bug!)
 
 // ─────────────────────────────────────────────
 // 6. SYMBOL
 // ─────────────────────────────────────────────
 const id1 = Symbol("id");
 const id2 = Symbol("id");
-console.log(id1 === id2);  // false (always unique)
+console.log(id1 === id2); // false (always unique)
 
 // Use case: Hidden object properties
 const userObj = {
   [Symbol("id")]: 123,
   name: "John",
 };
-console.log(userObj.name);  // "John"
-console.log(Object.keys(userObj));  // ["name"] (symbol not included)
+console.log(userObj.name); // "John"
+console.log(Object.keys(userObj)); // ["name"] (symbol not included)
 
 // ─────────────────────────────────────────────
 // 7. BIGINT
 // ─────────────────────────────────────────────
-const hugeNumber = 9007199254740991n;  // Beyond Number.MAX_SAFE_INTEGER
+const hugeNumber = 9007199254740991n; // Beyond Number.MAX_SAFE_INTEGER
 const bigger = BigInt(9007199254740991);
 
-console.log(hugeNumber + 1n);  // 9007199254740992n
+console.log(hugeNumber + 1n); // 9007199254740992n
 // console.log(hugeNumber + 1);  // ❌ TypeError (can't mix with number)
 ```
 
@@ -444,30 +449,30 @@ console.log(hugeNumber + 1n);  // 9007199254740992n
 // OBJECT (Reference Type)
 // ─────────────────────────────────────────────
 const user1 = { name: "John", age: 25 };
-const user2 = user1;  // ← Copies the REFERENCE (not the value!)
+const user2 = user1; // ← Copies the REFERENCE (not the value!)
 
 user2.age = 26;
-console.log(user1.age);  // 26 (BOTH changed!)
+console.log(user1.age); // 26 (BOTH changed!)
 
 // To copy an object:
-const user3 = { ...user1 };  // Shallow copy
-const user4 = JSON.parse(JSON.stringify(user1));  // Deep copy (limited)
-const user5 = structuredClone(user1);  // Deep copy (modern, best)
+const user3 = { ...user1 }; // Shallow copy
+const user4 = JSON.parse(JSON.stringify(user1)); // Deep copy (limited)
+const user5 = structuredClone(user1); // Deep copy (modern, best)
 
 // ─────────────────────────────────────────────
 // ARRAY (Reference Type)
 // ─────────────────────────────────────────────
 const arr1 = [1, 2, 3];
-const arr2 = arr1;  // ← Copies the REFERENCE
+const arr2 = arr1; // ← Copies the REFERENCE
 
 arr2.push(4);
-console.log(arr1);  // [1, 2, 3, 4] (BOTH changed!)
+console.log(arr1); // [1, 2, 3, 4] (BOTH changed!)
 
 // To copy an array:
-const arr3 = [...arr1];  // Shallow copy
-const arr4 = arr1.slice();  // Shallow copy
-const arr5 = Array.from(arr1);  // Shallow copy
-const arr6 = structuredClone(arr1);  // Deep copy
+const arr3 = [...arr1]; // Shallow copy
+const arr4 = arr1.slice(); // Shallow copy
+const arr5 = Array.from(arr1); // Shallow copy
+const arr6 = structuredClone(arr1); // Deep copy
 
 // ─────────────────────────────────────────────
 // FUNCTION (Reference Type)
@@ -476,8 +481,8 @@ function greet(name) {
   return `Hello, ${name}!`;
 }
 
-const greet2 = greet;  // ← Copies the REFERENCE
-console.log(greet2("John"));  // "Hello, John!"
+const greet2 = greet; // ← Copies the REFERENCE
+console.log(greet2("John")); // "Hello, John!"
 
 // ─────────────────────────────────────────────
 // COMPARISON: Primitive vs Reference
@@ -485,15 +490,15 @@ console.log(greet2("John"));  // "Hello, John!"
 // Primitives compare by VALUE
 const a = 5;
 const b = 5;
-console.log(a === b);  // ✅ true (same value)
+console.log(a === b); // ✅ true (same value)
 
 // References compare by MEMORY ADDRESS
 const obj1 = { value: 5 };
 const obj2 = { value: 5 };
-console.log(obj1 === obj2);  // ❌ false (different references)
+console.log(obj1 === obj2); // ❌ false (different references)
 
 const obj3 = obj1;
-console.log(obj1 === obj3);  // ✅ true (same reference)
+console.log(obj1 === obj3); // ✅ true (same reference)
 ```
 
 ---
@@ -505,39 +510,40 @@ console.log(obj1 === obj3);  // ✅ true (same reference)
 // ✅ EXPLICIT COERCION (Good)
 // ─────────────────────────────────────────────
 const numStr = "123";
-const num = Number(numStr);  // 123 (clear intent)
+const num = Number(numStr); // 123 (clear intent)
 
-const strNum = String(123);  // "123"
+const strNum = String(123); // "123"
 
-const boolVal = Boolean("truthy");  // true
+const boolVal = Boolean("truthy"); // true
 
 // ─────────────────────────────────────────────
 // ⚠️ IMPLICIT COERCION (Bad - Avoid)
 // ─────────────────────────────────────────────
-console.log("5" - 1);  // 4 (string to number)
-console.log("5" + 1);  // "51" (number to string)
-console.log("5" == 5);  // true (type coercion!)
-console.log("5" === 5);  // false (no coercion - use this!)
+console.log("5" - 1); // 4 (string to number)
+console.log("5" + 1); // "51" (number to string)
+console.log("5" == 5); // true (type coercion!)
+console.log("5" === 5); // false (no coercion - use this!)
 
 // ─────────────────────────────────────────────
 // 🤯 WEIRD COERCION CASES
 // ─────────────────────────────────────────────
-console.log([] + []);  // "" (empty string)
-console.log([] + {});  // "[object Object]"
-console.log({} + []);  // 0 (or NaN in some contexts)
-console.log([1] + [2]);  // "12"
-console.log("1" - -"1");  // 2 (unary minus)
-console.log(true + true);  // 2 (boolean to number)
-console.log(true + false);  // 1
+console.log([] + []); // "" (empty string)
+console.log([] + {}); // "[object Object]"
+console.log({} + []); // 0 (or NaN in some contexts)
+console.log([1] + [2]); // "12"
+console.log("1" - -"1"); // 2 (unary minus)
+console.log(true + true); // 2 (boolean to number)
+console.log(true + false); // 1
 
 // ─────────────────────────────────────────────
 // 🎯 TRUTHY/FALSY COERCION
 // ─────────────────────────────────────────────
 const value = "";
-if (value) {  // Implicit: Boolean(value)
+if (value) {
+  // Implicit: Boolean(value)
   console.log("Truthy");
 } else {
-  console.log("Falsy");  // This prints
+  console.log("Falsy"); // This prints
 }
 
 // Falsy values to memorize:
@@ -547,20 +553,22 @@ if (value) {  // Implicit: Boolean(value)
 // 🎯 SHORT-CIRCUIT EVALUATION
 // ─────────────────────────────────────────────
 // AND (&&) - Returns first falsy or last truthy
-console.log(null && "anything");  // null
-console.log("Hello" && "World");  // "World"
+console.log(null && "anything"); // null
+console.log("Hello" && "World"); // "World"
 
 // OR (||) - Returns first truthy or last falsy
-console.log(null || "default");  // "default"
-console.log("Hello" || "World");  // "Hello"
+console.log(null || "default"); // "default"
+console.log("Hello" || "World"); // "Hello"
 
 // Nullish Coalescing (??) - Only null/undefined
-console.log(null ?? "default");  // "default"
-console.log(0 ?? "default");  // 0 (0 is not nullish)
-console.log("" ?? "default");  // "" (empty string is not nullish)
+console.log(null ?? "default"); // "default"
+console.log(0 ?? "default"); // 0 (0 is not nullish)
+console.log("" ?? "default"); // "" (empty string is not nullish)
 ```
 
 ---
+
+## LastRead
 
 ## 📦 **PART 3: SCOPE & CLOSURES**
 
@@ -609,7 +617,7 @@ graph TB
 const globalVar = "I'm global";
 
 function accessGlobal() {
-  console.log(globalVar);  // ✅ Can access global
+  console.log(globalVar); // ✅ Can access global
 }
 
 // ─────────────────────────────────────────────
@@ -617,13 +625,13 @@ function accessGlobal() {
 // ─────────────────────────────────────────────
 function functionScope() {
   var functionVar = "I'm function-scoped";
-  
+
   if (true) {
     var functionVar2 = "I'm also function-scoped";
   }
-  
-  console.log(functionVar);   // ✅ "I'm function-scoped"
-  console.log(functionVar2);  // ✅ "I'm also function-scoped"
+
+  console.log(functionVar); // ✅ "I'm function-scoped"
+  console.log(functionVar2); // ✅ "I'm also function-scoped"
 }
 
 // console.log(functionVar);  // ❌ ReferenceError
@@ -636,7 +644,7 @@ function blockScope() {
     let blockVar = "I'm block-scoped";
     const blockConst = "Me too";
   }
-  
+
   // console.log(blockVar);    // ❌ ReferenceError
   // console.log(blockConst);  // ❌ ReferenceError
 }
@@ -646,12 +654,12 @@ function blockScope() {
 // ─────────────────────────────────────────────
 function outer() {
   const outerVar = "I'm in outer";
-  
+
   function inner() {
     const innerVar = "I'm in inner";
-    console.log(outerVar);  // ✅ Can access outer scope
+    console.log(outerVar); // ✅ Can access outer scope
   }
-  
+
   inner();
   // console.log(innerVar);  // ❌ Cannot access inner scope
 }
@@ -672,39 +680,39 @@ outer();
 
 function outerFunction() {
   const outerVar = "I'm from outer";
-  
+
   function innerFunction() {
-    console.log(outerVar);  // ← This is a closure
+    console.log(outerVar); // ← This is a closure
   }
-  
+
   return innerFunction;
 }
 
 const closure = outerFunction();
-closure();  // "I'm from outer" (remembers outerVar!)
+closure(); // "I'm from outer" (remembers outerVar!)
 
 // ─────────────────────────────────────────────
 // CLOSURE IN LOOPS (Classic Interview Question)
 // ─────────────────────────────────────────────
 // ❌ WRONG: Using var
 for (var i = 0; i < 3; i++) {
-  setTimeout(function() {
-    console.log(i);  // 3, 3, 3 (all see final value of i)
+  setTimeout(function () {
+    console.log(i); // 3, 3, 3 (all see final value of i)
   }, 100);
 }
 
 // ✅ CORRECT: Using let (block scope)
 for (let i = 0; i < 3; i++) {
-  setTimeout(function() {
-    console.log(i);  // 0, 1, 2 (each iteration has its own 'i')
+  setTimeout(function () {
+    console.log(i); // 0, 1, 2 (each iteration has its own 'i')
   }, 100);
 }
 
 // ✅ CORRECT: Using IIFE with var
 for (var i = 0; i < 3; i++) {
-  (function(capturedI) {
-    setTimeout(function() {
-      console.log(capturedI);  // 0, 1, 2
+  (function (capturedI) {
+    setTimeout(function () {
+      console.log(capturedI); // 0, 1, 2
     }, 100);
   })(i);
 }
@@ -713,8 +721,8 @@ for (var i = 0; i < 3; i++) {
 // CLOSURE FOR DATA PRIVACY
 // ─────────────────────────────────────────────
 function createCounter() {
-  let count = 0;  // ← Private variable (closure)
-  
+  let count = 0; // ← Private variable (closure)
+
   return {
     increment() {
       count++;
@@ -731,16 +739,16 @@ function createCounter() {
 }
 
 const counter = createCounter();
-console.log(counter.increment());  // 1
-console.log(counter.increment());  // 2
-console.log(counter.getCount());   // 2
+console.log(counter.increment()); // 1
+console.log(counter.increment()); // 2
+console.log(counter.getCount()); // 2
 // console.log(counter.count);      // undefined (truly private!)
 
 // ─────────────────────────────────────────────
 // CLOSURE WITH FACTORY FUNCTIONS
 // ─────────────────────────────────────────────
 function createMultiplier(multiplier) {
-  return function(number) {
+  return function (number) {
     return number * multiplier;
   };
 }
@@ -748,23 +756,23 @@ function createMultiplier(multiplier) {
 const double = createMultiplier(2);
 const triple = createMultiplier(3);
 
-console.log(double(5));  // 10
-console.log(triple(5));  // 15
+console.log(double(5)); // 10
+console.log(triple(5)); // 15
 
 // ─────────────────────────────────────────────
 // CLOSURE FOR MEMOIZATION (CACHING)
 // ─────────────────────────────────────────────
 function createMemoizedFunction(fn) {
-  const cache = {};  // ← Private cache (closure)
-  
-  return function(...args) {
+  const cache = {}; // ← Private cache (closure)
+
+  return function (...args) {
     const key = JSON.stringify(args);
-    
+
     if (cache[key]) {
       console.log("Returning from cache");
       return cache[key];
     }
-    
+
     const result = fn(...args);
     cache[key] = result;
     return result;
@@ -776,8 +784,8 @@ const memoizedAdd = createMemoizedFunction((a, b) => {
   return a + b;
 });
 
-console.log(memoizedAdd(2, 3));  // Computing... 5
-console.log(memoizedAdd(2, 3));  // Returning from cache 5
+console.log(memoizedAdd(2, 3)); // Computing... 5
+console.log(memoizedAdd(2, 3)); // Returning from cache 5
 ```
 
 ---
@@ -792,22 +800,22 @@ const global = "I'm global";
 
 function level1() {
   const level1Var = "I'm level 1";
-  
+
   function level2() {
     const level2Var = "I'm level 2";
-    
+
     function level3() {
       const level3Var = "I'm level 3";
-      
-      console.log(level3Var);  // Own scope
-      console.log(level2Var);  // Parent scope
-      console.log(level1Var);  // Grandparent scope
-      console.log(global);     // Global scope
+
+      console.log(level3Var); // Own scope
+      console.log(level2Var); // Parent scope
+      console.log(level1Var); // Grandparent scope
+      console.log(global); // Global scope
     }
-    
+
     level3();
   }
-  
+
   level2();
 }
 
@@ -819,20 +827,20 @@ level1();
 const name = "Global John";
 
 function printName() {
-  const name = "Function John";  // Shadows global
-  
-  console.log(name);  // "Function John"
-  
+  const name = "Function John"; // Shadows global
+
+  console.log(name); // "Function John"
+
   if (true) {
-    const name = "Block John";  // Shadows function
-    console.log(name);  // "Block John"
+    const name = "Block John"; // Shadows function
+    console.log(name); // "Block John"
   }
-  
-  console.log(name);  // "Function John" (back to function scope)
+
+  console.log(name); // "Function John" (back to function scope)
 }
 
 printName();
-console.log(name);  // "Global John" (global scope)
+console.log(name); // "Global John" (global scope)
 ```
 
 ---
@@ -1082,9 +1090,9 @@ const c = 3;
 <summary>💡 Click to reveal answer</summary>
 
 ```javascript
-console.log(a);  // undefined (var hoisted and initialized)
-console.log(b);  // ReferenceError (let in TDZ)
-console.log(c);  // ReferenceError (const in TDZ)
+console.log(a); // undefined (var hoisted and initialized)
+console.log(b); // ReferenceError (let in TDZ)
+console.log(c); // ReferenceError (const in TDZ)
 
 var a = 1;
 let b = 2;
@@ -1092,6 +1100,7 @@ const c = 3;
 ```
 
 **Explanation**: `var` is hoisted and initialized with `undefined`. `let` and `const` are hoisted but remain in TDZ until assignment.
+
 </details>
 
 ---
@@ -1110,6 +1119,7 @@ for (var i = 0; i < 3; i++) {
 <summary>💡 Click to reveal answer</summary>
 
 **Solution 1** (Best): Use `let` instead of `var`
+
 ```javascript
 for (let i = 0; i < 3; i++) {
   setTimeout(() => console.log(i), 100);
@@ -1117,13 +1127,15 @@ for (let i = 0; i < 3; i++) {
 ```
 
 **Solution 2**: Use IIFE
+
 ```javascript
 for (var i = 0; i < 3; i++) {
-  (function(capturedI) {
+  (function (capturedI) {
     setTimeout(() => console.log(capturedI), 100);
   })(i);
 }
 ```
+
 </details>
 
 ---
@@ -1145,11 +1157,12 @@ console.log(obj1 === obj2);
 <summary>💡 Click to reveal answer</summary>
 
 ```javascript
-console.log(obj1.a);   // 2 (obj1 and obj2 reference same object)
-console.log(obj1 === obj2);  // true (same reference)
+console.log(obj1.a); // 2 (obj1 and obj2 reference same object)
+console.log(obj1 === obj2); // true (same reference)
 ```
 
 **Explanation**: Objects are reference types. Assigning `obj2 = obj1` copies the reference, not the value.
+
 </details>
 
 ---
@@ -1177,4 +1190,5 @@ console.log(obj1 === obj2);  // true (same reference)
 **Status**: ✅ Complete
 
 ---
+
 -23-03-26

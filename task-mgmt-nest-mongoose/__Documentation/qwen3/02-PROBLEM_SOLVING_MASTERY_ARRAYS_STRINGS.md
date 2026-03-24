@@ -5,7 +5,7 @@
 **Series**: DSA & Interview Preparation
 **Time**: 60 minutes
 **Prerequisites**: Lesson 1 (Fundamentals)
-
+- [LastRead](#lastRead)
 ---
 
 ## 🎯 **LEARNING OBJECTIVES**

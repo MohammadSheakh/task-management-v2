@@ -5,7 +5,7 @@
 **Series**: DSA & Interview Preparation
 **Time**: 120 minutes
 **Prerequisites**: Lesson 1-3 (Fundamentals, Arrays, Hashing)
-
+- [LastRead](#lastRead)
 ---
 
 ## 🎯 **LEARNING OBJECTIVES**

@@ -8,6 +8,8 @@
 
 ---
 
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:
@@ -61,48 +63,48 @@ graph TB
 // ─────────────────────────────────────────────
 // getElementById (Fastest for ID)
 // ─────────────────────────────────────────────
-const header = document.getElementById('header');
-console.log(header);  // Single element or null
+const header = document.getElementById("header");
+console.log(header); // Single element or null
 
 // ─────────────────────────────────────────────
 // getElementsByClassName (Live Collection)
 // ─────────────────────────────────────────────
-const items = document.getElementsByClassName('item');
-console.log(items.length);  // Number of elements
+const items = document.getElementsByClassName("item");
+console.log(items.length); // Number of elements
 
 // Live collection - updates when DOM changes
-const container = document.getElementById('container');
-const items2 = container.getElementsByClassName('item');
-console.log(items2.length);  // 0
+const container = document.getElementById("container");
+const items2 = container.getElementsByClassName("item");
+console.log(items2.length); // 0
 
-const newDiv = document.createElement('div');
-newDiv.className = 'item';
+const newDiv = document.createElement("div");
+newDiv.className = "item";
 container.appendChild(newDiv);
-console.log(items2.length);  // 1 (automatically updated!)
+console.log(items2.length); // 1 (automatically updated!)
 
 // ─────────────────────────────────────────────
 // getElementsByTagName (Live Collection)
 // ─────────────────────────────────────────────
-const paragraphs = document.getElementsByTagName('p');
-const allDivs = document.getElementsByTagName('div');
+const paragraphs = document.getElementsByTagName("p");
+const allDivs = document.getElementsByTagName("div");
 
 // ─────────────────────────────────────────────
 // querySelector (CSS Selectors, Single)
 // ─────────────────────────────────────────────
-const first = document.querySelector('.item');  // First .item
-const byId = document.querySelector('#header');  // Same as getElementById
-const direct = document.querySelector('ul > li');  // Direct child
-const attr = document.querySelector('[data-active]');  // Attribute
+const first = document.querySelector(".item"); // First .item
+const byId = document.querySelector("#header"); // Same as getElementById
+const direct = document.querySelector("ul > li"); // Direct child
+const attr = document.querySelector("[data-active]"); // Attribute
 
 // ─────────────────────────────────────────────
 // querySelectorAll (CSS Selectors, Multiple)
 // ─────────────────────────────────────────────
-const all = document.querySelectorAll('.item');  // All .item elements
-const nodeList = document.querySelectorAll('ul li:nth-child(odd)');
+const all = document.querySelectorAll(".item"); // All .item elements
+const nodeList = document.querySelectorAll("ul li:nth-child(odd)");
 
 // NodeList (not live, has forEach)
-const items3 = document.querySelectorAll('.item');
-items3.forEach(item => {
+const items3 = document.querySelectorAll(".item");
+items3.forEach((item) => {
   console.log(item);
 });
 
@@ -119,11 +121,11 @@ items3.forEach(item => {
 // BEST PRACTICE: Cache selections
 // ❌ Bad: Query every time
 for (let i = 0; i < 100; i++) {
-  document.getElementById('myId').textContent = i;
+  document.getElementById("myId").textContent = i;
 }
 
 // ✅ Good: Cache reference
-const element = document.getElementById('myId');
+const element = document.getElementById("myId");
 for (let i = 0; i < 100; i++) {
   element.textContent = i;
 }
@@ -137,41 +139,40 @@ for (let i = 0; i < 100; i++) {
 // ─────────────────────────────────────────────
 // PARENT TRAVERSAL
 // ─────────────────────────────────────────────
-const child = document.querySelector('.child');
+const child = document.querySelector(".child");
 
-child.parentNode;        // Direct parent (works on any node)
-child.parentElement;     // Direct parent (element only)
-child.closest('.container');  // Closest ancestor matching selector
+child.parentNode; // Direct parent (works on any node)
+child.parentElement; // Direct parent (element only)
+child.closest(".container"); // Closest ancestor matching selector
 
 // ─────────────────────────────────────────────
 // CHILD TRAVERSAL
 // ─────────────────────────────────────────────
-const parent = document.querySelector('.parent');
+const parent = document.querySelector(".parent");
 
-parent.children;         // HTMLCollection of element children
-parent.firstElementChild;  // First element child
-parent.lastElementChild;   // Last element child
-parent.childNodes;       // NodeList of ALL nodes (including text)
-parent.firstChild;       // First node (could be text)
+parent.children; // HTMLCollection of element children
+parent.firstElementChild; // First element child
+parent.lastElementChild; // Last element child
+parent.childNodes; // NodeList of ALL nodes (including text)
+parent.firstChild; // First node (could be text)
 
 // ─────────────────────────────────────────────
 // SIBLING TRAVERSAL
 // ─────────────────────────────────────────────
-const element = document.querySelector('.item');
+const element = document.querySelector(".item");
 
-element.previousElementSibling;  // Previous element
-element.nextElementSibling;      // Next element
-element.previousSibling;         // Previous node (could be text)
-element.nextSibling;             // Next node (could be text)
+element.previousElementSibling; // Previous element
+element.nextElementSibling; // Next element
+element.previousSibling; // Previous node (could be text)
+element.nextSibling; // Next node (could be text)
 
 // ─────────────────────────────────────────────
 // TRAVERSAL CHAINING
 // ─────────────────────────────────────────────
 const target = document
-  .querySelector('.container')
-  .querySelector('.item')
-  .nextElementSibling
-  .querySelector('.child');
+  .querySelector(".container")
+  .querySelector(".item")
+  .nextElementSibling.querySelector(".child");
 
 // ─────────────────────────────────────────────
 // PRACTICAL: Find All Ancestors
@@ -179,12 +180,12 @@ const target = document
 function getAncestors(element) {
   const ancestors = [];
   let current = element.parentElement;
-  
+
   while (current) {
     ancestors.push(current);
     current = current.parentElement;
   }
-  
+
   return ancestors;
 }
 
@@ -192,18 +193,18 @@ function getAncestors(element) {
 // PRACTICAL: Find All Descendants
 // ─────────────────────────────────────────────
 function getDescendants(element) {
-  return element.querySelectorAll('*');
+  return element.querySelectorAll("*");
 }
 
 // Or without querySelectorAll
 function getDescendantsRecursive(element) {
   const descendants = [];
-  
+
   for (const child of element.children) {
     descendants.push(child);
     descendants.push(...getDescendantsRecursive(child));
   }
-  
+
   return descendants;
 }
 ```
@@ -218,23 +219,23 @@ function getDescendantsRecursive(element) {
 // ─────────────────────────────────────────────
 // CREATE ELEMENTS
 // ─────────────────────────────────────────────
-const div = document.createElement('div');
-div.className = 'my-class';
-div.id = 'myId';
-div.textContent = 'Hello World';
-div.innerHTML = '<span>Nested</span>';  // Use carefully (XSS risk)
+const div = document.createElement("div");
+div.className = "my-class";
+div.id = "myId";
+div.textContent = "Hello World";
+div.innerHTML = "<span>Nested</span>"; // Use carefully (XSS risk)
 
 // Set attributes
-div.setAttribute('data-value', '123');
-div.setAttribute('role', 'button');
-div.style.color = 'red';
-div.style.padding = '10px';
+div.setAttribute("data-value", "123");
+div.setAttribute("role", "button");
+div.style.color = "red";
+div.style.padding = "10px";
 
 // ─────────────────────────────────────────────
 // INSERT ELEMENTS
 // ─────────────────────────────────────────────
-const parent = document.querySelector('.parent');
-const child = document.querySelector('.child');
+const parent = document.querySelector(".parent");
+const child = document.querySelector(".child");
 
 // Append (add as last child)
 parent.appendChild(div);
@@ -253,52 +254,52 @@ function insertAfter(newNode, referenceNode) {
 // element.insertAdjacentHTML(position, html)
 // Positions: 'beforebegin', 'afterbegin', 'beforeend', 'afterend'
 
-const container = document.querySelector('.container');
+const container = document.querySelector(".container");
 
-container.insertAdjacentHTML('beforebegin', '<div>Before</div>');
-container.insertAdjacentHTML('afterbegin', '<div>Start</div>');
-container.insertAdjacentHTML('beforeend', '<div>End</div>');
-container.insertAdjacentHTML('afterend', '<div>After</div>');
+container.insertAdjacentHTML("beforebegin", "<div>Before</div>");
+container.insertAdjacentHTML("afterbegin", "<div>Start</div>");
+container.insertAdjacentHTML("beforeend", "<div>End</div>");
+container.insertAdjacentHTML("afterend", "<div>After</div>");
 
 // ─────────────────────────────────────────────
 // REPLACE & REMOVE
 // ─────────────────────────────────────────────
-const oldElement = document.querySelector('.old');
-const newElement = document.createElement('div');
+const oldElement = document.querySelector(".old");
+const newElement = document.createElement("div");
 
-parent.replaceChild(newElement, oldElement);  // Old way
-oldElement.replaceWith(newElement);           // Modern
+parent.replaceChild(newElement, oldElement); // Old way
+oldElement.replaceWith(newElement); // Modern
 
 // Remove
-oldElement.remove();           // Modern (recommended)
-parent.removeChild(oldElement);  // Old way
+oldElement.remove(); // Modern (recommended)
+parent.removeChild(oldElement); // Old way
 
 // ─────────────────────────────────────────────
 // CLONE ELEMENTS
 // ─────────────────────────────────────────────
-const original = document.querySelector('.item');
-const shallow = original.cloneNode(false);  // Clone without children
-const deep = original.cloneNode(true);      // Clone with children
+const original = document.querySelector(".item");
+const shallow = original.cloneNode(false); // Clone without children
+const deep = original.cloneNode(true); // Clone with children
 
 // ─────────────────────────────────────────────
 // DOCUMENT FRAGMENT (Performance)
 // ─────────────────────────────────────────────
 // ❌ Bad: Multiple reflows
-const list = document.querySelector('#list');
+const list = document.querySelector("#list");
 for (let i = 0; i < 100; i++) {
-  const li = document.createElement('li');
+  const li = document.createElement("li");
   li.textContent = `Item ${i}`;
-  list.appendChild(li);  // Triggers reflow each time
+  list.appendChild(li); // Triggers reflow each time
 }
 
 // ✅ Good: Single reflow with DocumentFragment
 const fragment = document.createDocumentFragment();
 for (let i = 0; i < 100; i++) {
-  const li = document.createElement('li');
+  const li = document.createElement("li");
   li.textContent = `Item ${i}`;
-  fragment.appendChild(li);  // No reflow
+  fragment.appendChild(li); // No reflow
 }
-list.appendChild(fragment);  // Single reflow
+list.appendChild(fragment); // Single reflow
 ```
 
 ---
@@ -309,38 +310,38 @@ list.appendChild(fragment);  // Single reflow
 // ─────────────────────────────────────────────
 // TEXT CONTENT
 // ─────────────────────────────────────────────
-element.textContent = 'Plain text';  // Safe (escapes HTML)
-element.innerText = 'Plain text';    // Respects CSS (slower)
-element.innerHTML = '<strong>HTML</strong>';  // ⚠️ XSS risk
+element.textContent = "Plain text"; // Safe (escapes HTML)
+element.innerText = "Plain text"; // Respects CSS (slower)
+element.innerHTML = "<strong>HTML</strong>"; // ⚠️ XSS risk
 
 // ─────────────────────────────────────────────
 // ATTRIBUTES
 // ─────────────────────────────────────────────
-element.getAttribute('href');
-element.setAttribute('href', 'https://example.com');
-element.removeAttribute('href');
-element.hasAttribute('href');
+element.getAttribute("href");
+element.setAttribute("href", "https://example.com");
+element.removeAttribute("href");
+element.hasAttribute("href");
 
 // Boolean attributes
-element.checked = true;   // Checkbox
-element.disabled = true;  // Disable button
-element.selected = true;  // Option
+element.checked = true; // Checkbox
+element.disabled = true; // Disable button
+element.selected = true; // Option
 
 // ─────────────────────────────────────────────
 // DATA ATTRIBUTES
 // ─────────────────────────────────────────────
-element.dataset.userId = '123';
-element.dataset.action = 'delete';
+element.dataset.userId = "123";
+element.dataset.action = "delete";
 
-console.log(element.dataset.userId);  // '123'
-console.log(element.dataset.action);  // 'delete'
+console.log(element.dataset.userId); // '123'
+console.log(element.dataset.action); // 'delete'
 
 // ─────────────────────────────────────────────
 // STYLES
 // ─────────────────────────────────────────────
-element.style.color = 'red';
-element.style.backgroundColor = 'blue';
-element.style.fontSize = '16px';
+element.style.color = "red";
+element.style.backgroundColor = "blue";
+element.style.fontSize = "16px";
 
 // Get computed style
 const computed = window.getComputedStyle(element);
@@ -350,20 +351,20 @@ console.log(computed.marginTop);
 // ─────────────────────────────────────────────
 // CLASSES
 // ─────────────────────────────────────────────
-element.classList.add('active', 'highlight');
-element.classList.remove('inactive');
-element.classList.toggle('visible');
-element.classList.contains('active');  // true/false
-element.classList.replace('old', 'new');
+element.classList.add("active", "highlight");
+element.classList.remove("inactive");
+element.classList.toggle("visible");
+element.classList.contains("active"); // true/false
+element.classList.replace("old", "new");
 
 // ─────────────────────────────────────────────
 // BULK UPDATES (Performance)
 // ─────────────────────────────────────────────
 // ❌ Bad: Multiple reflows
-element.style.color = 'red';
-element.style.padding = '10px';
-element.style.margin = '5px';
-element.style.border = '1px solid black';
+element.style.color = "red";
+element.style.padding = "10px";
+element.style.margin = "5px";
+element.style.border = "1px solid black";
 
 // ✅ Good: Single reflow with cssText
 element.style.cssText = `
@@ -374,7 +375,7 @@ element.style.cssText = `
 `;
 
 // ✅ Better: Use classes
-element.className = 'active highlighted padded';
+element.className = "active highlighted padded";
 ```
 
 ---
@@ -407,39 +408,39 @@ graph TB
 // ─────────────────────────────────────────────
 // ADD EVENT LISTENER (Recommended)
 // ─────────────────────────────────────────────
-const button = document.querySelector('#myButton');
+const button = document.querySelector("#myButton");
 
-button.addEventListener('click', function(event) {
-  console.log('Button clicked!', event);
+button.addEventListener("click", function (event) {
+  console.log("Button clicked!", event);
 });
 
 // Arrow function (careful with 'this')
-button.addEventListener('click', (event) => {
-  console.log('Clicked:', event.target);
+button.addEventListener("click", (event) => {
+  console.log("Clicked:", event.target);
 });
 
 // Named function (can be removed)
 function handleClick(event) {
-  console.log('Clicked');
+  console.log("Clicked");
 }
 
-button.addEventListener('click', handleClick);
-button.removeEventListener('click', handleClick);
+button.addEventListener("click", handleClick);
+button.removeEventListener("click", handleClick);
 
 // ─────────────────────────────────────────────
 // EVENT OPTIONS
 // ─────────────────────────────────────────────
 // once: Auto-remove after first trigger
-button.addEventListener('click', handler, { once: true });
+button.addEventListener("click", handler, { once: true });
 
 // capture: Listen during capture phase
-button.addEventListener('click', handler, { capture: true });
+button.addEventListener("click", handler, { capture: true });
 
 // passive: Improve scroll performance
-window.addEventListener('scroll', handler, { passive: true });
+window.addEventListener("scroll", handler, { passive: true });
 
 // Multiple options
-button.addEventListener('click', handler, {
+button.addEventListener("click", handler, {
   once: true,
   capture: false,
   passive: false,
@@ -448,9 +449,9 @@ button.addEventListener('click', handler, {
 // ─────────────────────────────────────────────
 // MULTIPLE EVENTS
 // ─────────────────────────────────────────────
-const events = ['click', 'dblclick', 'contextmenu'];
+const events = ["click", "dblclick", "contextmenu"];
 
-events.forEach(eventType => {
+events.forEach((eventType) => {
   button.addEventListener(eventType, (e) => {
     console.log(`${eventType} occurred`);
   });
@@ -459,26 +460,26 @@ events.forEach(eventType => {
 // ─────────────────────────────────────────────
 // EVENT OBJECT PROPERTIES
 // ─────────────────────────────────────────────
-element.addEventListener('click', (event) => {
-  event.target;        // Element that triggered event
+element.addEventListener("click", (event) => {
+  event.target; // Element that triggered event
   event.currentTarget; // Element with listener
-  event.type;          // Event type ('click')
-  event.timeStamp;     // Timestamp
+  event.type; // Event type ('click')
+  event.timeStamp; // Timestamp
   event.preventDefault; // Function to prevent default
   event.stopPropagation; // Function to stop bubbling
-  
+
   // Mouse events
-  event.clientX;       // X coordinate
-  event.clientY;       // Y coordinate
-  event.button;        // Mouse button (0=left, 1=middle, 2=right)
-  event.altKey;        // Alt key pressed
-  event.ctrlKey;       // Ctrl key pressed
-  event.shiftKey;      // Shift key pressed
-  
+  event.clientX; // X coordinate
+  event.clientY; // Y coordinate
+  event.button; // Mouse button (0=left, 1=middle, 2=right)
+  event.altKey; // Alt key pressed
+  event.ctrlKey; // Ctrl key pressed
+  event.shiftKey; // Shift key pressed
+
   // Keyboard events
-  event.key;           // Key value ('Enter', 'a', etc.)
-  event.code;          // Physical key ('KeyA', 'Enter')
-  event.keyCode;       // Deprecated, use .key
+  event.key; // Key value ('Enter', 'a', etc.)
+  event.code; // Physical key ('KeyA', 'Enter')
+  event.keyCode; // Deprecated, use .key
 });
 ```
 
@@ -492,16 +493,16 @@ element.addEventListener('click', (event) => {
 // ─────────────────────────────────────────────
 // Events bubble up from target to window
 
-document.querySelector('.child').addEventListener('click', () => {
-  console.log('Child clicked');
+document.querySelector(".child").addEventListener("click", () => {
+  console.log("Child clicked");
 });
 
-document.querySelector('.parent').addEventListener('click', () => {
-  console.log('Parent clicked');
+document.querySelector(".parent").addEventListener("click", () => {
+  console.log("Parent clicked");
 });
 
-document.querySelector('.grandparent').addEventListener('click', () => {
-  console.log('Grandparent clicked');
+document.querySelector(".grandparent").addEventListener("click", () => {
+  console.log("Grandparent clicked");
 });
 
 // Click on child logs:
@@ -512,9 +513,9 @@ document.querySelector('.grandparent').addEventListener('click', () => {
 // ─────────────────────────────────────────────
 // STOP PROPAGATION
 // ─────────────────────────────────────────────
-document.querySelector('.child').addEventListener('click', (event) => {
-  event.stopPropagation();  // Stop bubbling
-  console.log('Child clicked (only)');
+document.querySelector(".child").addEventListener("click", (event) => {
+  event.stopPropagation(); // Stop bubbling
+  console.log("Child clicked (only)");
 });
 
 // ─────────────────────────────────────────────
@@ -522,17 +523,29 @@ document.querySelector('.child').addEventListener('click', (event) => {
 // ─────────────────────────────────────────────
 // Capture phase goes from window down to target
 
-document.querySelector('.grandparent').addEventListener('click', () => {
-  console.log('Grandparent (capture)');
-}, { capture: true });
+document.querySelector(".grandparent").addEventListener(
+  "click",
+  () => {
+    console.log("Grandparent (capture)");
+  },
+  { capture: true },
+);
 
-document.querySelector('.parent').addEventListener('click', () => {
-  console.log('Parent (capture)');
-}, { capture: true });
+document.querySelector(".parent").addEventListener(
+  "click",
+  () => {
+    console.log("Parent (capture)");
+  },
+  { capture: true },
+);
 
-document.querySelector('.child').addEventListener('click', () => {
-  console.log('Child (capture)');
-}, { capture: true });
+document.querySelector(".child").addEventListener(
+  "click",
+  () => {
+    console.log("Child (capture)");
+  },
+  { capture: true },
+);
 
 // Click on child logs (capture phase first):
 // 1. Grandparent (capture)
@@ -545,13 +558,17 @@ document.querySelector('.child').addEventListener('click', () => {
 // ─────────────────────────────────────────────
 // STOP IMMEDIATE PROPAGATION
 // ─────────────────────────────────────────────
-element.addEventListener('click', (event) => {
-  event.stopImmediatePropagation();  // Stop all remaining listeners
-}, { capture: true });
+element.addEventListener(
+  "click",
+  (event) => {
+    event.stopImmediatePropagation(); // Stop all remaining listeners
+  },
+  { capture: true },
+);
 
-element.addEventListener('click', () => {
+element.addEventListener("click", () => {
   // This won't run
-  console.log('This never logs');
+  console.log("This never logs");
 });
 ```
 
@@ -564,42 +581,42 @@ element.addEventListener('click', () => {
 // EVENT DELEGATION PATTERN
 // ─────────────────────────────────────────────
 // ❌ Bad: Listener on each child
-const items = document.querySelectorAll('.item');
-items.forEach(item => {
-  item.addEventListener('click', () => {
-    console.log('Item clicked');
+const items = document.querySelectorAll(".item");
+items.forEach((item) => {
+  item.addEventListener("click", () => {
+    console.log("Item clicked");
   });
 });
 
 // ✅ Good: Single listener on parent
-document.querySelector('.list').addEventListener('click', (event) => {
-  const item = event.target.closest('.item');
+document.querySelector(".list").addEventListener("click", (event) => {
+  const item = event.target.closest(".item");
   if (item && list.contains(item)) {
-    console.log('Item clicked:', item);
+    console.log("Item clicked:", item);
   }
 });
 
 // ─────────────────────────────────────────────
 // DYNAMIC CONTENT
 // ─────────────────────────────────────────────
-const list = document.querySelector('#todo-list');
+const list = document.querySelector("#todo-list");
 
-list.addEventListener('click', (event) => {
+list.addEventListener("click", (event) => {
   // Delete button
-  if (event.target.classList.contains('delete-btn')) {
-    const todoItem = event.target.closest('.todo-item');
+  if (event.target.classList.contains("delete-btn")) {
+    const todoItem = event.target.closest(".todo-item");
     todoItem.remove();
   }
-  
+
   // Edit button
-  if (event.target.classList.contains('edit-btn')) {
-    const todoItem = event.target.closest('.todo-item');
+  if (event.target.classList.contains("edit-btn")) {
+    const todoItem = event.target.closest(".todo-item");
     editTodo(todoItem);
   }
-  
+
   // Checkbox
-  if (event.target.classList.contains('checkbox')) {
-    const todoItem = event.target.closest('.todo-item');
+  if (event.target.classList.contains("checkbox")) {
+    const todoItem = event.target.closest(".todo-item");
     toggleTodo(todoItem);
   }
 });
@@ -609,17 +626,17 @@ list.addEventListener('click', (event) => {
 // ─────────────────────────────────────────────
 // EVENT DELEGATION WITH DATA
 // ─────────────────────────────────────────────
-document.querySelector('#user-table').addEventListener('click', (event) => {
-  const row = event.target.closest('tr');
+document.querySelector("#user-table").addEventListener("click", (event) => {
+  const row = event.target.closest("tr");
   if (!row) return;
-  
+
   const userId = row.dataset.userId;
-  
-  if (event.target.classList.contains('view-btn')) {
+
+  if (event.target.classList.contains("view-btn")) {
     viewUser(userId);
   }
-  
-  if (event.target.classList.contains('delete-btn')) {
+
+  if (event.target.classList.contains("delete-btn")) {
     deleteUser(userId);
   }
 });
@@ -635,40 +652,40 @@ document.querySelector('#user-table').addEventListener('click', (event) => {
 // ─────────────────────────────────────────────
 // FORM SUBMIT
 // ─────────────────────────────────────────────
-const form = document.querySelector('#myForm');
+const form = document.querySelector("#myForm");
 
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();  // Prevent page reload
-  
+form.addEventListener("submit", async (event) => {
+  event.preventDefault(); // Prevent page reload
+
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
-  
+
   try {
     await submitData(data);
     form.reset();
   } catch (error) {
-    console.error('Submit failed:', error);
+    console.error("Submit failed:", error);
   }
 });
 
 // ─────────────────────────────────────────────
 // INPUT EVENTS
 // ─────────────────────────────────────────────
-const input = document.querySelector('#search');
+const input = document.querySelector("#search");
 
 // Fires on every keystroke
-input.addEventListener('input', (event) => {
-  console.log('Input:', event.target.value);
+input.addEventListener("input", (event) => {
+  console.log("Input:", event.target.value);
 });
 
 // Fires when input loses focus
-input.addEventListener('change', (event) => {
-  console.log('Changed to:', event.target.value);
+input.addEventListener("change", (event) => {
+  console.log("Changed to:", event.target.value);
 });
 
 // Debounced search
 let timeoutId;
-input.addEventListener('input', (event) => {
+input.addEventListener("input", (event) => {
   clearTimeout(timeoutId);
   timeoutId = setTimeout(() => {
     search(event.target.value);
@@ -678,12 +695,12 @@ input.addEventListener('input', (event) => {
 // ─────────────────────────────────────────────
 // FOCUS EVENTS
 // ─────────────────────────────────────────────
-input.addEventListener('focus', () => {
-  console.log('Focused');
+input.addEventListener("focus", () => {
+  console.log("Focused");
 });
 
-input.addEventListener('blur', () => {
-  console.log('Lost focus (validate)');
+input.addEventListener("blur", () => {
+  console.log("Lost focus (validate)");
 });
 ```
 
@@ -695,32 +712,32 @@ input.addEventListener('blur', () => {
 // ─────────────────────────────────────────────
 // KEYBOARD EVENTS
 // ─────────────────────────────────────────────
-document.addEventListener('keydown', (event) => {
-  console.log('Key down:', event.key);
-  
+document.addEventListener("keydown", (event) => {
+  console.log("Key down:", event.key);
+
   // Common shortcuts
-  if (event.ctrlKey && event.key === 's') {
+  if (event.ctrlKey && event.key === "s") {
     event.preventDefault();
     save();
   }
-  
-  if (event.key === 'Escape') {
+
+  if (event.key === "Escape") {
     closeModal();
   }
-  
-  if (event.key === 'Enter') {
+
+  if (event.key === "Enter") {
     submitForm();
   }
 });
 
-document.addEventListener('keyup', (event) => {
-  console.log('Key up:', event.key);
+document.addEventListener("keyup", (event) => {
+  console.log("Key up:", event.key);
 });
 
 // ─────────────────────────────────────────────
 // INPUT VALIDATION
 // ─────────────────────────────────────────────
-input.addEventListener('keypress', (event) => {
+input.addEventListener("keypress", (event) => {
   // Only allow numbers
   if (!/[0-9]/.test(event.key)) {
     event.preventDefault();
@@ -736,38 +753,38 @@ input.addEventListener('keypress', (event) => {
 // ─────────────────────────────────────────────
 // MOUSE EVENTS
 // ─────────────────────────────────────────────
-element.addEventListener('mousedown', (e) => {
-  console.log('Mouse down');
+element.addEventListener("mousedown", (e) => {
+  console.log("Mouse down");
 });
 
-element.addEventListener('mouseup', (e) => {
-  console.log('Mouse up');
+element.addEventListener("mouseup", (e) => {
+  console.log("Mouse up");
 });
 
-element.addEventListener('click', (e) => {
-  console.log('Click');
+element.addEventListener("click", (e) => {
+  console.log("Click");
 });
 
-element.addEventListener('dblclick', (e) => {
-  console.log('Double click');
+element.addEventListener("dblclick", (e) => {
+  console.log("Double click");
 });
 
-element.addEventListener('mouseenter', (e) => {
-  console.log('Mouse entered');
+element.addEventListener("mouseenter", (e) => {
+  console.log("Mouse entered");
 });
 
-element.addEventListener('mouseleave', (e) => {
-  console.log('Mouse left');
+element.addEventListener("mouseleave", (e) => {
+  console.log("Mouse left");
 });
 
-element.addEventListener('mousemove', (e) => {
+element.addEventListener("mousemove", (e) => {
   console.log(`Mouse at: ${e.clientX}, ${e.clientY}`);
 });
 
 // ─────────────────────────────────────────────
 // CONTEXT MENU (Right-click)
 // ─────────────────────────────────────────────
-element.addEventListener('contextmenu', (event) => {
+element.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   showCustomMenu(event.clientX, event.clientY);
 });
@@ -815,9 +832,11 @@ Common Events
 What order will these log?
 
 ```javascript
-parent.addEventListener('click', () => console.log('Parent'), { capture: true });
-child.addEventListener('click', () => console.log('Child'));
-parent.addEventListener('click', () => console.log('Parent Bubble'));
+parent.addEventListener("click", () => console.log("Parent"), {
+  capture: true,
+});
+child.addEventListener("click", () => console.log("Child"));
+parent.addEventListener("click", () => console.log("Parent Bubble"));
 
 // User clicks on child
 ```
@@ -826,6 +845,7 @@ parent.addEventListener('click', () => console.log('Parent Bubble'));
 <summary>💡 Click to reveal answer</summary>
 
 **Order**:
+
 1. Parent (capture phase)
 2. Child (target phase)
 3. Parent Bubble (bubble phase)
@@ -841,19 +861,20 @@ Implement event delegation for a todo list with delete and edit buttons.
 <summary>💡 Click to reveal answer</summary>
 
 ```javascript
-document.querySelector('#todo-list').addEventListener('click', (event) => {
-  const todoItem = event.target.closest('.todo-item');
+document.querySelector("#todo-list").addEventListener("click", (event) => {
+  const todoItem = event.target.closest(".todo-item");
   if (!todoItem) return;
-  
-  if (event.target.classList.contains('delete-btn')) {
+
+  if (event.target.classList.contains("delete-btn")) {
     todoItem.remove();
   }
-  
-  if (event.target.classList.contains('edit-btn')) {
+
+  if (event.target.classList.contains("edit-btn")) {
     editTodo(todoItem);
   }
 });
 ```
+
 </details>
 
 ---
@@ -881,4 +902,5 @@ document.querySelector('#todo-list').addEventListener('click', (event) => {
 **Status**: ✅ Complete
 
 ---
+
 -23-03-26

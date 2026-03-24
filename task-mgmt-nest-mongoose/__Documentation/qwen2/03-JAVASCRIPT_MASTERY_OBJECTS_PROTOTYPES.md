@@ -8,6 +8,8 @@
 
 ---
 
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:
@@ -64,17 +66,17 @@ const user = {
   name: "John",
   age: 25,
   email: "john@example.com",
-  
+
   // Method
   greet() {
     console.log(`Hello, I'm ${this.name}`);
   },
-  
+
   // Getter
   get info() {
     return `${this.name}, ${this.age} years old`;
   },
-  
+
   // Setter
   set updateAge(newAge) {
     if (newAge > 0 && newAge < 150) {
@@ -83,11 +85,11 @@ const user = {
   },
 };
 
-console.log(user.name);        // "John" (dot notation)
-console.log(user["age"]);      // 25 (bracket notation)
-console.log(user.info);        // "John, 25 years old" (getter)
-user.updateAge = 26;           // setter
-user.greet();                  // "Hello, I'm John"
+console.log(user.name); // "John" (dot notation)
+console.log(user["age"]); // 25 (bracket notation)
+console.log(user.info); // "John, 25 years old" (getter)
+user.updateAge = 26; // setter
+user.greet(); // "Hello, I'm John"
 
 // ─────────────────────────────────────────────
 // DYNAMIC PROPERTY NAMES
@@ -107,8 +109,8 @@ const name = "John";
 const age = 25;
 
 const user2 = {
-  name,  // Same as name: name
-  age,   // Same as age: age
+  name, // Same as name: name
+  age, // Same as age: age
 };
 
 // ─────────────────────────────────────────────
@@ -116,7 +118,8 @@ const user2 = {
 // ─────────────────────────────────────────────
 const user3 = {
   name: "John",
-  greet() {  // Same as greet: function() {}
+  greet() {
+    // Same as greet: function() {}
     console.log(`Hello, ${this.name}`);
   },
 };
@@ -140,9 +143,9 @@ const animalPrototype = {
 const rabbit = Object.create(animalPrototype);
 rabbit.jumps = true;
 
-console.log(rabbit.eats);    // true (from prototype)
-rabbit.walk();               // "Animal walking" (from prototype)
-console.log(rabbit.jumps);   // true (own property)
+console.log(rabbit.eats); // true (from prototype)
+rabbit.walk(); // "Animal walking" (from prototype)
+console.log(rabbit.jumps); // true (own property)
 
 // ─────────────────────────────────────────────
 // Object.create WITH PROPERTY DESCRIPTORS
@@ -156,7 +159,7 @@ const user4 = Object.create(Object.prototype, {
   },
   age: {
     value: 25,
-    writable: false,  // Read-only!
+    writable: false, // Read-only!
     enumerable: true,
     configurable: false,
   },
@@ -171,7 +174,7 @@ const dict = Object.create(null);
 dict.key1 = "value1";
 dict.key2 = "value2";
 
-console.log(dict.toString);  // undefined (no prototype pollution!)
+console.log(dict.toString); // undefined (no prototype pollution!)
 
 // ─────────────────────────────────────────────
 // INHERITANCE WITH Object.create
@@ -193,8 +196,8 @@ const employeePrototype = Object.create(personPrototype, {
 const emp = Object.create(employeePrototype);
 emp.name = "Jane";
 
-console.log(emp.greet());  // "Hi, I'm Jane" (from personPrototype)
-console.log(emp.work());   // "Jane is working" (from employeePrototype)
+console.log(emp.greet()); // "Hi, I'm Jane" (from personPrototype)
+console.log(emp.work()); // "Jane is working" (from employeePrototype)
 ```
 
 ---
@@ -208,8 +211,8 @@ console.log(emp.work());   // "Jane is working" (from employeePrototype)
 function Person(name, age) {
   this.name = name;
   this.age = age;
-  
-  this.greet = function() {
+
+  this.greet = function () {
     return `Hello, I'm ${this.name}`;
   };
 }
@@ -217,13 +220,13 @@ function Person(name, age) {
 const john = new Person("John", 25);
 const jane = new Person("Jane", 30);
 
-console.log(john.greet());  // "Hello, I'm John"
-console.log(jane.greet());  // "Hello, I'm Jane"
+console.log(john.greet()); // "Hello, I'm John"
+console.log(jane.greet()); // "Hello, I'm Jane"
 
 // ─────────────────────────────────────────────
 // ⚠️ PROBLEM: Methods Created Per Instance
 // ─────────────────────────────────────────────
-console.log(john.greet === jane.greet);  // false (different function instances!)
+console.log(john.greet === jane.greet); // false (different function instances!)
 
 // ─────────────────────────────────────────────
 // ✅ SOLUTION: Add Methods to Prototype
@@ -234,20 +237,20 @@ function Person2(name, age) {
 }
 
 // Add method to prototype (shared by all instances)
-Person2.prototype.greet = function() {
+Person2.prototype.greet = function () {
   return `Hello, I'm ${this.name}`;
 };
 
 const john2 = new Person2("John", 25);
 const jane2 = new Person2("Jane", 30);
 
-console.log(john2.greet === jane2.greet);  // true (same function!)
+console.log(john2.greet === jane2.greet); // true (same function!)
 
 // ─────────────────────────────────────────────
 // INHERITANCE WITH CONSTRUCTOR FUNCTIONS
 // ─────────────────────────────────────────────
 function Employee(name, age, position) {
-  Person2.call(this, name, age);  // Call parent constructor
+  Person2.call(this, name, age); // Call parent constructor
   this.position = position;
 }
 
@@ -256,13 +259,13 @@ Employee.prototype = Object.create(Person2.prototype);
 Employee.prototype.constructor = Employee;
 
 // Add employee-specific methods
-Employee.prototype.work = function() {
+Employee.prototype.work = function () {
   return `${this.name} is working as ${this.position}`;
 };
 
 const emp2 = new Employee("Bob", 35, "Developer");
-console.log(emp2.greet());  // "Hello, I'm Bob" (from Person2)
-console.log(emp2.work());   // "Bob is working as Developer" (from Employee)
+console.log(emp2.greet()); // "Hello, I'm Bob" (from Person2)
+console.log(emp2.work()); // "Bob is working as Developer" (from Employee)
 ```
 
 ---
@@ -279,39 +282,39 @@ class Person3 {
     this.name = name;
     this.age = age;
   }
-  
+
   // Instance method (automatically on prototype)
   greet() {
     return `Hello, I'm ${this.name}`;
   }
-  
+
   // Getter
   get info() {
     return `${this.name}, ${this.age} years old`;
   }
-  
+
   // Setter
   set updateAge(newAge) {
     if (newAge > 0 && newAge < 150) {
       this.age = newAge;
     }
   }
-  
+
   // Static method (on class, not instances)
   static createAnonymous() {
     return new Person3("Anonymous", 0);
   }
-  
+
   // Static property (ES2022+)
   static species = "Homo sapiens";
 }
 
 const person = new Person3("John", 25);
-console.log(person.greet());    // "Hello, I'm John"
-console.log(person.info);       // "John, 25 years old"
+console.log(person.greet()); // "Hello, I'm John"
+console.log(person.info); // "John, 25 years old"
 person.updateAge = 26;
 
-console.log(Person3.species);           // "Homo sapiens"
+console.log(Person3.species); // "Homo sapiens"
 const anon = Person3.createAnonymous(); // Static method
 
 // ─────────────────────────────────────────────
@@ -319,30 +322,30 @@ const anon = Person3.createAnonymous(); // Static method
 // ─────────────────────────────────────────────
 class Employee2 extends Person3 {
   constructor(name, age, position) {
-    super(name, age);  // Call parent constructor
+    super(name, age); // Call parent constructor
     this.position = position;
   }
-  
+
   // Override parent method
   greet() {
     return `Hi, I'm ${this.name}, the ${this.position}`;
   }
-  
+
   // New method
   work() {
     return `${this.name} is working as ${this.position}`;
   }
-  
+
   // Call parent method with super
   greetFormal() {
-    return super.greet();  // Call Person3's greet
+    return super.greet(); // Call Person3's greet
   }
 }
 
 const emp3 = new Employee2("Alice", 28, "Manager");
-console.log(emp3.greet());       // "Hi, I'm Alice, the Manager"
+console.log(emp3.greet()); // "Hi, I'm Alice, the Manager"
 console.log(emp3.greetFormal()); // "Hello, I'm Alice" (from parent)
-console.log(emp3.work());        // "Alice is working as Manager"
+console.log(emp3.work()); // "Alice is working as Manager"
 
 // ─────────────────────────────────────────────
 // PRIVATE CLASS FIELDS (ES2022+)
@@ -351,17 +354,17 @@ class BankAccount {
   // Private field (truly private)
   #balance = 0;
   #pin;
-  
+
   constructor(initialBalance, pin) {
     this.#balance = initialBalance;
     this.#pin = pin;
   }
-  
+
   // Private method
   #validatePin(pin) {
     return pin === this.#pin;
   }
-  
+
   deposit(amount) {
     if (amount > 0) {
       this.#balance += amount;
@@ -369,32 +372,32 @@ class BankAccount {
     }
     throw new Error("Invalid amount");
   }
-  
+
   withdraw(amount, pin) {
     if (!this.#validatePin(pin)) {
       throw new Error("Invalid PIN");
     }
-    
+
     if (amount > this.#balance) {
       throw new Error("Insufficient funds");
     }
-    
+
     this.#balance -= amount;
     return this.#balance;
   }
-  
+
   get balance() {
     return this.#balance;
   }
 }
 
 const account = new BankAccount(1000, 1234);
-console.log(account.balance);  // 1000
+console.log(account.balance); // 1000
 account.deposit(500);
-console.log(account.balance);  // 1500
+console.log(account.balance); // 1500
 
 // console.log(account.#balance);  // ❌ SyntaxError (truly private!)
-account.withdraw(200, 1234);  // ✅ Works
+account.withdraw(200, 1234); // ✅ Works
 // account.withdraw(200, 0000);  // ❌ Error
 ```
 
@@ -456,7 +459,7 @@ function Animal(name) {
   this.name = name;
 }
 
-Animal.prototype.eat = function() {
+Animal.prototype.eat = function () {
   return `${this.name} is eating`;
 };
 
@@ -469,7 +472,7 @@ function Dog(name, breed) {
 Dog.prototype = Object.create(Animal.prototype);
 Dog.prototype.constructor = Dog;
 
-Dog.prototype.bark = function() {
+Dog.prototype.bark = function () {
   return `${this.name} is barking`;
 };
 
@@ -478,33 +481,33 @@ const myDog = new Dog("Buddy", "Golden Retriever");
 // ─────────────────────────────────────────────
 // PROPERTY LOOKUP
 // ─────────────────────────────────────────────
-console.log(myDog.name);   // "Buddy" (own property)
-console.log(myDog.breed);  // "Golden Retriever" (own property)
+console.log(myDog.name); // "Buddy" (own property)
+console.log(myDog.breed); // "Golden Retriever" (own property)
 console.log(myDog.bark()); // "Buddy is barking" (Dog.prototype)
-console.log(myDog.eat());  // "Buddy is eating" (Animal.prototype)
+console.log(myDog.eat()); // "Buddy is eating" (Animal.prototype)
 
 // ─────────────────────────────────────────────
 // PROTOTYPE CHAIN INSPECTION
 // ─────────────────────────────────────────────
-console.log(myDog.__proto__ === Dog.prototype);         // true
+console.log(myDog.__proto__ === Dog.prototype); // true
 console.log(Dog.prototype.__proto__ === Animal.prototype); // true
 console.log(Animal.prototype.__proto__ === Object.prototype); // true
-console.log(Object.prototype.__proto__ === null);       // true
+console.log(Object.prototype.__proto__ === null); // true
 
 // Modern way (preferred)
-console.log(Object.getPrototypeOf(myDog) === Dog.prototype);  // true
+console.log(Object.getPrototypeOf(myDog) === Dog.prototype); // true
 
 // ─────────────────────────────────────────────
 // HAS OWN PROPERTY VS PROTOTYPE
 // ─────────────────────────────────────────────
-console.log(myDog.hasOwnProperty("name"));    // true (own property)
-console.log(myDog.hasOwnProperty("breed"));   // true (own property)
-console.log(myDog.hasOwnProperty("bark"));    // false (on prototype)
-console.log(myDog.hasOwnProperty("eat"));     // false (on prototype chain)
+console.log(myDog.hasOwnProperty("name")); // true (own property)
+console.log(myDog.hasOwnProperty("breed")); // true (own property)
+console.log(myDog.hasOwnProperty("bark")); // false (on prototype)
+console.log(myDog.hasOwnProperty("eat")); // false (on prototype chain)
 
 // Check including prototype chain
-console.log("name" in myDog);    // true
-console.log("bark" in myDog);    // true
+console.log("name" in myDog); // true
+console.log("bark" in myDog); // true
 console.log("toString" in myDog); // true (from Object.prototype)
 
 // ─────────────────────────────────────────────
@@ -512,31 +515,31 @@ console.log("toString" in myDog); // true (from Object.prototype)
 // ─────────────────────────────────────────────
 // for...in includes prototype chain
 for (let key in myDog) {
-  console.log(key);  // name, breed, bark, eat
+  console.log(key); // name, breed, bark, eat
 }
 
 // Object.keys only own enumerable properties
-console.log(Object.keys(myDog));  // ["name", "breed"]
+console.log(Object.keys(myDog)); // ["name", "breed"]
 
 // Object.getOwnPropertyNames (including non-enumerable)
-console.log(Object.getOwnPropertyNames(myDog));  // ["name", "breed"]
+console.log(Object.getOwnPropertyNames(myDog)); // ["name", "breed"]
 
 // ─────────────────────────────────────────────
 // MODIFYING PROTOTYPES
 // ─────────────────────────────────────────────
 // Add method to existing prototype
-Animal.prototype.sleep = function() {
+Animal.prototype.sleep = function () {
   return `${this.name} is sleeping`;
 };
 
-console.log(myDog.sleep());  // "Buddy is sleeping" (works on existing instances!)
+console.log(myDog.sleep()); // "Buddy is sleeping" (works on existing instances!)
 
 // Override method in child prototype
-Dog.prototype.eat = function() {
+Dog.prototype.eat = function () {
   return `${this.name} the ${this.breed} is eating`;
 };
 
-console.log(myDog.eat());  // "Buddy the Golden Retriever is eating"
+console.log(myDog.eat()); // "Buddy the Golden Retriever is eating"
 ```
 
 ---
@@ -574,8 +577,8 @@ const dog = Object.create(animal, {
 dog.init("Buddy");
 dog.breed = "Golden Retriever";
 
-console.log(dog.eat());   // "Buddy is eating" (from animal)
-console.log(dog.bark());  // "Buddy is barking" (own method)
+console.log(dog.eat()); // "Buddy is eating" (from animal)
+console.log(dog.bark()); // "Buddy is barking" (own method)
 
 // ─────────────────────────────────────────────
 // OBJECT SET PROTOTYPE (ES6)
@@ -594,7 +597,7 @@ const bird = {
 // Set prototype after creation
 Object.setPrototypeOf(bird, flyable);
 
-console.log(bird.fly());  // "Eagle is flying"
+console.log(bird.fly()); // "Eagle is flying"
 ```
 
 ---
@@ -661,23 +664,23 @@ const canSwim = {
 // ─────────────────────────────────────────────
 function createAnimal(name, capabilities = []) {
   const animal = { name };
-  
-  capabilities.forEach(capability => {
+
+  capabilities.forEach((capability) => {
     Object.assign(animal, capability);
   });
-  
+
   return animal;
 }
 
 const fish = createAnimal("Nemo", [canEat, canSwim]);
 const dog2 = createAnimal("Buddy", [canEat, canWalk]);
 
-console.log(fish.eat());   // "Nemo is eating"
-console.log(fish.swim());  // "Nemo is swimming"
+console.log(fish.eat()); // "Nemo is eating"
+console.log(fish.swim()); // "Nemo is swimming"
 // console.log(fish.walk());  // ❌ undefined
 
-console.log(dog2.eat());   // "Buddy is eating"
-console.log(dog2.walk());  // "Buddy is walking"
+console.log(dog2.eat()); // "Buddy is eating"
+console.log(dog2.walk()); // "Buddy is walking"
 
 // ─────────────────────────────────────────────
 // ADVANCED MIXIN WITH METHOD CHAINING
@@ -689,16 +692,16 @@ const EventEmitterMixin = {
     this._events[event].push(callback);
     return this;
   },
-  
+
   emit(event, data) {
     if (!this._events || !this._events[event]) return this;
-    this._events[event].forEach(callback => callback(data));
+    this._events[event].forEach((callback) => callback(data));
     return this;
   },
-  
+
   off(event, callback) {
     if (!this._events || !this._events[event]) return this;
-    this._events[event] = this._events[event].filter(cb => cb !== callback);
+    this._events[event] = this._events[event].filter((cb) => cb !== callback);
     return this;
   },
 };
@@ -708,7 +711,7 @@ const LoggerMixin = {
     console.log(`[${this.name}] ${message}`);
     return this;
   },
-  
+
   error(message) {
     console.error(`[${this.name}] ERROR: ${message}`);
     return this;
@@ -727,8 +730,8 @@ Object.assign(User.prototype, EventEmitterMixin, LoggerMixin);
 
 const user = new User("John");
 user.on("greet", (data) => console.log(`Hello, ${data}!`));
-user.emit("greet", "World");  // "Hello, World!"
-user.log("User created");     // "[John] User created"
+user.emit("greet", "World"); // "Hello, World!"
+user.log("User created"); // "[John] User created"
 ```
 
 ---
@@ -743,8 +746,8 @@ function withLogging(obj) {
   return new Proxy(obj, {
     get(target, prop) {
       const value = target[prop];
-      if (typeof value === 'function') {
-        return function(...args) {
+      if (typeof value === "function") {
+        return function (...args) {
           console.log(`Calling ${prop} with`, args);
           return value.apply(this, args);
         };
@@ -757,7 +760,7 @@ function withLogging(obj) {
 function withValidation(obj) {
   return new Proxy(obj, {
     set(target, prop, value) {
-      if (prop === 'age' && (value < 0 || value > 150)) {
+      if (prop === "age" && (value < 0 || value > 150)) {
         throw new Error("Invalid age");
       }
       target[prop] = value;
@@ -770,8 +773,8 @@ function withCache(obj) {
   const cache = {};
   return new Proxy(obj, {
     get(target, prop) {
-      if (typeof target[prop] === 'function') {
-        return function(...args) {
+      if (typeof target[prop] === "function") {
+        return function (...args) {
           const key = `${prop}_${JSON.stringify(args)}`;
           if (cache[key]) {
             console.log(`Cache hit for ${key}`);
@@ -800,14 +803,10 @@ const calculator = {
 };
 
 // Compose all behaviors
-const enhancedCalculator = withCache(
-  withValidation(
-    withLogging(calculator)
-  )
-);
+const enhancedCalculator = withCache(withValidation(withLogging(calculator)));
 
-console.log(enhancedCalculator.add(2, 3));     // Logs, computes
-console.log(enhancedCalculator.add(2, 3));     // Cache hit!
+console.log(enhancedCalculator.add(2, 3)); // Logs, computes
+console.log(enhancedCalculator.add(2, 3)); // Cache hit!
 ```
 
 ---
@@ -852,7 +851,7 @@ What will this code output?
 function Animal(name) {
   this.name = name;
 }
-Animal.prototype.eat = function() {
+Animal.prototype.eat = function () {
   return `${this.name} is eating`;
 };
 
@@ -861,7 +860,7 @@ function Dog(name, breed) {
   this.breed = breed;
 }
 Dog.prototype = Object.create(Animal.prototype);
-Dog.prototype.bark = function() {
+Dog.prototype.bark = function () {
   return `${this.name} is barking`;
 };
 
@@ -878,14 +877,15 @@ console.log(myDog.toString());
 <summary>💡 Click to reveal answer</summary>
 
 ```javascript
-console.log(myDog.name);      // "Buddy" (own property)
-console.log(myDog.breed);     // "Golden" (own property)
-console.log(myDog.eat());     // "Buddy is eating" (from Animal.prototype)
-console.log(myDog.bark());    // "Buddy is barking" (from Dog.prototype)
+console.log(myDog.name); // "Buddy" (own property)
+console.log(myDog.breed); // "Golden" (own property)
+console.log(myDog.eat()); // "Buddy is eating" (from Animal.prototype)
+console.log(myDog.bark()); // "Buddy is barking" (from Dog.prototype)
 console.log(myDog.toString()); // "[object Object]" (from Object.prototype)
 ```
 
 **Explanation**: Property lookup goes: own properties → Dog.prototype → Animal.prototype → Object.prototype
+
 </details>
 
 ---
@@ -903,7 +903,7 @@ class Vehicle {
     this.brand = brand;
     this.speed = speed;
   }
-  
+
   move() {
     return `${this.brand} is moving at ${this.speed} km/h`;
   }
@@ -914,7 +914,7 @@ class Car extends Vehicle {
     super(brand, speed);
     this.fuelType = fuelType;
   }
-  
+
   refuel() {
     return `Refueling with ${this.fuelType}`;
   }
@@ -925,11 +925,11 @@ class ElectricCar extends Car {
     super(brand, speed, "Electric");
     this.batteryCapacity = batteryCapacity;
   }
-  
+
   charge() {
     return `Charging ${this.batteryCapacity}kWh battery`;
   }
-  
+
   // Override parent method
   refuel() {
     return this.charge();
@@ -937,10 +937,11 @@ class ElectricCar extends Car {
 }
 
 const tesla = new ElectricCar("Tesla", 250, 100);
-console.log(tesla.move());    // "Tesla is moving at 250 km/h"
-console.log(tesla.refuel());  // "Charging 100kWh battery"
-console.log(tesla.charge());  // "Charging 100kWh battery"
+console.log(tesla.move()); // "Tesla is moving at 250 km/h"
+console.log(tesla.refuel()); // "Charging 100kWh battery"
+console.log(tesla.charge()); // "Charging 100kWh battery"
 ```
+
 </details>
 
 ---
@@ -968,4 +969,5 @@ console.log(tesla.charge());  // "Charging 100kWh battery"
 **Status**: ✅ Complete
 
 ---
+
 -23-03-26

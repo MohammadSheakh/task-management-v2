@@ -4,7 +4,7 @@
 **Level**: 🟢 Beginner → 🔴 FAANG Ready
 **Series**: DSA & Interview Preparation
 **Time**: 60 minutes
-
+- [LastRead](#lastRead)
 ---
 
 ## 🎯 **LEARNING OBJECTIVES**

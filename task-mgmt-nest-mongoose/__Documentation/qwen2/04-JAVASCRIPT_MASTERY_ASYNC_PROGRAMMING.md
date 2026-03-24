@@ -8,6 +8,8 @@
 
 ---
 
+- [LastRead](#lastRead)
+
 ## 🎯 **LEARNING OBJECTIVES**
 
 After completing this **comprehensive** lesson, you will:
@@ -113,7 +115,7 @@ console.log("A. Start");
 
 setTimeout(() => {
   console.log("B. setTimeout 1");
-  
+
   Promise.resolve().then(() => {
     console.log("C. Promise inside setTimeout");
   });
@@ -121,7 +123,7 @@ setTimeout(() => {
 
 Promise.resolve().then(() => {
   console.log("D. Promise 1");
-  
+
   setTimeout(() => {
     console.log("E. setTimeout inside Promise");
   }, 0);
@@ -236,10 +238,10 @@ fetchData((data) => {
 // ─────────────────────────────────────────────
 function readFile(path, callback) {
   setTimeout(() => {
-    const error = null;  // or new Error("File not found")
+    const error = null; // or new Error("File not found")
     const content = "File content";
-    
-    callback(error, content);  // Error first, data second
+
+    callback(error, content); // Error first, data second
   }, 1000);
 }
 
@@ -256,16 +258,16 @@ readFile("/path/to/file", (err, data) => {
 // ─────────────────────────────────────────────
 getUser(userId, (err, user) => {
   if (err) return handleError(err);
-  
+
   getPosts(user.id, (err, posts) => {
     if (err) return handleError(err);
-    
+
     getComments(posts[0].id, (err, comments) => {
       if (err) return handleError(err);
-      
+
       getLikes(comments[0].id, (err, likes) => {
         if (err) return handleError(err);
-        
+
         // Finally have all data...
         console.log({ user, posts, comments, likes });
       });
@@ -314,18 +316,18 @@ stateDiagram-v2
     Pending --> Rejected: reject()
     Fulfilled --> [*]
     Rejected --> [*]
-    
+
     note right of Pending
       Initial state
       Can transition to
       Fulfilled or Rejected
     end note
-    
+
     note right of Fulfilled
       Success state
       Has result value
     end note
-    
+
     note right of Rejected
       Error state
       Has error reason
@@ -345,11 +347,11 @@ const promise = new Promise((resolve, reject) => {
   setTimeout(() => {
     const success = true;
     const data = { id: 1, name: "John" };
-    
+
     if (success) {
-      resolve(data);  // Promise fulfilled
+      resolve(data); // Promise fulfilled
     } else {
-      reject(new Error("Operation failed"));  // Promise rejected
+      reject(new Error("Operation failed")); // Promise rejected
     }
   }, 1000);
 });
@@ -360,7 +362,7 @@ const promise = new Promise((resolve, reject) => {
 promise
   .then((data) => {
     console.log("Success:", data);
-    return data.id;  // Can return value for next .then()
+    return data.id; // Can return value for next .then()
   })
   .then((id) => {
     console.log("ID:", id);
@@ -379,9 +381,9 @@ promise
 // Fulfilled: Operation completed successfully
 // Rejected: Operation failed
 
-const pending = new Promise(() => {});  // Stays pending forever
-const fulfilled = Promise.resolve("Success!");  // Already fulfilled
-const rejected = Promise.reject(new Error("Failed!"));  // Already rejected
+const pending = new Promise(() => {}); // Stays pending forever
+const fulfilled = Promise.resolve("Success!"); // Already fulfilled
+const rejected = Promise.reject(new Error("Failed!")); // Already rejected
 
 // ─────────────────────────────────────────────
 // PROMISE CHAINING
@@ -389,11 +391,11 @@ const rejected = Promise.reject(new Error("Failed!"));  // Already rejected
 fetchUser(1)
   .then((user) => {
     console.log("User:", user);
-    return fetchPosts(user.id);  // Return new promise
+    return fetchPosts(user.id); // Return new promise
   })
   .then((posts) => {
     console.log("Posts:", posts);
-    return fetchComments(posts[0].id);  // Chain continues
+    return fetchComments(posts[0].id); // Chain continues
   })
   .then((comments) => {
     console.log("Comments:", comments);
@@ -408,11 +410,11 @@ fetchUser(1)
 // ─────────────────────────────────────────────
 Promise.resolve()
   .then(() => {
-    throw new Error("Error 1");  // Throws in .then
+    throw new Error("Error 1"); // Throws in .then
   })
   .catch((err) => {
     console.error("Caught:", err.message);
-    return "Recovery value";  // Can recover and continue
+    return "Recovery value"; // Can recover and continue
   })
   .then((value) => {
     console.log("Recovered with:", value);
@@ -428,7 +430,7 @@ const promise3 = Promise.resolve(3);
 
 Promise.all([promise1, promise2, promise3])
   .then((values) => {
-    console.log("All values:", values);  // [1, 2, 3]
+    console.log("All values:", values); // [1, 2, 3]
   })
   .catch((error) => {
     // Rejects if ANY promise rejects
@@ -451,10 +453,10 @@ Promise.allSettled([
 
 // Promise.race: First to settle wins
 Promise.race([
-  new Promise(resolve => setTimeout(() => resolve("Slow"), 1000)),
-  new Promise(resolve => setTimeout(() => resolve("Fast"), 100)),
+  new Promise((resolve) => setTimeout(() => resolve("Slow"), 1000)),
+  new Promise((resolve) => setTimeout(() => resolve("Fast"), 100)),
 ]).then((winner) => {
-  console.log("Winner:", winner);  // "Fast"
+  console.log("Winner:", winner); // "Fast"
 });
 
 // Promise.any: First FULFILLED wins (ignores rejections)
@@ -463,7 +465,7 @@ Promise.any([
   Promise.resolve("Success!"),
   Promise.reject(new Error("Failed 2")),
 ]).then((winner) => {
-  console.log("Winner:", winner);  // "Success!"
+  console.log("Winner:", winner); // "Success!"
 });
 ```
 
@@ -477,7 +479,7 @@ Promise.any([
 // ─────────────────────────────────────────────
 function readFile(path) {
   return new Promise((resolve, reject) => {
-    fs.readFile(path, 'utf8', (err, data) => {
+    fs.readFile(path, "utf8", (err, data) => {
       if (err) reject(err);
       else resolve(data);
     });
@@ -485,7 +487,7 @@ function readFile(path) {
 }
 
 // Node.js util.promisify
-const { promisify } = require('util');
+const { promisify } = require("util");
 const readFile2 = promisify(fs.readFile);
 
 // ─────────────────────────────────────────────
@@ -495,7 +497,7 @@ function withTimeout(promise, ms) {
   const timeout = new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
   });
-  
+
   return Promise.race([promise, timeout]);
 }
 
@@ -532,19 +534,17 @@ retry(() => fetchWithRandomFailure(), 3, 1000)
 // ─────────────────────────────────────────────
 // SEQUENTIAL PROMISE EXECUTION
 // ─────────────────────────────────────────────
-const tasks = [
-  () => fetchUser(1),
-  () => fetchPosts(1),
-  () => fetchComments(1),
-];
+const tasks = [() => fetchUser(1), () => fetchPosts(1), () => fetchComments(1)];
 
 // Run sequentially (each waits for previous)
-tasks.reduce(
-  (promiseChain, currentTask) => promiseChain.then(currentTask),
-  Promise.resolve()
-).then((result) => {
-  console.log("All tasks completed:", result);
-});
+tasks
+  .reduce(
+    (promiseChain, currentTask) => promiseChain.then(currentTask),
+    Promise.resolve(),
+  )
+  .then((result) => {
+    console.log("All tasks completed:", result);
+  });
 
 // ─────────────────────────────────────────────
 // PARALLEL EXECUTION WITH CONCURRENCY LIMIT
@@ -552,21 +552,21 @@ tasks.reduce(
 async function batchProcess(items, processor, concurrency = 5) {
   const results = [];
   const executing = [];
-  
+
   for (const item of items) {
     const promise = processor(item).then((result) => {
       executing.splice(executing.indexOf(promise), 1);
       return result;
     });
-    
+
     results.push(promise);
     executing.push(promise);
-    
+
     if (executing.length >= concurrency) {
       await Promise.race(executing);
     }
   }
-  
+
   return Promise.all(results);
 }
 ```
@@ -583,7 +583,7 @@ graph LR
     C[await keyword] --> D[Pauses Execution]
     D --> E[Promise Resolves]
     E --> F[Continues with Value]
-    
+
     style A fill:#4ecdc4
     style B fill:#95e1d3
     style C fill:#ffe66d
@@ -605,16 +605,16 @@ async function getUserData() {
   const user = await fetchUser(1);
   const posts = await fetchPosts(user.id);
   const comments = await fetchComments(posts[0].id);
-  
+
   return { user, posts, comments };
 }
 
 // Equivalent to Promise chain
 function getUserDataChain() {
   return fetchUser(1)
-    .then(user => fetchPosts(user.id))
-    .then(posts => fetchComments(posts[0].id))
-    .then(comments => ({ user, posts, comments }));
+    .then((user) => fetchPosts(user.id))
+    .then((posts) => fetchComments(posts[0].id))
+    .then((comments) => ({ user, posts, comments }));
 }
 
 // ─────────────────────────────────────────────
@@ -625,11 +625,11 @@ async function getUserDataSafe() {
     const user = await fetchUser(1);
     const posts = await fetchPosts(user.id);
     const comments = await fetchComments(posts[0].id);
-    
+
     return { user, posts, comments };
   } catch (error) {
     console.error("Error fetching data:", error);
-    throw error;  // Re-throw or return default value
+    throw error; // Re-throw or return default value
   }
 }
 
@@ -639,23 +639,22 @@ async function getUserDataSafe() {
 async function fetchAllData() {
   try {
     const user = await fetchUser(1);
-    
+
     try {
       const posts = await fetchPosts(user.id);
     } catch (postError) {
       console.error("Failed to fetch posts:", postError);
       // Continue with other data
     }
-    
+
     try {
       const comments = await fetchComments(1);
     } catch (commentError) {
       console.error("Failed to fetch comments:", commentError);
     }
-    
   } catch (userError) {
     console.error("Failed to fetch user:", userError);
-    throw userError;  // Critical error, stop everything
+    throw userError; // Critical error, stop everything
   }
 }
 
@@ -664,11 +663,11 @@ async function fetchAllData() {
 // ─────────────────────────────────────────────
 // ❌ SLOW: Sequential (one after another)
 async function fetchSequential() {
-  const user = await fetchUser(1);      // Wait 1s
-  const posts = await fetchPosts(1);    // Wait 1s
+  const user = await fetchUser(1); // Wait 1s
+  const posts = await fetchPosts(1); // Wait 1s
   const comments = await fetchComments(1); // Wait 1s
   // Total: 3 seconds
-  
+
   return { user, posts, comments };
 }
 
@@ -680,7 +679,7 @@ async function fetchParallel() {
     fetchComments(1),
   ]);
   // Total: ~1 second
-  
+
   return { user, posts, comments };
 }
 
@@ -691,7 +690,7 @@ async function fetchParallelNamed() {
     fetchPosts(1),
     fetchComments(1),
   ]);
-  
+
   return { user, posts, comments };
 }
 
@@ -702,7 +701,7 @@ async function fetchParallelNamed() {
 async function fetchUsersSequential(ids) {
   const users = [];
   for (const id of ids) {
-    const user = await fetchUser(id);  // Wait for each
+    const user = await fetchUser(id); // Wait for each
     users.push(user);
   }
   return users;
@@ -710,20 +709,20 @@ async function fetchUsersSequential(ids) {
 
 // ✅ FAST: Parallel with Promise.all
 async function fetchUsersParallel(ids) {
-  const promises = ids.map(id => fetchUser(id));
+  const promises = ids.map((id) => fetchUser(id));
   return Promise.all(promises);
 }
 
 // ✅ CONTROLLED: With concurrency limit
 async function fetchUsersBatched(ids, batchSize = 5) {
   const users = [];
-  
+
   for (let i = 0; i < ids.length; i += batchSize) {
     const batch = ids.slice(i, i + batchSize);
-    const batchUsers = await Promise.all(batch.map(id => fetchUser(id)));
+    const batchUsers = await Promise.all(batch.map((id) => fetchUser(id)));
     users.push(...batchUsers);
   }
-  
+
   return users;
 }
 
@@ -754,7 +753,7 @@ let userData = null;
 
 async function fetchUserData(userId) {
   const data = await fetchUser(userId);
-  userData = data;  // Might be overwritten by older request!
+  userData = data; // Might be overwritten by older request!
 }
 
 // User clicks: User 1 → User 2 → User 3
@@ -771,16 +770,16 @@ async function fetchUserWithAbort(userId) {
   if (controller) {
     controller.abort();
   }
-  
+
   controller = new AbortController();
-  
+
   try {
     const response = await fetch(`/api/users/${userId}`, {
       signal: controller.signal,
     });
     return response.json();
   } catch (error) {
-    if (error.name === 'AbortError') {
+    if (error.name === "AbortError") {
       console.log("Request aborted");
       return null;
     }
@@ -795,16 +794,16 @@ let latestRequestId = 0;
 
 async function fetchUserWithTracking(userId) {
   const requestId = ++latestRequestId;
-  
+
   const data = await fetchUser(userId);
-  
+
   // Only update if this is still the latest request
   if (requestId === latestRequestId) {
     userData = data;
     return data;
   }
-  
-  return null;  // Stale request, ignore
+
+  return null; // Stale request, ignore
 }
 ```
 
@@ -820,13 +819,13 @@ async function* fetchPages(baseUrl, totalPages) {
   for (let page = 1; page <= totalPages; page++) {
     const response = await fetch(`${baseUrl}?page=${page}`);
     const data = await response.json();
-    yield data;  // Yield each page as it arrives
+    yield data; // Yield each page as it arrives
   }
 }
 
 // Consume async generator
 (async () => {
-  for await (const page of fetchPages('/api/items', 10)) {
+  for await (const page of fetchPages("/api/items", 10)) {
     console.log("Page:", page);
   }
 })();
@@ -838,7 +837,7 @@ const asyncIterable = {
   async *[Symbol.asyncIterator]() {
     let i = 0;
     while (i < 5) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       yield ++i;
     }
   },
@@ -846,7 +845,7 @@ const asyncIterable = {
 
 (async () => {
   for await (const num of asyncIterable) {
-    console.log(num);  // 1, 2, 3, 4, 5 (one per second)
+    console.log(num); // 1, 2, 3, 4, 5 (one per second)
   }
 })();
 ```
@@ -909,6 +908,7 @@ console.log("4");
 **Output**: 1, 4, 3, 2
 
 **Explanation**:
+
 1. `console.log("1")` - Synchronous, runs immediately
 2. `console.log("4")` - Synchronous, runs immediately
 3. `Promise.then` - Microtask, runs after sync code
@@ -935,14 +935,15 @@ async function search(query) {
 <summary>💡 Click to reveal answer</summary>
 
 **Solution 1**: AbortController
+
 ```javascript
 let controller = null;
 
 async function search(query) {
   if (controller) controller.abort();
-  
+
   controller = new AbortController();
-  
+
   try {
     const response = await fetch(`/api/search?q=${query}`, {
       signal: controller.signal,
@@ -950,7 +951,7 @@ async function search(query) {
     const results = await response.json();
     display(results);
   } catch (error) {
-    if (error.name !== 'AbortError') {
+    if (error.name !== "AbortError") {
       console.error(error);
     }
   }
@@ -958,20 +959,22 @@ async function search(query) {
 ```
 
 **Solution 2**: Request ID
+
 ```javascript
 let requestId = 0;
 
 async function search(query) {
   const currentId = ++requestId;
-  
+
   const response = await fetch(`/api/search?q=${query}`);
   const results = await response.json();
-  
+
   if (currentId === requestId) {
     display(results);
   }
 }
 ```
+
 </details>
 
 ---
@@ -1004,6 +1007,7 @@ async function fetchData() {
 ```
 
 **Note**: Only works if fetchPosts and fetchComments don't depend on previous results. If they do, keep sequential or use partial parallelization.
+
 </details>
 
 ---
@@ -1031,4 +1035,5 @@ async function fetchData() {
 **Status**: ✅ Complete
 
 ---
+
 -23-03-26
