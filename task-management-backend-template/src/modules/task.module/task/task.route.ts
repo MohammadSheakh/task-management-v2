@@ -235,10 +235,10 @@ router.route('/:id/permanent').delete(
 |  @routes GET /tasks/:id/subtasks - Get all subtasks
 |  @routes GET /tasks/:id/subtasks/:subtaskId - Get single subtask
 |  @routes PUT /tasks/:id/subtasks/:subtaskId - Update subtask
-|  @routes POST /tasks/:id/subtasks/:subtaskId/toggle - Toggle subtask
+|  @routes PUT /tasks/:id/subtasks/:subtaskId/toggle-status - Toggle subtask
 |  @routes DELETE /tasks/:id/subtasks/:subtaskId - Delete subtask
 └──────────────────────────────────*/
-router.use('/:id', SubTaskRoute);
+router.use('/:id/subtasks', SubTaskRoute);
 
 // ────────────────────────────────────────────────────────────────────────
 // Figma-Aligned Routes: Daily Progress
