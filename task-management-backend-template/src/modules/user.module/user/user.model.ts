@@ -154,7 +154,7 @@ const userSchema = new Schema<IUser, UserModal>(
     accountCreatorId: {
       type: Types.ObjectId,
       ref: 'User',
-      required: false, // user and admin dont need any wallet .. only provider need wallet
+      required: false, 
       default: null,
     },
 

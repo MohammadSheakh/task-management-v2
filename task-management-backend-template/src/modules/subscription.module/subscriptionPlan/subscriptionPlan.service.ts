@@ -4,23 +4,18 @@ import { GenericService } from "../../_generic-module/generic.services";
 import { ISubscriptionPlan } from "./subscriptionPlan.interface";
 import { SubscriptionPlan } from "./subscriptionPlan.model";
 import { getOrCreateStripeCustomer, UserSubscriptionService } from "../userSubscription/userSubscription.service";
-import stripe from "../../../config/stripe.config";
 import ApiError from "../../../errors/ApiError";
 //@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-import { User } from "../../user/user.model";
-import { TSubscription } from "../../../enums/subscription";
 import { IUserSubscription } from "../userSubscription/userSubscription.interface";
 import { UserSubscription } from "../userSubscription/userSubscription.model";
 import { UserSubscriptionStatusType } from "../userSubscription/userSubscription.constant";
-import { TTransactionFor } from "../../payment.module/paymentTransaction/paymentTransaction.constant";
 import { TCurrency } from "../../../enums/payment";
 import { config } from "../../../config";
 import { IUser } from "../../token/token.interface";
-import { TUser } from "../../user/user.interface";
-import { enqueueWebNotification } from "../../../services/notification.service";
-import { TNotificationType } from "../../notification/notification.constants";
-import { TRole } from "../../../middlewares/roles";
+import stripe from "../../../config/paymentGateways/stripe.config";
+import { User } from "../../user.module/user/user.model";
+import { TTransactionFor } from "../../../constants/TTransactionFor";
 
 export class SubscriptionPlanService extends GenericService<typeof SubscriptionPlan, ISubscriptionPlan>
 {
@@ -75,7 +70,7 @@ export class SubscriptionPlanService extends GenericService<typeof SubscriptionP
 
         // console.log('Subscription Plan Found: ', subscriptionPlan);
 
-        const user:TUser | null = await User.findById(userId);
+        const user:IUser | null = await User.findById(userId);
         if (!user) {
             throw new ApiError(
                 StatusCodes.BAD_REQUEST,
@@ -216,244 +211,126 @@ export class SubscriptionPlanService extends GenericService<typeof SubscriptionP
         return session.url;
     }
 
-    /*-─────────────────────────────────
-    | as per clients requirement .. client wants to cancel a persons subscription from the admin end ..
-    | and assign him vise subscription .. 
-    └──────────────────────────────────*/
-    cancelPatientsSubscriptionAndAssignViseSubscription = async (adminId: string, patientId : string ) => {
-        
-        const isCancelling = await UserSubscription.exists(
-            { 
-                userId: patientId,
-                status: UserSubscriptionStatusType.cancelling
-            }
-        );
+    /**
+     * Create Subscription Plan (Admin Dashboard)
+     * 
+     * Business Logic:
+     * - Individual plans → RevenueCat (iOS/Android mobile apps)
+     * - Business plans (business_starter, business_level1, business_level2) → Stripe (web)
+     * 
+     * @param planData - Subscription plan data from admin
+     * @returns Created subscription plan with metadata
+     * 
+     * @description
+     * For Stripe: Automatically creates product and price in Stripe
+     * For RevenueCat: Generates product identifiers (admin must create in RevenueCat dashboard)
+     */
+    async createSubscriptionPlan(planData: Partial<ISubscriptionPlan> & {
+        subscriptionName: string;
+        amount: string;
+        subscriptionType: string;
+        revenueCatProductIdentifier?: string;
+        revenueCatPackageIdentifier?: string;
+    }) {
+        const { TSubscription } = await import('../../../enums/subscription');
+        const { TInitialDuration, TRenewalFrequency } = await import('./subscriptionPlan.constant');
+        const { TCurrency } = await import('../../../enums/payment');
+        const { logger } = await import('../../../shared/logger');
 
-        // if (isCancelling) {
-        //     throw new ApiError(StatusCodes.BAD_REQUEST, 'You already cancel your subscription');
-        // }
-
-        const userSub:IUserSubscription = await UserSubscription.findOne({
-            userId: patientId,
-            status: UserSubscriptionStatusType.active 
+        // Deactivate existing plans with same subscription type
+        const existingPlan = await SubscriptionPlan.find({
+            isActive: true,
+            subscriptionType: planData.subscriptionType
         });
 
-        if (!userSub || !userSub.stripe_subscription_id) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'No active subscription found');
+        for (const plan of existingPlan) {
+            plan.isActive = false;
+            await plan.save();
         }
 
-        const canceledSub = await stripe.subscriptions.update(userSub.stripe_subscription_id, {
-            cancel_at_period_end: true,
-        });
+        // Prepare plan data
+        const data: ISubscriptionPlan = {
+            subscriptionName: planData.subscriptionName,
+            amount: planData.amount,
+            subscriptionType: planData.subscriptionType,
+            initialDuration: TInitialDuration.month,
+            renewalFrequncy: TRenewalFrequency.monthly,
+            currency: TCurrency.usd,
+            isActive: true,
+            ...planData,
+        } as ISubscriptionPlan;
 
-        if (!canceledSub) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Failed to cancel subscription');
-        }
-
-        // it will cancel the subscription at the end of the billing cycle
-        await UserSubscription.findByIdAndUpdate(userSub._id, {
-            $set: { 
-                cancelledAtPeriodEnd: true, 
-                status: UserSubscriptionStatusType.cancelling 
-            },
-        });
-
-
-        // update user's subscription to vice subscription
-        await User.findByIdAndUpdate(
-            patientId,
-            {
-                subscriptionType : TSubscription.vise,
-            },
-            {
-                new : true,
-            }
-        )
-
-        //  Send Notification to patient that .. admin cancel your current subscription and assign vice subscription to you
-        await enqueueWebNotification(
-            `Admin cancel your current subscription and assign vice subscription to you.`,
-            adminId, // senderId
-            patientId, // receiverId
-            TRole.patient, // receiverRole
-            TNotificationType.payment, // type
-            null, // linkFor
-            null // linkId
-        );
-    }
-}
-
-
-    /*
-    // 4. Helper Methods for Different Webhook Events
-    // 4.1 Handle Checkout Session Completed
-    handleCheckoutSessionCompleted = async (session: any) => {
-        // Implement your logic here
-        const { userId, subscriptionPlanId } = session.metadata;
-  
-        if (!userId || !subscriptionPlanId) {
-            console.error('Missing metadata in checkout session');
-            return;
-        }
-
-        // Retrieve subscription details from Stripe
-        const subscription = await this.stripe.subscriptions.retrieve(session.subscription);
-  
-        // Get subscription plan details
-        const subscriptionPlan = await this.getById(subscriptionPlanId);
-        
-        // Calculate dates
-        const now = new Date();
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-
-        // Create user subscription record
-        const userSubscriptionData = {
-            userId,
-            subscriptionPlanId,
-            subscriptionStartDate: now,
-            currentPeriodStartDate: now,
-            renewalDate: currentPeriodEnd,
-            billingCycle: subscriptionPlan.initialDuration === 'month' ? 1 : 12,
-            isAutoRenewed: true,
-            status: UserSubscriptionStatusType.active,
-            stripe_subscription_id: subscription.id,
-            stripe_customer_id: subscription.customer
-        };
-
-       
-        // Create subscription in your database
-        await this.userSubscriptionService.create(userSubscriptionData); 
-
-    }
-
-
-    handleInvoicePaymentSucceeded = async (invoice: any) => {
-        if (!invoice.subscription) return;
-  
-        // Get user subscription by Stripe subscription ID
-        const userSubscription = await userSubscriptionService.getByStripeSubscriptionId(invoice.subscription);
-        
-        if (!userSubscription) {
-            console.error('User subscription not found for invoice payment', invoice.subscription);
-            return;
-        }
-
-        // Calculate new period dates
-        const currentPeriodStart = new Date(invoice.period_start * 1000);
-        const renewalDate = new Date(invoice.period_end * 1000);
-
-        // Update user subscription
-        await userSubscriptionService.update(userSubscription._id, {
-            currentPeriodStartDate: currentPeriodStart,
-            renewalDate: renewalDate,
-            status: UserSubscriptionStatusType.active
-        });
-    }
-
-    handleInvoicePaymentFailed = async (invoice: any) => {
-        if (!invoice.subscription) return;
-  
-        // Get user subscription by Stripe subscription ID
-        const userSubscription = await userSubscriptionService.getByStripeSubscriptionId(invoice.subscription);
-        
-        if (!userSubscription) {
-            console.error('User subscription not found for failed payment', invoice.subscription);
-            return;
-        }
-
-        // Update status to past_due
-        await userSubscriptionService.update(userSubscription._id, {
-            status: UserSubscriptionStatusType.past_due
-        });
-        
-        // Here you might want to trigger a notification to the user
-    }
-
-    // 4.4 Handle Subscription Updated
-    handleSubscriptionUpdated = async (subscription: any) => {
-        // Get user subscription by Stripe subscription ID
-        const userSubscription = await userSubscriptionService.getByStripeSubscriptionId(subscription.id);
-        
-        if (!userSubscription) {
-            console.error('User subscription not found for update', subscription.id);
-            return;
-        }
-
-        // Update status and other details
-        const updates: any = {};
-        
-        // Map Stripe status to your status
-        switch (subscription.status) {
-            case 'active':
-            updates.status = UserSubscriptionStatusType.active;
-            break;
-            case 'past_due':
-            updates.status = UserSubscriptionStatusType.past_due;
-            break;
-            case 'unpaid':
-            updates.status = UserSubscriptionStatusType.unpaid;
-            break;
-            case 'canceled':
-            updates.status = UserSubscriptionStatusType.cancelled;
-            updates.cancelledAt = new Date();
-            break;
-            case 'trialing':
-            updates.status = UserSubscriptionStatusType.trialing;
-            break;
-            case 'incomplete':
-            updates.status = UserSubscriptionStatusType.incomplete;
-            break;
-            case 'incomplete_expired':
-            updates.status = UserSubscriptionStatusType.incomplete_expired;
-            break;
-        }
-
-        // Handle cancellation at period end
-        if (subscription.cancel_at_period_end) {
-            updates.cancelledAtPeriodEnd = true;
+        // Set purchase channel based on subscription type
+        if (planData.subscriptionType === TSubscription.individual) {
+            data.purchaseChannel = 'revenuecat';  // Individual plans use RevenueCat
+            data.availablePlatforms = ['ios', 'android'];
         } else {
-            updates.cancelledAtPeriodEnd = false;
+            data.purchaseChannel = 'stripe';  // Business plans use Stripe
+            data.availablePlatforms = ['web'];
         }
 
-        // Update current period dates if available
-        if (subscription.current_period_start) {
-            updates.currentPeriodStartDate = new Date(subscription.current_period_start * 1000);
-        }
-        
-        if (subscription.current_period_end) {
-            updates.renewalDate = new Date(subscription.current_period_end * 1000);
+        // Create Stripe product and price (for Business plans)
+        if (data.purchaseChannel === 'stripe' || data.purchaseChannel === 'both') {
+            const product = await this.stripe.products.create({
+                name: data.subscriptionType,
+                description: `Subscription plan for ${data.subscriptionType}`,
+            });
+
+            const price = await this.stripe.prices.create({
+                unit_amount: Math.round(parseFloat(data?.amount as string) * 100), // Amount in cents
+                currency: data.currency,
+                recurring: {
+                    interval: 'month',
+                    interval_count: 1,
+                },
+                product: product.id,
+            });
+            data.stripe_product_id = product.id;
+            data.stripe_price_id = price.id;
         }
 
-        // Update subscription in database
-        await userSubscriptionService.update(userSubscription._id, updates);
+        // Set RevenueCat identifiers (for Individual plans)
+        if (data.purchaseChannel === 'revenuecat' || data.purchaseChannel === 'both') {
+            data.revenueCatProductIdentifier = planData.revenueCatProductIdentifier || `${data.subscriptionType}_monthly`;
+            data.revenueCatPackageIdentifier = planData.revenueCatPackageIdentifier || 'monthly';
+            
+            // Log setup instructions for admin
+            logger.info(`
+╔══════════════════════════════════════════════════════════════╗
+║  📱 REVENUECAT PRODUCT SETUP REQUIRED                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  Subscription Plan: ${data.subscriptionName}
+║  Product Identifier: ${data.revenueCatProductIdentifier}
+║  Package Identifier: ${data.revenueCatPackageIdentifier}
+╠══════════════════════════════════════════════════════════════╣
+║  Steps to complete:                                          ║
+║  1. Go to https://dashboard.revenuecat.com                   ║
+║  2. Navigate to Products section                             ║
+║  3. Create new Product with identifier:                      ║
+║     → ${data.revenueCatProductIdentifier}
+║  4. Link to App Store Connect (iOS)                          ║
+║  5. Link to Google Play Console (Android)                    ║
+║  6. Create Package with identifier:                          ║
+║     → ${data.revenueCatPackageIdentifier}
+║  7. Set price in App Store Connect & Google Play Console     ║
+╚══════════════════════════════════════════════════════════════╝
+            `);
+        }
+
+        // Create the plan in database
+        const result = await this.model.create(data);
+
+        return {
+            plan: result,
+            metadata: data.purchaseChannel === 'revenuecat' ? {
+                revenueCatSetupRequired: true,
+                revenueCatProductIdentifier: data.revenueCatProductIdentifier,
+                revenueCatPackageIdentifier: data.revenueCatPackageIdentifier,
+                dashboardUrl: 'https://dashboard.revenuecat.com',
+            } : {
+                stripeProductId: data.stripe_product_id,
+                stripePriceId: data.stripe_price_id,
+            }
+        };
     }
-
-    
-    // 4.5 Handle Subscription Canceled
-private async handleSubscriptionCanceled(subscription: any) {
-  // Get user subscription by Stripe subscription ID
-  const userSubscription = await userSubscriptionService.getByStripeSubscriptionId(subscription.id);
-  
-  if (!userSubscription) {
-    console.error('User subscription not found for cancellation', subscription.id);
-    return;
-  }
-
-  // Update subscription status
-  await userSubscriptionService.update(userSubscription._id, {
-    status: UserSubscriptionStatusType.cancelled,
-    cancelledAt: new Date()
-  });
 }
-
-// 5. Service Methods for User Subscription
-// Example method to find by Stripe subscription ID
-userSubscriptionService.getByStripeSubscriptionId = async (stripeSubscriptionId: string) => {
-  return await UserSubscription.findOne({ 
-    stripe_subscription_id: stripeSubscriptionId,
-    isDeleted: false 
-  });
-};
-
-
-*/
