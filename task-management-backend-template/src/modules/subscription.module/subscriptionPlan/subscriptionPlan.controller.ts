@@ -113,7 +113,7 @@ export class SubscriptionController extends GenericController<
     
     if (!revenueCatUserId) {
       // Generate RevenueCat user ID (using user's MongoDB ID)
-      revenueCatUserId = user.userId.toString();
+      revenueCatUserId = user?.userId.toString();
       
       // Update user with RevenueCat ID
       await User.findByIdAndUpdate(user.userId, {
