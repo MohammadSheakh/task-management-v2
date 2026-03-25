@@ -6,6 +6,7 @@ import ApiError from '../../../errors/ApiError';
 import { Types } from 'mongoose';
 import { Task } from '../task/task.model';
 import { SubTask } from './subTask.model';
+import { TaskStatus } from '../task/task.constant';
 
 /**
  * SubTask Service
@@ -159,7 +160,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
       totalSubtasks: stats.total,
       completedSubtasks: stats.completed,
       // Auto-complete task if all subtasks are done
-      status: stats.total > 0 && stats.completed === stats.total ? 'completed' : undefined,
+      status: stats.total > 0 && stats.completed === stats.total ? TaskStatus.COMPLETED : undefined,
       completedTime: stats.total > 0 && stats.completed === stats.total ? new Date() : undefined,
     });
   }

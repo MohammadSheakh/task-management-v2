@@ -8,6 +8,8 @@ import ApiError from '../../../errors/ApiError';
 import { Types } from 'mongoose';
 import {
   TaskStatus,
+  TaskType,
+  TaskPriority,
   TASK_CACHE_CONFIG,
   TTaskStatus,
   DAILY_TASK_LIMIT,
@@ -143,7 +145,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     userId: Types.ObjectId,
   ): Promise<ITask> {
     // Validate daily task limit for personal tasks
-    if (data.taskType === 'personal' && data.startTime) {
+    if (data.taskType === TaskType.PERSONAL && data.startTime) {
       const startDate = new Date(data.startTime);
       startDate.setHours(0, 0, 0, 0);
 
@@ -165,7 +167,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     }
 
     // Auto-set ownerUserId for personal tasks
-    if (data.taskType === 'personal' && !data.ownerUserId) {
+    if (data.taskType === TaskType.PERSONAL && !data.ownerUserId) {
       data.ownerUserId = userId;
     }
 
@@ -193,7 +195,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
     // ✅ NEW: Auto-create TaskProgress records for all assigned children
     if (
-      data.taskType === 'collaborative' &&
+      data.taskType === TaskType.COLLABORATIVE &&
       data.assignedUserIds &&
       data.assignedUserIds.length > 0
     ) {
@@ -210,7 +212,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     // ✨ NEW: Record activity for collaborative/family tasks
     // For family-based structure, we need to find the business user (team head)
     if (
-      data.taskType === 'collaborative' &&
+      data.taskType === TaskType.COLLABORATIVE &&
       data.assignedUserIds &&
       data.assignedUserIds.length > 0
     ) {
@@ -524,7 +526,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
     // ✨ NEW: Record activity for collaborative/family tasks
     if (
-      updatedTask.taskType === 'collaborative' &&
+      updatedTask.taskType === TaskType.COLLABORATIVE &&
       updatedTask.assignedUserIds
     ) {
       const activityType =
@@ -917,7 +919,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     // Build query based on taskType filter
     // IMPORTANT: 'children' is NOT a real taskType in the database
     // It's a UI filter concept that means "show all children's tasks"
-    // Real taskTypes in DB: 'personal', 'singleAssignment', 'collaborative'
+    // Real taskTypes in DB: TaskType.PERSONAL, TaskType.SINGLE_ASSIGNMENT, TaskType.COLLABORATIVE
     // ────────────────────────────────────────────────────────────────────────
     const taskTypeFilter = filters.taskType || 'children';
 
@@ -925,10 +927,10 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       isDeleted: false,
     };
 
-    if (taskTypeFilter === 'personal') {
+    if (taskTypeFilter === TaskType.PERSONAL) {
       // Parent's personal tasks only (tasks where parent is the owner)
       query.ownerUserId = businessUserId;
-      query.taskType = 'personal';
+      query.taskType = TaskType.PERSONAL;
     } else {
       // 'children' filter: Show all tasks assigned to any of the parent's children
       // This includes:
@@ -999,7 +1001,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
           completionPercentage:
             task.totalSubtasks > 0
               ? Math.round((task.completedSubtasks / task.totalSubtasks) * 100)
-              : task.status === 'completed'
+              : task.status === TaskStatus.COMPLETED
                 ? 100
                 : 0,
           subtasks:

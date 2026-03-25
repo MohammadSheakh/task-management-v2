@@ -36,6 +36,8 @@ import {
   format,
   isSameDay,
 } from 'date-fns';
+import { TaskStatus, TaskType, TaskPriority } from '../../task.module/task/task.constant';
+import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
 
 /**
  * User Analytics Service
@@ -398,9 +400,9 @@ export class UserAnalyticsService {
       const count = stat.count;
       result.total += count;
 
-      if (stat._id === 'completed') result.completed = count;
-      else if (stat._id === 'pending') result.pending = count;
-      else if (stat._id === 'inProgress') result.inProgress = count;
+      if (stat._id === TaskStatus.COMPLETED) result.completed = count;
+      else if (stat._id === TaskStatus.PENDING) result.pending = count;
+      else if (stat._id === TaskStatus.IN_PROGRESS) result.inProgress = count;
     });
 
     return result;
@@ -613,23 +615,23 @@ export class UserAnalyticsService {
     // Process results
     const byStatus = { pending: 0, inProgress: 0, completed: 0 };
     statusStats.forEach((stat: any) => {
-      if (stat._id === 'pending') byStatus.pending = stat.count;
-      else if (stat._id === 'inProgress') byStatus.inProgress = stat.count;
-      else if (stat._id === 'completed') byStatus.completed = stat.count;
+      if (stat._id === TaskStatus.PENDING) byStatus.pending = stat.count;
+      else if (stat._id === TaskStatus.IN_PROGRESS) byStatus.inProgress = stat.count;
+      else if (stat._id === TaskStatus.COMPLETED) byStatus.completed = stat.count;
     });
 
     const byPriority = { low: 0, medium: 0, high: 0 };
     priorityStats.forEach((stat: any) => {
-      if (stat._id === 'low') byPriority.low = stat.count;
-      else if (stat._id === 'medium') byPriority.medium = stat.count;
-      else if (stat._id === 'high') byPriority.high = stat.count;
+      if (stat._id === TaskPriority.LOW) byPriority.low = stat.count;
+      else if (stat._id === TaskPriority.MEDIUM) byPriority.medium = stat.count;
+      else if (stat._id === TaskPriority.HIGH) byPriority.high = stat.count;
     });
 
     const byTaskType = { personal: 0, singleAssignment: 0, collaborative: 0 };
     taskTypeStats.forEach((stat: any) => {
-      if (stat._id === 'personal') byTaskType.personal = stat.count;
-      else if (stat._id === 'singleAssignment') byTaskType.singleAssignment = stat.count;
-      else if (stat._id === 'collaborative') byTaskType.collaborative = stat.count;
+      if (stat._id === TaskType.PERSONAL) byTaskType.personal = stat.count;
+      else if (stat._id === TaskType.SINGLE_ASSIGNMENT) byTaskType.singleAssignment = stat.count;
+      else if (stat._id === TaskType.COLLABORATIVE) byTaskType.collaborative = stat.count;
     });
 
     const totalTasks = byStatus.pending + byStatus.inProgress + byStatus.completed;

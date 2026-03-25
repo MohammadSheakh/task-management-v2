@@ -10,6 +10,7 @@ import { TaskProgressStatus, TASK_PROGRESS_CACHE_CONFIG, TASK_PROGRESS_EVENTS, T
 import { redisClient } from '../../helpers/redis/redis';
 import { errorLogger, logger } from '../../shared/logger';
 import { User } from '../user.module/user/user.model';
+import { TaskType } from '../task.module/task/task.constant';
 import { NotificationService } from '../notification.module/notification/notification.service';
 import { socketService } from '../../helpers/socket/socketForChatV3';
 import { ACTIVITY_TYPE } from '../notification.module/notification/notification.constant';
@@ -497,7 +498,7 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
       });
 
       // Also broadcast to family room (for live activity feed)
-      if (task.taskType === 'collaborative') {
+      if (task.taskType === TaskType.COLLABORATIVE) {
         await socketService.broadcastGroupActivity(parentId, {
           type: status === TaskProgressStatus.COMPLETED ? ACTIVITY_TYPE.TASK_COMPLETED : ACTIVITY_TYPE.TASK_STARTED,
           actor: {

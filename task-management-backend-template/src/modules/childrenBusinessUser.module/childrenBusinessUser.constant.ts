@@ -1,19 +1,28 @@
 /**
  * Children Business User Status Enum
  */
-export const CHILDREN_BUSINESS_USER_STATUS = {
-  ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  REMOVED: 'removed',
-} as const;
+export enum ChildrenBusinessUserStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  REMOVED = 'removed',
+}
 
-export type TChildrenBusinessUserStatus = typeof CHILDREN_BUSINESS_USER_STATUS[keyof typeof CHILDREN_BUSINESS_USER_STATUS];
+/**
+ * Type export from enum (for MongoDB schema validation and TypeScript)
+ */
+export type TChildrenBusinessUserStatus = `${ChildrenBusinessUserStatus}`;
+
+/**
+ * Legacy constant exports (for backward compatibility)
+ * @deprecated Use ChildrenBusinessUserStatus enum instead
+ */
+export const CHILDREN_BUSINESS_USER_STATUS = ChildrenBusinessUserStatus;
 
 /**
  * Default values for children business user
  */
 export const CHILDREN_BUSINESS_USER_DEFAULTS = {
-  STATUS: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+  STATUS: ChildrenBusinessUserStatus.ACTIVE,
   IS_DELETED: false,
 } as const;
 

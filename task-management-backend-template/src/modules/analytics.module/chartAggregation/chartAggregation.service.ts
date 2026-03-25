@@ -33,6 +33,8 @@ import {
   eachDayOfInterval,
   differenceInDays,
 } from 'date-fns';
+import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
+import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
 
 /**
  * Chart Data Interfaces
@@ -430,11 +432,11 @@ export class ChartAggregationService {
         ]);
 
         const total = stats.reduce((sum: number, s: any) => sum + s.count, 0);
-        const pending = stats.find((s: any) => s._id === 'pending')?.count || 0;
+        const pending = stats.find((s: any) => s._id === TaskStatus.PENDING)?.count || 0;
         const inProgress =
-          stats.find((s: any) => s._id === 'inProgress')?.count || 0;
+          stats.find((s: any) => s._id === TaskStatus.IN_PROGRESS)?.count || 0;
         const completed =
-          stats.find((s: any) => s._id === 'completed')?.count || 0;
+          stats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
 
         return {
           // childId: childId, //.toString()
@@ -479,11 +481,11 @@ export class ChartAggregationService {
     console.log("parentBasicInfo", parentBasicInfo);
 
     const total = stats.reduce((sum: number, s: any) => sum + s.count, 0);
-    const pending = stats.find((s: any) => s._id === 'pending')?.count || 0;
+    const pending = stats.find((s: any) => s._id === TaskStatus.PENDING)?.count || 0;
     const inProgress =
-      stats.find((s: any) => s._id === 'inProgress')?.count || 0;
+      stats.find((s: any) => s._id === TaskStatus.IN_PROGRESS)?.count || 0;
     const completed =
-      stats.find((s: any) => s._id === 'completed')?.count || 0;
+      stats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
 
     const parentInfo = {
       childName: parentBasicInfo.name,

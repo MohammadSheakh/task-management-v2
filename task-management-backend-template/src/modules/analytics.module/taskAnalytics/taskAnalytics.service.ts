@@ -30,6 +30,8 @@ import {
   subDays,
   format,
 } from 'date-fns';
+import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
+import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
 
 /**
  * Task Analytics Service
@@ -112,8 +114,8 @@ export class TaskAnalyticsService {
     ]);
 
     const totalToday = todayStats.reduce((sum: number, s: any) => sum + s.count, 0);
-    const completedToday = todayStats.find((s: any) => s._id === 'completed')?.count || 0;
-    const pendingToday = todayStats.find((s: any) => s._id === 'pending')?.count || 0;
+    const completedToday = todayStats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
+    const pendingToday = todayStats.find((s: any) => s._id === TaskStatus.PENDING)?.count || 0;
 
     const allTimeTotal = allTimeStats[0]?.total || 0;
     const allTimeCompleted = allTimeStats[0]?.completed || 0;
@@ -171,9 +173,9 @@ export class TaskAnalyticsService {
 
     const total = stats.reduce((sum: number, s: any) => sum + s.count, 0);
 
-    const notStarted = stats.find((s: any) => s._id === 'pending')?.count || 0;
-    const inProgress = stats.find((s: any) => s._id === 'inProgress')?.count || 0;
-    const completed = stats.find((s: any) => s._id === 'completed')?.count || 0;
+    const notStarted = stats.find((s: any) => s._id === TaskStatus.PENDING)?.count || 0;
+    const inProgress = stats.find((s: any) => s._id === TaskStatus.IN_PROGRESS)?.count || 0;
+    const completed = stats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
 
     const distribution: IStatusDistribution = {
       totalTasks: total,
@@ -247,14 +249,14 @@ export class TaskAnalyticsService {
     ]);
 
     const total = stats.reduce((sum: number, s: any) => sum + s.count, 0);
-    const completed = stats.find((s: any) => s._id === 'completed')?.count || 0;
+    const completed = stats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
 
     const summary: IDailyTaskSummary = {
       date: format(targetDate, 'yyyy-MM-dd'),
       totalTasks: total,
       completedTasks: completed,
-      pendingTasks: stats.find((s: any) => s._id === 'pending')?.count || 0,
-      inProgressTasks: stats.find((s: any) => s._id === 'inProgress')?.count || 0,
+      pendingTasks: stats.find((s: any) => s._id === TaskStatus.PENDING)?.count || 0,
+      inProgressTasks: stats.find((s: any) => s._id === TaskStatus.IN_PROGRESS)?.count || 0,
       completionRate: total > 0 ? (completed / total) * 100 : 0,
     };
 
@@ -316,11 +318,11 @@ export class TaskAnalyticsService {
     // Calculate summary
     const summary = {
       totalChildren: childrenProgress.length,
-      notStarted: childrenProgress.filter((c: any) => c.status === 'notStarted').length,
-      inProgress: childrenProgress.filter((c: any) => c.status === 'inProgress').length,
-      completed: childrenProgress.filter((c: any) => c.status === 'completed').length,
+      notStarted: childrenProgress.filter((c: any) => c.status === TaskProgressStatus.NOT_STARTED).length,
+      inProgress: childrenProgress.filter((c: any) => c.status === TaskProgressStatus.IN_PROGRESS).length,
+      completed: childrenProgress.filter((c: any) => c.status === TaskProgressStatus.COMPLETED).length,
       completionRate: childrenProgress.length > 0
-        ? Math.round((childrenProgress.filter((c: any) => c.status === 'completed').length / childrenProgress.length) * 100)
+        ? Math.round((childrenProgress.filter((c: any) => c.status === TaskProgressStatus.COMPLETED).length / childrenProgress.length) * 100)
         : 0,
       averageProgress: childrenProgress.length > 0
         ? Math.round(childrenProgress.reduce((sum: number, c: any) => sum + c.progressPercentage, 0) / childrenProgress.length)
@@ -374,11 +376,11 @@ export class TaskAnalyticsService {
 
     const stats = {
       total: tasks.length,
-      completed: tasks.filter((t: any) => t.status === 'completed').length,
-      inProgress: tasks.filter((t: any) => t.status === 'inProgress').length,
-      notStarted: tasks.filter((t: any) => t.status === 'notStarted').length,
+      completed: tasks.filter((t: any) => t.status === TaskProgressStatus.COMPLETED).length,
+      inProgress: tasks.filter((t: any) => t.status === TaskProgressStatus.IN_PROGRESS).length,
+      notStarted: tasks.filter((t: any) => t.status === TaskProgressStatus.NOT_STARTED).length,
       completionRate: tasks.length > 0
-        ? Math.round((tasks.filter((t: any) => t.status === 'completed').length / tasks.length) * 100)
+        ? Math.round((tasks.filter((t: any) => t.status === TaskProgressStatus.COMPLETED).length / tasks.length) * 100)
         : 0,
     };
 

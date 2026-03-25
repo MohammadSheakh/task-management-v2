@@ -29,6 +29,7 @@ import {
   format,
   eachDayOfInterval,
 } from 'date-fns';
+import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
 
 /**
  * Admin Analytics Service
@@ -398,7 +399,7 @@ export class AdminAnalyticsService {
     ]);
 
     const createdToday = todayStats.reduce((sum: number, s: any) => sum + s.count, 0);
-    const completedToday = todayStats.find((s: any) => s._id === 'completed')?.count || 0;
+    const completedToday = todayStats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
 
     return {
       createdToday,

@@ -2,6 +2,7 @@
 import { model, Schema, Types } from 'mongoose';
 import { ITask, ITaskModel } from './task.interface';
 import paginate from '../../../common/plugins/paginate';
+import { TaskType, TaskPriority, TaskStatus } from './task.constant';
 
 /**
  * Task Schema
@@ -23,7 +24,11 @@ const taskSchema = new Schema<ITask>(
 
     taskType: {
       type: String,
-      enum: ['personal', 'singleAssignment', 'collaborative'],
+      enum: [
+        TaskType.PERSONAL,
+        TaskType.SINGLE_ASSIGNMENT,
+        TaskType.COLLABORATIVE,
+      ],
       required: [true, 'Task type is required'],
     },
 
@@ -54,15 +59,15 @@ const taskSchema = new Schema<ITask>(
 
     priority: {
       type: String,
-      enum: ['low', 'medium', 'high'],
-      default: 'medium',
+      enum: [TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH],
+      default: TaskPriority.MEDIUM,
     },
 
     // ─── Task Progress ─────────────────────────────────────────────────
     status: {
       type: String,
-      enum: ['pending', 'inProgress', 'completed'],
-      default: 'pending',
+      enum: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED],
+      default: TaskStatus.PENDING,
     },
 
     totalSubtasks: {
@@ -132,7 +137,7 @@ taskSchema.virtual('completionPercentage').get(function () {
  */
 taskSchema.virtual('isOverdue').get(function () {
   const task = this as any;
-  if (task.status === 'completed') return false;
+  if (task.status === TaskStatus.COMPLETED) return false;
   if (!task.dueDate) return false;
   return new Date() > task.dueDate;
 });

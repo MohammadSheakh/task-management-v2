@@ -12,6 +12,7 @@ import { SubTaskService } from '../subTask/subTask.service';
 import { logger, errorLogger } from '../../../shared/logger';
 import { Types } from 'mongoose';
 import sendResponse from '../../../shared/sendResponse';
+import { TaskStatus } from './task.constant';
 
 /**
  * Task Controller
@@ -171,7 +172,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const result = await this.taskService.updateTaskStatus(taskId, status, userId);
 
     // ⏰ Trigger preferred time calculation if task is completed
-    if (status === 'completed') {
+    if (status === TaskStatus.COMPLETED) {
       try {
         // Import dynamically to avoid circular dependency
         const { preferredTimeQueue } = await import('../../../helpers/bullmq/bullmq');

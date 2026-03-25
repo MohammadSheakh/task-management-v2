@@ -21,6 +21,8 @@ import {
   ACTIVITY_FEED_CONFIG,
 } from '../analytics.constant';
 import { startOfDay, subDays } from 'date-fns';
+import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
+import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
 
 /**
  * Group Analytics Service
@@ -107,17 +109,17 @@ export class GroupAnalyticsService {
     const totalTasks = groupTasks.length;
     const today = startOfDay(new Date());
     const completedToday = groupTasks.filter(
-      (task: any) => task.status === 'completed' && task.completedAt && new Date(task.completedAt) >= today
+      (task: any) => task.status === TaskStatus.COMPLETED && task.completedAt && new Date(task.completedAt) >= today
     ).length;
     const pendingToday = groupTasks.filter(
-      (task: any) => task.status === 'pending'
+      (task: any) => task.status === TaskStatus.PENDING
     ).length;
 
     // Get active members today (members who completed at least one task today)
     const activeMemberIds = new Set(
       groupTasks
         .filter((task: any) => {
-          if (task.status !== 'completed' || !task.completedAt) return false;
+          if (task.status !== TaskStatus.COMPLETED || !task.completedAt) return false;
           const completedDate = new Date(task.completedAt);
           return completedDate >= today;
         })
@@ -211,8 +213,8 @@ export class GroupAnalyticsService {
       });
 
       const totalTasks = memberTasks.length;
-      const completedTasks = memberTasks.filter((t: any) => t.status === 'completed').length;
-      const pendingTasks = memberTasks.filter((t: any) => t.status === 'pending').length;
+      const completedTasks = memberTasks.filter((t: any) => t.status === TaskStatus.COMPLETED).length;
+      const pendingTasks = memberTasks.filter((t: any) => t.status === TaskStatus.PENDING).length;
 
       // Get completion rate
       const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -363,14 +365,14 @@ export class GroupAnalyticsService {
       createdAt: { $gte: startDate },
     });
 
-    const totalTasksCompleted = periodTasks.filter((t: any) => t.status === 'completed').length;
+    const totalTasksCompleted = periodTasks.filter((t: any) => t.status === TaskStatus.COMPLETED).length;
 
     // Calculate average completion rate
     const completionRates = memberIds.map(() => {
       const memberTasks = periodTasks.filter(
         (t: any) => t.ownerUserId?.toString() === memberIds.find(id => id.toString() === t.ownerUserId?.toString())?.toString()
       );
-      const completed = memberTasks.filter((t: any) => t.status === 'completed').length;
+      const completed = memberTasks.filter((t: any) => t.status === TaskStatus.COMPLETED).length;
       return memberTasks.length > 0 ? (completed / memberTasks.length) * 100 : 0;
     });
 
@@ -460,7 +462,7 @@ export class GroupAnalyticsService {
     for (const task of recentTasks) {
       const owner = task.ownerUserId as any;
       const activity: IGroupActivity = {
-        type: task.status === 'completed' ? 'task_completed' : 'task_created',
+        type: task.status === TaskStatus.COMPLETED ? 'task_completed' : 'task_created',
         memberId: task.ownerUserId as Types.ObjectId,
         memberName: owner?.name || 'Unknown',
         taskTitle: task.title,

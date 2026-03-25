@@ -16,10 +16,12 @@ import { UserSubscriptionStatusType } from '../subscription.module/userSubscript
 import {
   CHILDREN_BUSINESS_USER_STATUS,
   CHILDREN_CACHE_CONFIG,
+  ChildrenBusinessUserStatus,
 } from './childrenBusinessUser.constant';
 import { redisClient } from '../../helpers/redis/redis';
 import { errorLogger, logger } from '../../shared/logger';
 import bcryptjs from 'bcryptjs';
+import { TaskStatus } from '../task.module/task/task.constant';
 
 /**
  * Children Business User Service
@@ -389,7 +391,7 @@ export class ChildrenBusinessUserService extends GenericService<
     const childrenRelations = await this.model
       .find({
         parentBusinessUserId: new Types.ObjectId(businessUserId),
-        status: 'active',
+        status: ChildrenBusinessUserStatus.ACTIVE,
         isDeleted: false,
       })
       .populate('childUserId', 'name email profileImage')
@@ -408,7 +410,7 @@ export class ChildrenBusinessUserService extends GenericService<
       {
         $match: {
           assignedUserIds: { $in: childUserIds },
-          status: { $in: ['pending', 'inProgress'] },
+          status: { $in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS] },
           isDeleted: false,
         },
       },
@@ -491,7 +493,7 @@ export class ChildrenBusinessUserService extends GenericService<
     const childrenRelations = await this.model
       .find({
         parentBusinessUserId: new Types.ObjectId(businessUserId),
-        status: 'active',
+        status: ChildrenBusinessUserStatus.ACTIVE,
         isDeleted: false,
       })
       .select('childUserId')
@@ -524,14 +526,14 @@ export class ChildrenBusinessUserService extends GenericService<
       // Active tasks (pending + inProgress)
       Task.countDocuments({
         assignedUserIds: { $in: childUserIds },
-        status: { $in: ['pending', 'inProgress'] },
+        status: { $in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS] },
         isDeleted: false,
       }),
 
       // Completed tasks
       Task.countDocuments({
         assignedUserIds: { $in: childUserIds },
-        status: 'completed',
+        status: TaskStatus.COMPLETED,
         isDeleted: false,
       }),
     ]);
@@ -588,7 +590,7 @@ export class ChildrenBusinessUserService extends GenericService<
     // Build filter query
     const query = {
       parentBusinessUserId: new Types.ObjectId(businessUserId),
-      status: 'active',
+      status: ChildrenBusinessUserStatus.ACTIVE,
       isDeleted: false,
     };
 
@@ -652,13 +654,13 @@ export class ChildrenBusinessUserService extends GenericService<
           _id: '$assignedUserIds',
           totalTasks: { $sum: 1 },
           completedTasks: {
-            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.COMPLETED] }, 1, 0] },
           },
           pendingTasks: {
-            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] },
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.PENDING] }, 1, 0] },
           },
           inProgressTasks: {
-            $sum: { $cond: [{ $eq: ['$status', 'inProgress'] }, 1, 0] },
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.IN_PROGRESS] }, 1, 0] },
           },
         },
       },

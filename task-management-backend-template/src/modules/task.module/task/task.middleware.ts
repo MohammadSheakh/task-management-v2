@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { Task } from './task.model';
 import { Types } from 'mongoose';
+import { TaskType, TaskStatus } from './task.constant';
 
 /**
  * Task Middleware
@@ -185,7 +186,7 @@ export const validateTaskTypeConsistency = async (
   try {
     const { taskType, assignedUserIds, ownerUserId } = req.body;
 
-    if (taskType === 'personal') {
+    if (taskType === TaskType.PERSONAL) {
       if (assignedUserIds && assignedUserIds.length > 0) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -194,7 +195,7 @@ export const validateTaskTypeConsistency = async (
       }
     }
 
-    if (taskType === 'singleAssignment') {
+    if (taskType === TaskType.SINGLE_ASSIGNMENT) {
       if (!assignedUserIds || assignedUserIds.length !== 1) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -203,7 +204,7 @@ export const validateTaskTypeConsistency = async (
       }
     }
 
-    if (taskType === 'collaborative') {
+    if (taskType === TaskType.COLLABORATIVE) {
       if (!assignedUserIds || assignedUserIds.length < 2) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -238,14 +239,14 @@ export const validateStatusTransition = async (
 
     const currentStatus = task.status;
     const validTransitions: Record<string, string[]> = {
-      pending: ['inProgress', 'completed'],
-      inProgress: ['completed', 'pending'],
-      completed: [], // Completed tasks cannot change status
+      [TaskStatus.PENDING]: [TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED],
+      [TaskStatus.IN_PROGRESS]: [TaskStatus.COMPLETED, TaskStatus.PENDING],
+      [TaskStatus.COMPLETED]: [], // Completed tasks cannot change status
     };
 
     if (
-      currentStatus === 'completed' &&
-      status !== 'completed'
+      currentStatus === TaskStatus.COMPLETED &&
+      status !== TaskStatus.COMPLETED
     ) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
