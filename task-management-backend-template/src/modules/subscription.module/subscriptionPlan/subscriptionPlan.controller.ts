@@ -11,18 +11,14 @@ import { StatusCodes } from 'http-status-codes';
 import Stripe from 'stripe';
 import ApiError from '../../../errors/ApiError';
 import { TInitialDuration, TRenewalFrequency } from './subscriptionPlan.constant';
-import { User } from '../../user/user.model';
-import { UserService } from '../../user/user.service';
 //@ts-ignore
 import mongoose from 'mongoose';
 import { PaymentTransactionService } from '../../payment.module/paymentTransaction/paymentTransaction.service';
 import { SubscriptionPlan } from './subscriptionPlan.model';
 
 import { TCurrency } from '../../../enums/payment';
-import stripe from "../../../config/stripe.config";
 import { IUser } from '../../token/token.interface';
 import { TSubscription } from '../../../enums/subscription';
-import { TTransactionFor } from '../../payment.module/paymentTransaction/paymentTransaction.constant';
 import { IUserSubscription } from '../userSubscription/userSubscription.interface';
 import { UserSubscriptionStatusType } from '../userSubscription/userSubscription.constant';
 import { UserSubscription } from '../userSubscription/userSubscription.model';
@@ -30,6 +26,9 @@ import { config } from '../../../config';
 import { enqueueWebNotification } from '../../../services/notification.service';
 import { TRole } from '../../../middlewares/roles';
 import { TNotificationType } from '../../notification/notification.constants';
+import { UserService } from '../../user.module/user/user.service';
+import stripe from '../../../config/paymentGateways/stripe.config';
+import { User } from '../../user.module/user/user.model';
 
 const subscriptionPlanService = new SubscriptionPlanService();
 const userService = new UserService();
