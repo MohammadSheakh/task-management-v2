@@ -107,7 +107,7 @@ class ChartAggregationControllerClass {
     });
   });
 
-  /**
+  /** ✔️✔️
    * Get Child Progress Comparison
    * GET /analytics/charts/child-progress/:businessUserId
    * 
@@ -118,6 +118,21 @@ class ChartAggregationControllerClass {
     const { businessUserId } = req.params;
 
     const result = await chartAggregationService.getChildProgressComparison(businessUserId);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      success: true,
+      message: 'Child progress comparison with full statistics retrieved successfully',
+      data: result,
+    });
+  });
+
+  /*-─────────────────────────────────
+  |  logged in as parent / teacher ✔️✔️
+  └──────────────────────────────────*/
+  getChildProgressComparisonAsParent = catchAsync(async (req: Request, res: Response) => {
+    
+    const result = await chartAggregationService.getChildProgressComparison(req.user.userId);
 
     sendResponse(res, {
       code: StatusCodes.OK,

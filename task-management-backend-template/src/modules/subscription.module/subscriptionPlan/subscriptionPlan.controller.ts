@@ -293,19 +293,15 @@ export class SubscriptionController extends GenericController<
     });
   })
 
-  // ⚡⚡ For Fertie Project to suplify project
+  // ⚡⚡ From Fertie Project to suplify project to task-mgmt
   /*
    * As Admin can create subscription plan ...
    * // TODO : MUST : this should move to service layer ..
-   * Lets Create 3 Subscription Plan
    *
   */
   create = catchAsync(async (req: Request, res: Response) => {
 
-    //---------------------------------
-    //> make is active false of already existing subscription plan ..
-    //---------------------------------
-
+    // make existing plans isActive false .. 
     const existingPlan = await SubscriptionPlan.find({
       isActive: true,
       subscriptionType : req.body.subscriptionType

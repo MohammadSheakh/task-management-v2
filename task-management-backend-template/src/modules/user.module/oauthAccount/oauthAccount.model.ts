@@ -15,7 +15,7 @@ const OAuthAccountSchema = new Schema<IOAuthAccount>(
     },
     lastUsedAt: {
       type: Date,
-      default: Date.now,
+      default: Date.now(),
     },
 
     userId: { //🔗 back reference

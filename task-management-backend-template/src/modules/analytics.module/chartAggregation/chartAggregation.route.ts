@@ -82,6 +82,15 @@ router.get(
 // Figma: teacher-parent-dashboard/dashboard/dashboard-flow-01.png
 // ────────────────────────────────────────────────────────────────────────
 
+//-- same as getChildProgressComparison ✔️✔️
+router.get(
+  '/child-progress/as-parent',
+  auth(TRole.business),
+  rateLimiter('user'),
+  ChartAggregationController.getChildProgressComparisonAsParent
+);
+
+
 /*-─────────────────────────────────
 |  Role: Parent/Business | Module: Analytics | Dashboard: Family Activity
 |  Action: Get family task completion data for bar chart (last 7 days)
@@ -107,6 +116,9 @@ router.get(
   rateLimiter('user'),
   ChartAggregationController.getChildProgressComparison
 );
+
+
+
 
 /*-─────────────────────────────────
 |  Role: Parent/Business | Module: Analytics | Dashboard: Status by Child

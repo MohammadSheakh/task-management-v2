@@ -387,8 +387,8 @@ export class ChartAggregationService {
     return result;
   }
 
-  /**
-   * Child Progress Comparison (Radar/Bar Chart)
+  /** ✔️✔️
+   * Child Progress Comparison (Radar/Bar Chart) [ NOT NEEDED FOR PARENT DASHBOARD ]
    * Compare all children's task completion rates
    *
    * Updated: 16-03-26 - Now returns full task statistics for Team Overview cards
@@ -397,8 +397,8 @@ export class ChartAggregationService {
   async getChildProgressComparison(businessUserId: string): Promise<any> {
     const cacheKey = this.getCacheKey(`child-comparison-${businessUserId}`);
 
-    const cached = await this.getFromCache<any>(cacheKey);
-    if (cached) return cached;
+    // const cached = await this.getFromCache<any>(cacheKey);
+    // if (cached) return cached;
 
     // Get all children with their user details
     const children = await ChildrenBusinessUser.find({
@@ -452,6 +452,57 @@ export class ChartAggregationService {
       }),
     );
 
+
+    /*--------------------*/
+
+    // Get task status distribution for Parent
+    const stats = await Task.aggregate([
+      {
+        $match: {
+          ownerUserId: new Types.ObjectId(businessUserId),
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    
+    console.log("businessUserId :: ", businessUserId)
+
+    // Get parents name, email and profile image
+    const parentBasicInfo = await User.findById(businessUserId).select("name email profileImage")
+
+    console.log("parentBasicInfo", parentBasicInfo);
+
+    const total = stats.reduce((sum: number, s: any) => sum + s.count, 0);
+    const pending = stats.find((s: any) => s._id === 'pending')?.count || 0;
+    const inProgress =
+      stats.find((s: any) => s._id === 'inProgress')?.count || 0;
+    const completed =
+      stats.find((s: any) => s._id === 'completed')?.count || 0;
+
+    const parentInfo = {
+      childName: parentBasicInfo.name,
+      profileImage: parentBasicInfo.profileImage,
+      email: parentBasicInfo.email,
+      isPrimaryUser: true,
+      totalTasks: total,
+      pendingTasks: pending,
+      inProgressTasks: inProgress,
+      completedTasks: completed,
+      completionRate:
+        total > 0 ? Math.round((completed / total) * 100 * 10) / 10 : 0,
+    };
+
+
+    /*--------------------*/
+
+
+
     // Sort by completion rate (highest first)
     childrenWithStats.sort((a, b) => b.completionRate - a.completionRate);
 
@@ -470,6 +521,7 @@ export class ChartAggregationService {
     // Return both chart data and full children statistics
     const result = {
       chart: chartData,
+      parentInfo : parentInfo,
       children: childrenWithStats,
       totalMembers: childrenWithStats.length,
     };
