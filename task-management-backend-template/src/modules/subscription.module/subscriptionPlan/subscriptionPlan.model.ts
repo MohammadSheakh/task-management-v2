@@ -113,11 +113,11 @@ const subscriptionPlanSchema = new Schema<ISubscriptionPlan>(
     //---------------------------------
     stripe_product_id : {
       type: String,
-      required: [true, 'stripe_product_id is required'],
+      required: [false, 'stripe_product_id is not required'],
     },
     stripe_price_id : {
       type: String,
-      required: [true, 'stripe_price_id is required'],
+      required: [false, 'stripe_price_id is not required'],
     },
 
     // 🆕 RevenueCat Configuration

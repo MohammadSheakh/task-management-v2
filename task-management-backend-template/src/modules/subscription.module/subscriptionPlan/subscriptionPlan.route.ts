@@ -6,7 +6,6 @@ import auth from '../../../middlewares/auth';
 import validateRequest from '../../../shared/validateRequest';
 import * as validation from './subscriptionPlan.validation';
 import { TRole } from '../../../middlewares/roles';
-
 import multer from "multer";
 import { setRequestFiltersV2 } from '../../../middlewares/setRequstFilterAndValue';
 const storage = multer.memoryStorage();
@@ -48,28 +47,6 @@ router.route('/paginate').get(
   controller.getAllWithPaginationV2 
 );
 
-//[🚧][🧑‍💻✅][🧪] // 🆗
-// router.route('/subscribe-from-back-end').get(
-//   auth('common'), // FIXME: authentication lagbe .. 
-//   validateRequest(validation.subscribeFromBackEndValidationSchema),
-//   controller.subscribeFromBackEnd 
-// );
-
-// router.route('/subscribe-from-front-end').get(
-//   auth('common'), // FIXME: authentication lagbe .. 
-//   validateRequest(validation.subscribeFromFrontEndValidationSchema),
-//   // controller.subscribeFromFrontEnd // 🔴🔴 
-//   controller.subscribeFromFrontEndV2 // 🟢
-// );
-
-// router.route("/confirm-payment").get(
-//   controller.confirmPayment
-// )
-
-// router.route('/payment-success').get(
-//   controller.paymentSuccess
-// )
-
 
 router.route('/:id').get(
   // auth('common'),
@@ -104,13 +81,13 @@ router.route('/').post(
 
 // Stripe Purchase (Web) - Returns Stripe Checkout URL
 router.route('/purchase/:subscriptionPlanId').post(
-  auth(TRole.patient),
+  auth(TRole.business),
   controller.purchaseSubscriptionForSuplify
 );
 
 // 🆕 RevenueCat Purchase (Mobile) - Returns RevenueCat configuration
 router.route('/revenuecat-purchase/:subscriptionPlanId').post(
-  auth(TRole.patient),
+  auth(TRole.child),
   controller.purchaseRevenueCatSubscription
 );
 
@@ -118,18 +95,8 @@ router.route('/revenuecat-purchase/:subscriptionPlanId').post(
 // Cancel subscription 
 //------------------------------
 router.route('/cancel').post(
-  auth(TRole.patient),
+  auth(TRole.individual),
   controller.cancelSubscription
-);
-
-/*-─────────────────────────────────
-|  as per clients requirement .. client wants to cancel a persons subscription from the admin end ..
-| and assign him vise subscription ..
-| :personId is the userId of that patients ..  
-└──────────────────────────────────*/
-router.route('/cancel-for-patient').post(
-  auth(TRole.admin),
-  controller.cancelPatientsSubscriptionAndAssignViceSubscription
 );
 
 router
@@ -145,16 +112,5 @@ router
   controller.softDeleteById);
 
 
-//////////////////////////////////  
-// router.route('/customerPortal/:customerId').get(
-//   auth('common'), 
-//   controller.customerPortal
-// )
-
-// router.route('/webhook').post(
-//   express.raw({ type: 'application/json' }),
-//   //auth('common'),
-//   controller.webhook
-// );
 
 export const SubscriptionPlanRoute = router;

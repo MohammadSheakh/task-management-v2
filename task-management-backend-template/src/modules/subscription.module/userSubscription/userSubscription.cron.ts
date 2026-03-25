@@ -1,6 +1,5 @@
-import { cronService } from '../../cron/cron.service';
-import { TStatusType, TSubscription } from '../../user/user.constant';
-import { User } from '../../user/user.model';
+// import { cronService } from '../../cron/cron.service';
+import { User } from '../../user.module/user/user.model';
 import { UserSubscriptionStatusType } from './userSubscription.constant';
 import { UserSubscription } from './userSubscription.model';
 
@@ -21,15 +20,14 @@ export const initUserSubscriptionCron = ():void => {
    * 
    ****************/
 
-   console.log('⌛Scheduling expire userSubscription every day .. ⌛');
-   cronService.schedule(
-    'expire-user-subscription',
-    // '0 0 * * *', // At 00:00 AM every day'
-     '*/60 * * * *', // every 60 minute for testing
-    "This will run every minute for testing", // additional message
-    checkAndExpireUserSubscription
-  );  
-
+  //  console.log('⌛Scheduling expire userSubscription every day .. ⌛');
+  //  cronService.schedule(
+  //   'expire-user-subscription',
+  //   // '0 0 * * *', // At 00:00 AM every day'
+  //    '*/60 * * * *', // every 60 minute for testing
+  //   "This will run every minute for testing", // additional message
+  //   checkAndExpireUserSubscription
+  // );  
 }
 
 export const checkAndExpireUserSubscription = async (): Promise<void> => {

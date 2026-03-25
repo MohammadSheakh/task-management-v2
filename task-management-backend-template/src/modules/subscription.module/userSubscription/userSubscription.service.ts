@@ -1,21 +1,21 @@
 import ApiError from "../../../errors/ApiError";
 import { GenericService } from "../../_generic-module/generic.services";
-import { TUser } from "../../user/user.interface";
-import { User } from "../../user/user.model";
 import { IUserSubscription } from "./userSubscription.interface";
 import { UserSubscription } from "./userSubscription.model";
 //@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-import stripe from "../../../config/stripe.config";
 //@ts-ignore
 import Stripe from "stripe";
 import { config } from "../../../config";
 import { TSubscription } from "../../../enums/subscription";
-import { TTransactionFor } from "../../payment.module/paymentTransaction/paymentTransaction.constant";
 import { TCurrency } from "../../../enums/payment";
 import { SubscriptionPlan } from "../subscriptionPlan/subscriptionPlan.model";
 import { ISubscriptionPlan } from "../subscriptionPlan/subscriptionPlan.interface";
 import { UserSubscriptionStatusType } from "./userSubscription.constant";
+import stripe from "../../../config/paymentGateways/stripe.config";
+import { User } from "../../user.module/user/user.model";
+import { IUser } from "../../user.module/user/user.interface";
+import { TTransactionFor } from "../../../constants/TTransactionFor";
 
 export class UserSubscriptionService extends GenericService<typeof UserSubscription, IUserSubscription>{
     private stripe: Stripe;
@@ -42,7 +42,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
          * 
          * ***** */
         
-        const user:TUser = await User.findById(userId);
+        const user:IUser = await User.findById(userId);
 
         if(user.hasUsedFreeTrial){
             
@@ -69,7 +69,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
         -------------------------------------*/
 
     
-        let  stripeCustomer = await getOrCreateStripeCustomer(user);
+        let stripeCustomer = await getOrCreateStripeCustomer(user);
         /*---------------------------------------------
         
         if (!user.stripe_customer_id) {
@@ -141,7 +141,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
         // get active standard plan priceId from database
         //---------------------------------
         const standardPlan:ISubscriptionPlan = await SubscriptionPlan.findOne({
-            subscriptionType: TSubscription.standard,
+            subscriptionType: TSubscription.individual,
             isActive: true
         });
 
@@ -202,7 +202,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
             trial_period_days: 7, // 7 days
             metadata: {
                 userId: user._id.toString(),
-                subscriptionType: TSubscription.standard.toString(),
+                subscriptionType: TSubscription.individual.toString(),
                 subscriptionPlanId: standardPlan._id.toString(),
                 referenceId: newUserSubscription._id.toString(),
                 referenceFor:  TTransactionFor.UserSubscription.toString(),
@@ -230,8 +230,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
     }
 }
 
-
-export async function getOrCreateStripeCustomer (user: TUser): Promise<any> {
+export async function getOrCreateStripeCustomer (user: IUser): Promise<any> {
     let stripeCustomer:any;
 
     if (!user.stripe_customer_id) {
@@ -294,7 +293,7 @@ export async function getOrCreateStripeCustomer (user: TUser): Promise<any> {
 
                     throw err; // rethrow other unexpected errors
                 }
-            }1
+            }
     }
 }
     

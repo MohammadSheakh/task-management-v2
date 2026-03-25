@@ -25,6 +25,7 @@ import { SubTaskRoute } from '../modules/task.module/subTask/subTask.route';
 
 // 🆕 RevenueCat Routes
 import revenueCatRoutes from '../modules/subscription.module/revenueCat/revenueCat.route';
+import { SubscriptionPlanRoute } from '../modules/subscription.module/subscriptionPlan/subscriptionPlan.route';
 
 // import { ChatRoutes } from '../modules/chat/chat.routes';
 // import { MessageRoutes } from '../modules/message/message.routes';
@@ -127,9 +128,9 @@ const apiRoutes = [
   //   path: '/stripe',
   //   route: stripeAccountRoutes,
   // },
-  {  // 🟢 from kappes
-    path: '/ssl',
-    route: stripeAccountRoutes,
+  {  //
+    path: '/subscription-plan',
+    route: SubscriptionPlanRoute,
   },
 
   // 🆕 RevenueCat Routes (Admin operations for Individual subscriptions)
