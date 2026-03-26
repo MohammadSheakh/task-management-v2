@@ -224,4 +224,181 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     const result = await this.model.paginate(query, options);
     return result;
   }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Wrapper methods for TaskController delegation
+  // These methods provide a consistent API for task.controller.ts
+  // ────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Add a subtask to a task (wrapper for createSubTask)
+   * @param taskId - Parent task ID
+   * @param data - Subtask data (title, duration)
+   * @param userId - User creating the subtask
+   * @returns Created subtask
+   */
+  async addSubtask(
+    taskId: string,
+    data: { title: string; duration?: number },
+    userId: Types.ObjectId
+  ): Promise<ISubTask> {
+    return this.createSubTask({ ...data, taskId }, userId);
+  }
+
+  /**
+   * Get all subtasks for a task (alias for getSubTasksByTaskId)
+   * @param taskId - Parent task ID
+   * @returns Array of subtasks
+   */
+  async getSubtasksForTask(taskId: string): Promise<ISubTask[]> {
+    return this.getSubTasksByTaskId(taskId, {});
+  }
+
+  /**
+   * Get a single subtask by ID
+   * @param taskId - Parent task ID (for validation)
+   * @param subtaskId - Subtask ID
+   * @returns Subtask details
+   */
+  async getSubtask(taskId: string, subtaskId: string): Promise<ISubTask | null> {
+    const subtask = await this.model.findOne({
+      _id: subtaskId,
+      taskId: new Types.ObjectId(taskId),
+      isDeleted: false,
+    }).select('-__v');
+
+    if (!subtask) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+    }
+
+    return subtask;
+  }
+
+  /**
+   * Update a subtask (alias for updateSubTask)
+   * @param taskId - Parent task ID (for validation)
+   * @param subtaskId - Subtask ID
+   * @param updateData - Update data
+   * @returns Updated subtask
+   */
+  async updateSubtask(
+    taskId: string,
+    subtaskId: string,
+    updateData: Partial<ISubTask>
+  ): Promise<ISubTask> {
+    // Validate that subtask belongs to the specified task
+    const subtask = await this.model.findOne({
+      _id: subtaskId,
+      taskId: new Types.ObjectId(taskId),
+      isDeleted: false,
+    });
+
+    if (!subtask) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+    }
+
+    return this.updateSubTask(subtaskId, updateData);
+  }
+
+  /**
+   * Toggle subtask completion (wrapper for toggleSubTaskStatus)
+   * @param taskId - Parent task ID (for validation)
+   * @param subtaskId - Subtask ID
+   * @param userId - User performing the toggle
+   * @returns Updated subtask
+   */
+  async toggleSubtask(taskId: string, subtaskId: string, userId: Types.ObjectId): Promise<ISubTask> {
+    // Validate that subtask belongs to the specified task
+    const subtask = await this.model.findOne({
+      _id: subtaskId,
+      taskId: new Types.ObjectId(taskId),
+      isDeleted: false,
+    });
+
+    if (!subtask) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+    }
+
+    return this.toggleSubTaskStatus(subtaskId, !subtask.isCompleted, userId);
+  }
+
+  /**
+   * Delete a subtask (alias for deleteSubTask)
+   * @param taskId - Parent task ID (for validation)
+   * @param subtaskId - Subtask ID
+   * @returns Deleted subtask
+   */
+  async deleteSubtask(taskId: string, subtaskId: string): Promise<ISubTask | null> {
+    // Validate that subtask belongs to the specified task
+    const subtask = await this.model.findOne({
+      _id: subtaskId,
+      taskId: new Types.ObjectId(taskId),
+      isDeleted: false,
+    });
+
+    if (!subtask) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+    }
+
+    return this.deleteSubTask(subtaskId);
+  }
+
+  /**
+   * Bulk update subtasks (replaces entire list)
+   * @param taskId - Parent task ID
+   * @param subtasks - Array of subtask updates
+   * @returns Updated subtasks with statistics
+   */
+  async bulkUpdateSubtasks(
+    taskId: string,
+    subtasks: Array<{
+      _id?: string;
+      title?: string;
+      isCompleted?: boolean;
+      order?: number;
+      duration?: number;
+    }>
+  ): Promise<{
+    subtasks: ISubTask[];
+    totalSubtasks: number;
+    completedSubtasks: number;
+  }> {
+    const { SubTask } = await import('./subTask.model');
+
+    // Update each subtask
+    const updatedSubtasks: ISubTask[] = [];
+
+    for (const subtaskData of subtasks) {
+      if (subtaskData._id) {
+        const updated = await this.model.findByIdAndUpdate(
+          subtaskData._id,
+          {
+            title: subtaskData.title,
+            isCompleted: subtaskData.isCompleted,
+            order: subtaskData.order,
+            duration: subtaskData.duration,
+            completedAt: subtaskData.isCompleted ? new Date() : undefined,
+          },
+          { new: true }
+        ).select('-__v');
+
+        if (updated) {
+          updatedSubtasks.push(updated);
+        }
+      }
+    }
+
+    // Calculate statistics
+    const totalSubtasks = updatedSubtasks.length;
+    const completedSubtasks = updatedSubtasks.filter(st => st.isCompleted).length;
+
+    // Update parent task progress
+    await this.updateParentTaskProgress(taskId);
+
+    return {
+      subtasks: updatedSubtasks,
+      totalSubtasks,
+      completedSubtasks,
+    };
+  }
 }

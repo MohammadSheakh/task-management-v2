@@ -9,7 +9,14 @@ import { TRole } from '../../../middlewares/roles';
 import { setQueryOptions } from '../../../middlewares/setQueryOptions';
 import { getLoggedInUserAndSetReferenceToUser } from '../../../middlewares/getLoggedInUserAndSetReferenceToUser';
 import * as validation from './task.validation';
-import { verifyTaskAccess, verifyTaskOwnership, validateTaskTypeConsistency, validateStatusTransition, checkDailyTaskLimit, checkSecondaryUserPermission } from './task.middleware';
+import {
+  verifyTaskAccess,
+  verifyTaskOwnership,
+  validateTaskTypeConsistency,
+  validateStatusTransition,
+  checkDailyTaskLimit,
+  checkSecondaryUserPermission,
+} from './task.middleware';
 import { rateLimiter } from '../../../middlewares/rateLimiterRedis';
 import { SubTaskRoute } from '../subTask/subTask.route';
 
@@ -20,11 +27,23 @@ const router = express.Router();
  * Rate limiters using centralized rateLimiter with Redis
  * All rate limits are shared across server instances via Redis
  */
-const createTaskLimiter = rateLimiter('user');  // 30 req/min
-const taskLimiter = rateLimiter('user');        // 30 req/min
+const createTaskLimiter = rateLimiter('user'); // 30 req/min
+const taskLimiter = rateLimiter('user'); // 30 req/min
 
-export const optionValidationChecking = <T extends keyof ITask | 'sortBy' | 'page' | 'limit' | 'populate' | 'status' | 'taskType' | 'priority' | 'from' | 'to'>(
-  filters: T[]
+export const optionValidationChecking = <
+  T extends
+    | keyof ITask
+    | 'sortBy'
+    | 'page'
+    | 'limit'
+    | 'populate'
+    | 'status'
+    | 'taskType'
+    | 'priority'
+    | 'from'
+    | 'to',
+>(
+  filters: T[],
 ) => {
   return filters;
 };
@@ -50,12 +69,22 @@ const controller = new TaskController();
 |  @query limit - Items per page (default: 20)
 |  @query sortBy - Sort field (default: -startTime)
 └──────────────────────────────────*/
-router.route('/dashboard/children-tasks').get(
-  auth(TRole.business),
-  taskLimiter,
-  validateFiltersForQuery(optionValidationChecking(['status', 'taskType', 'from', 'to', ...paginationOptions])),
-  controller.getChildrenTasksForDashboard
-);
+router
+  .route('/dashboard/children-tasks')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getChildrenTasksForDashboard,
+  );
 
 /*-───────────────────────────────── ✔️
 |  Child (Secondary) | Business | Task | edit-update-task-flow.png | Create a new task
@@ -68,11 +97,11 @@ router.route('/dashboard/children-tasks').get(
 router.route('/').post(
   auth(TRole.commonUser),
   createTaskLimiter,
-  checkSecondaryUserPermission,  // ⬅️ NEW: Check Secondary User status
+  checkSecondaryUserPermission, // ⬅️ NEW: Check Secondary User status
   validateRequest(validation.createTaskValidationSchema),
   validateTaskTypeConsistency,
   checkDailyTaskLimit,
-  controller.create
+  controller.create,
 );
 
 /*-───────────────────────────────── ✔️
@@ -81,12 +110,23 @@ router.route('/').post(
 |  @auth All authenticated users (child, business)
 |  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router.route('/').get(
-  auth(TRole.commonUser),
-  taskLimiter,
-  validateFiltersForQuery(optionValidationChecking(['status', 'taskType', 'priority', 'from', 'to', ...paginationOptions])),
-  controller.getMyTasks
-);
+router
+  .route('/')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'priority',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getMyTasks,
+  );
 
 /*-─────────────────────────────────✔️
 |  Child | Business | Task | home-flow.png | Get all my tasks with pagination
@@ -97,7 +137,16 @@ router.route('/').get(
 router.route('/paginate').get(
   auth(TRole.commonUser),
   taskLimiter,
-  validateFiltersForQuery(optionValidationChecking(['status', 'taskType', 'priority', 'from', 'to', ...paginationOptions])),
+  validateFiltersForQuery(
+    optionValidationChecking([
+      'status',
+      'taskType',
+      'priority',
+      'from',
+      'to',
+      ...paginationOptions,
+    ]),
+  ),
   setQueryOptions({
     populate: [
       { path: 'createdById', select: 'name email profileImage' },
@@ -105,7 +154,7 @@ router.route('/paginate').get(
       { path: 'assignedUserIds', select: 'name email profileImage' },
     ],
   }),
-  controller.getMyTasksWithPagination
+  controller.getMyTasksWithPagination,
 );
 
 /*-───────────────────────────────── ✔️
@@ -114,11 +163,9 @@ router.route('/paginate').get(
 |  @auth All authenticated users (child, business)
 |  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router.route('/statistics').get(
-  auth(TRole.commonUser),
-  taskLimiter,
-  controller.getStatistics
-);
+router
+  .route('/statistics')
+  .get(auth(TRole.commonUser), taskLimiter, controller.getStatistics);
 
 /*-─────────────────────────────────
 |  Child | Business | Task | home-flow.png | Get daily progress
@@ -126,11 +173,9 @@ router.route('/statistics').get(
 |  @auth All authenticated users (child, business)
 |  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router.route('/daily-progress').get(
-  auth(TRole.commonUser),
-  taskLimiter,
-  controller.getDailyProgress
-);
+router
+  .route('/daily-progress')
+  .get(auth(TRole.commonUser), taskLimiter, controller.getDailyProgress);
 
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | home-flow.png | Get task details by ID
@@ -152,9 +197,9 @@ router.route('/:id').get(
       { path: 'assignedUserIds', select: 'name email profileImage' },
       { path: 'subtasks', select: '-__v -isDeleted' }, // ⭐ VIRTUAL POPULATE from SubTask collection
     ],
-    select: '-__v'
+    select: '-__v',
   }),
-  controller.getTaskById
+  controller.getTaskById,
 );
 
 /*-─────────────────────────────────
@@ -164,15 +209,17 @@ router.route('/:id').get(
 |  @rateLimit 100 requests per minute
 |  @access Task creator or owner only
 └──────────────────────────────────*/
-router.route('/:id').put(
-  auth(TRole.commonUser),
-  taskLimiter,
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  validateRequest(validation.updateTaskValidationSchema),
-  validateTaskTypeConsistency,
-  controller.updateById
-);
+router
+  .route('/:id')
+  .put(
+    auth(TRole.commonUser),
+    taskLimiter,
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskValidationSchema),
+    validateTaskTypeConsistency,
+    controller.updateById,
+  );
 
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | edit-update-task-flow.png | Update task status
@@ -180,14 +227,16 @@ router.route('/:id').put(
 |  @auth All authenticated users (child, business)
 |  @access Task creator, owner, or assigned users only
 └──────────────────────────────────*/
-router.route('/:id/status').put(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  validateRequest(validation.updateTaskStatusValidationSchema),
-  validateStatusTransition,
-  controller.updateStatus
-);
+router
+  .route('/:id/status')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskStatusValidationSchema),
+    validateStatusTransition,
+    controller.updateStatus,
+  );
 
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | edit-update-task-flow.png | Update subtask progress
@@ -195,12 +244,14 @@ router.route('/:id/status').put(
 |  @auth All authenticated users (child, business)
 |  @access Task creator or owner only
 └──────────────────────────────────*/
-router.route('/:id/subtasks/progress').put(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  controller.updateSubtaskProgress
-);
+router
+  .route('/:id/subtasks/progress')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    controller.updateSubtaskProgress,
+  );
 
 /*-─────────────────────────────────
 |  Child | Business | Task | edit-update-task-flow.png | Soft delete task by ID
@@ -208,12 +259,14 @@ router.route('/:id/subtasks/progress').put(
 |  @auth All authenticated users (child, business)
 |  @access Task creator or owner only
 └──────────────────────────────────*/
-router.route('/:id').delete(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  controller.softDeleteById
-);
+router
+  .route('/:id')
+  .delete(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    controller.softDeleteById,
+  );
 
 /*-─────────────────────────────────
 |  Admin | Task | dashboard-section-flow.png | Permanently delete task by ID
@@ -221,11 +274,9 @@ router.route('/:id').delete(
 |  @auth Admin only
 |  @access System administrators only
 └──────────────────────────────────*/
-router.route('/:id/permanent').delete(
-  auth(TRole.admin),
-  verifyTaskAccess,
-  controller.deleteById
-);
+router
+  .route('/:id/permanent')
+  .delete(auth(TRole.admin), verifyTaskAccess, controller.deleteById);
 
 /*-─────────────────────────────────
 |  SubTask Routes
@@ -246,15 +297,14 @@ router.use('/:id/subtasks', SubTaskRoute);
 //        teacher-parent-dashboard/dashboard/dashboard-flow-01.png
 // ────────────────────────────────────────────────────────────────────────
 
-/*-─────────────────────────────────
+/*-───────────────────────────────── ✔️✔️ 03|03-individual
 |  Child | Business | Task | home-flow.png | Get daily progress (Figma aligned)
 |  @desc Get daily task progress for dashboard display
 |  @auth All authenticated users (child, business)
 └──────────────────────────────────*/
-router.route('/daily-progress').get(
-  auth(TRole.commonUser),
-  controller.getDailyProgress
-);
+router
+  .route('/daily-progress')
+  .get(auth(TRole.commonUser), controller.getDailyProgress);
 
 /*-─────────────────────────────────
 |  Child | Business | User | Task | create-task-flow.png | Get preferred time suggestion
@@ -263,17 +313,14 @@ router.route('/daily-progress').get(
 |  @query assignedUserId - Optional: Get suggestion for assignee (parent creating for child)
 |  @returns Suggested time with confidence level and explanation
 └──────────────────────────────────*/
-router.route('/suggest-preferred-time').get(
-  auth(TRole.commonUser),
-  controller.getPreferredTimeSuggestion
-);
+router
+  .route('/suggest-preferred-time')
+  .get(auth(TRole.commonUser), controller.getPreferredTimeSuggestion);
 
 // ────────────────────────────────────────────────────────────────────────
 // Parent Dashboard: Children's Tasks
 // Figma: teacher-parent-dashboard/dashboard/dashboard-flow-01.png
 //        teacher-parent-dashboard/dashboard/dashboard-flow-02.png
 // ────────────────────────────────────────────────────────────────────────
-
-
 
 export const TaskRoute = router;

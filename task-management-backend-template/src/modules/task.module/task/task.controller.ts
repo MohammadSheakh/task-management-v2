@@ -316,9 +316,13 @@ export class TaskController extends GenericController<typeof Task, ITask> {
   addSubtask = async (req: Request, res: Response) => {
     const taskId = req.params.id;
     const { title, duration } = req.body;
+    const userId = req.user?.userId;
 
-    // TODO : MUST : add sub task issue 
-    const result = await this.subTaskService.addSubtask(taskId, { title, duration });
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const result = await this.subTaskService.addSubtask(taskId, { title, duration }, userId);
 
     sendResponse(res, {
       code: StatusCodes.CREATED,
@@ -389,8 +393,13 @@ export class TaskController extends GenericController<typeof Task, ITask> {
   toggleSubtask = async (req: Request, res: Response) => {
     const taskId = req.params.id;
     const subtaskId = req.params.subtaskId;
+    const userId = req.user?.userId;
 
-    const result = await this.subTaskService.toggleSubtask(taskId, subtaskId);
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const result = await this.subTaskService.toggleSubtask(taskId, subtaskId, userId);
 
     sendResponse(res, {
       code: StatusCodes.OK,
