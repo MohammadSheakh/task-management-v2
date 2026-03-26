@@ -189,7 +189,11 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     });
 
     // ✅ Bulk create subtasks if provided
-    if (subtasksData && Array.isArray(subtasksData) && subtasksData.length > 0) {
+    if (
+      subtasksData &&
+      Array.isArray(subtasksData) &&
+      subtasksData.length > 0
+    ) {
       await this.bulkCreateSubtasks(task._id.toString(), subtasksData, userId);
     }
 
@@ -286,7 +290,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       isCompleted?: boolean;
       order?: number;
     }>,
-    userId: Types.ObjectId
+    userId: Types.ObjectId,
   ): Promise<void> {
     try {
       const { SubTask } = await import('../subTask/subTask.model');
@@ -297,7 +301,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         title: subtask.title,
         duration: subtask.duration || null,
         isCompleted: subtask.isCompleted || false,
-        order: subtask.order || (index + 1),
+        order: subtask.order || index + 1,
         createdById: userId,
         completedAt: subtask.isCompleted ? new Date() : null,
       }));
@@ -305,12 +309,14 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       // Insert all subtasks in one operation
       await SubTask.insertMany(subtasksToCreate);
 
-      logger.info(`Bulk created ${subtasksToCreate.length} subtasks for task ${taskId}`);
+      logger.info(
+        `Bulk created ${subtasksToCreate.length} subtasks for task ${taskId}`,
+      );
     } catch (error) {
       errorLogger.error('Error in bulk creating subtasks:', error);
       throw new ApiError(
         StatusCodes.INTERNAL_SERVER_ERROR,
-        'Failed to create subtasks'
+        'Failed to create subtasks',
       );
     }
   }
@@ -327,7 +333,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       $or: [
         { ownerUserId: userId },
         { assignedUserIds: userId },
-        { createdById: userId },
+        // { createdById: userId },  🐛🩹
       ],
     };
 
@@ -360,14 +366,18 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     const tasks = await this.model
       .find(query)
       .select('-__v')
+      .populate({
+        path: 'assignedUserIds createdById',
+        select: 'name profileImage',
+      })
       .sort({ startTime: -1 })
       .lean();
 
     // ✅ Populate subtasks for each task using virtual populate
     const tasksWithSubtasks = await Promise.all(
-      tasks.map(async (task) => {
+      tasks.map(async task => {
         const { SubTask } = await import('../subTask/subTask.model');
-        
+
         // Get subtasks for this task
         const subtasks = await SubTask.find({
           taskId: task._id,
@@ -389,10 +399,13 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
         // Calculate subtask progress
         const totalSubtasks = formattedSubtasks.length;
-        const completedSubtasks = formattedSubtasks.filter((st: any) => st.isCompleted).length;
-        const subtaskProgressPercentage = totalSubtasks > 0
-          ? Math.round((completedSubtasks / totalSubtasks) * 100)
-          : 0;
+        const completedSubtasks = formattedSubtasks.filter(
+          (st: any) => st.isCompleted,
+        ).length;
+        const subtaskProgressPercentage =
+          totalSubtasks > 0
+            ? Math.round((completedSubtasks / totalSubtasks) * 100)
+            : 0;
 
         return {
           ...task,
@@ -403,7 +416,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
             percentage: subtaskProgressPercentage,
           },
         };
-      })
+      }),
     );
 
     return tasksWithSubtasks;
@@ -426,7 +439,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       $or: [
         { ownerUserId: userId },
         { assignedUserIds: userId },
-        { createdById: userId },
+        // { createdById: userId },  🐛🩹
       ],
     };
 
@@ -449,7 +462,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       const tasksWithSubtasks = await Promise.all(
         result.docs.map(async (task: any) => {
           const { SubTask } = await import('../subTask/subTask.model');
-          
+
           // Get subtasks for this task
           const subtasks = await SubTask.find({
             taskId: task._id,
@@ -471,13 +484,16 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
           // Calculate subtask progress
           const totalSubtasks = formattedSubtasks.length;
-          const completedSubtasks = formattedSubtasks.filter((st: any) => st.isCompleted).length;
-          const subtaskProgressPercentage = totalSubtasks > 0
-            ? Math.round((completedSubtasks / totalSubtasks) * 100)
-            : 0;
+          const completedSubtasks = formattedSubtasks.filter(
+            (st: any) => st.isCompleted,
+          ).length;
+          const subtaskProgressPercentage =
+            totalSubtasks > 0
+              ? Math.round((completedSubtasks / totalSubtasks) * 100)
+              : 0;
 
           return {
-            ...task.toObject ? task.toObject() : task,
+            ...(task.toObject ? task.toObject() : task),
             subtasks: formattedSubtasks,
             subtaskProgress: {
               total: totalSubtasks,
@@ -485,7 +501,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
               percentage: subtaskProgressPercentage,
             },
           };
-        })
+        }),
       );
 
       result.docs = tasksWithSubtasks;

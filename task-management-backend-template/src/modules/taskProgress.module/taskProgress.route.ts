@@ -13,8 +13,8 @@ const router = express.Router();
 /**
  * Rate limiters using centralized rateLimiter with Redis
  */
-const progressLimiter = rateLimiter('user');        // 30 req/min
-const updateProgressLimiter = rateLimiter('user');  // 30 req/min
+const progressLimiter = rateLimiter('user'); // 30 req/min
+const updateProgressLimiter = rateLimiter('user'); // 30 req/min
 
 /*-───────────────────────────────── ✔️
 |  Child | TaskProgress | status-section-flow-01.png | Get my progress on a task
@@ -26,7 +26,7 @@ router.get(
   '/:taskId/user/:userId',
   auth(TRole.commonUser),
   progressLimiter,
-  taskProgressController.getProgress
+  taskProgressController.getProgress,
 );
 
 /*-───────────────────────────────── 🔂
@@ -40,7 +40,7 @@ router.get(
   '/:taskId/children',
   auth(TRole.business),
   progressLimiter,
-  taskProgressController.getAllChildrenProgress
+  taskProgressController.getAllChildrenProgress,
 );
 
 /*-─────────────────────────────────
@@ -54,10 +54,10 @@ router.get(
   '/child/:childId/tasks',
   auth(TRole.business),
   progressLimiter,
-  taskProgressController.getAllTasksProgress
+  taskProgressController.getAllTasksProgress,
 );
 
-/*-───────────────────────────────── 🔂
+/*-───────────────────────────────── 2️⃣🔂
 |  Child | TaskProgress | edit-update-task-flow.png | Update progress status (start/complete)
 |  @desc Mark task as started or completed
 |  @auth Child user (task assignee)
@@ -68,7 +68,7 @@ router.put(
   auth(TRole.commonUser),
   updateProgressLimiter,
   validateRequest(validation.updateTaskProgressValidationSchema),
-  taskProgressController.updateProgressStatus
+  taskProgressController.updateProgressStatus,
 );
 
 /*-─────────────────────────────────
@@ -82,7 +82,7 @@ router.put(
   auth(TRole.commonUser),
   updateProgressLimiter,
   validateRequest(validation.completeSubtaskValidationSchema),
-  taskProgressController.completeSubtask
+  taskProgressController.completeSubtask,
 );
 
 /*-─────────────────────────────────
@@ -96,7 +96,7 @@ router.post(
   auth(TRole.commonUser),
   progressLimiter,
   validateRequest(validation.createTaskProgressValidationSchema),
-  taskProgressController.createOrUpdateProgress
+  taskProgressController.createOrUpdateProgress,
 );
 
 export const TaskProgressRoute = router;

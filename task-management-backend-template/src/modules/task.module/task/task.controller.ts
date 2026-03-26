@@ -29,7 +29,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     this.subTaskService = new SubTaskService();
   }
 
-  /** ✔️
+  /** ✔️☑️
    * Create a new task
    * Overrides generic create to add user context
    * Includes permission check for group/collaborative tasks
@@ -58,7 +58,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
-  /** ✔️
+  /** ✔️☑️
    * Get all tasks for the logged-in user
    * Supports filtering by status, type, priority, and date range
    */
@@ -94,13 +94,13 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const options = {
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 10,
-      sortBy: req.query.sortBy as string || '-startTime',
+      sortBy: (req.query.sortBy as string) || '-startTime',
     };
 
     const result = await this.taskService.getUserTasksWithPagination(
       userId,
       filters,
-      options
+      options,
     );
 
     sendResponse(res, {
@@ -141,7 +141,9 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const date = req.query.date ? new Date(req.query.date as string) : new Date();
+    const date = req.query.date
+      ? new Date(req.query.date as string)
+      : new Date();
     const result = await this.taskService.getDailyProgress(userId, date);
 
     sendResponse(res, {
@@ -169,22 +171,31 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
     }
 
-    const result = await this.taskService.updateTaskStatus(taskId, status, userId);
+    const result = await this.taskService.updateTaskStatus(
+      taskId,
+      status,
+      userId,
+    );
 
     // ⏰ Trigger preferred time calculation if task is completed
     if (status === TaskStatus.COMPLETED) {
       try {
         // Import dynamically to avoid circular dependency
-        const { preferredTimeQueue } = await import('../../../helpers/bullmq/bullmq');
+        const { preferredTimeQueue } =
+          await import('../../../helpers/bullmq/bullmq');
 
         // Add job to queue (async, don't wait)
-        preferredTimeQueue.add('calculatePreferredTime', {
-          userId: userId.toString()
-        }, {
-          jobId: `preferred-time:${userId}:${Date.now()}`,
-          removeOnComplete: true,
-          removeOnFail: true,
-        });
+        preferredTimeQueue.add(
+          'calculatePreferredTime',
+          {
+            userId: userId.toString(),
+          },
+          {
+            jobId: `preferred-time:${userId}:${Date.now()}`,
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        );
 
         // Don't wait for completion - fire and forget
         logger.info(`⏰ Queued preferred time calculation for user ${userId}`);
@@ -203,7 +214,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
   };
 
   /** ✔️
-   * Update subtask progress 
+   * Update subtask progress
    * Automatically recalculates completion percentage
    */
   updateSubtaskProgress = async (req: Request, res: Response) => {
@@ -214,7 +225,10 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Subtasks array is required');
     }
 
-    const result = await this.taskService.updateSubtaskProgress(taskId, subtasks);
+    const result = await this.taskService.updateSubtaskProgress(
+      taskId,
+      subtasks,
+    );
 
     sendResponse(res, {
       code: StatusCodes.OK,
@@ -255,7 +269,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const select = '-__v';
     const result = await this.service.getById(taskId, populateOptions, select);
 
-    console.log("result :: ", result);
+    console.log('result :: ', result);
 
     if (!result) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
@@ -265,28 +279,38 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const hasAccess =
       result.createdById?._id?.toString() === userId ||
       result.ownerUserId?.toString() === userId ||
-      (result.assignedUserIds || []).some((id: any) => id.toString() === userId);
+      (result.assignedUserIds || []).some(
+        (id: any) => id.toString() === userId,
+      );
 
     if (!hasAccess) {
-      throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to this task');
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'You do not have access to this task',
+      );
     }
 
     // Format subtasks with progress information
-    const formattedSubtasks = (result.subtasks || []).map((subtask: any, index: number) => ({
-      _id: subtask._id,
-      title: subtask.title,
-      isCompleted: subtask.isCompleted || false,
-      order: subtask.order || (index + 1),
-      duration: subtask.duration || null,
-      completedAt: subtask.completedAt || null,
-    }));
+    const formattedSubtasks = (result.subtasks || []).map(
+      (subtask: any, index: number) => ({
+        _id: subtask._id,
+        title: subtask.title,
+        isCompleted: subtask.isCompleted || false,
+        order: subtask.order || index + 1,
+        duration: subtask.duration || null,
+        completedAt: subtask.completedAt || null,
+      }),
+    );
 
     // Calculate subtask progress
     const totalSubtasks = formattedSubtasks.length;
-    const completedSubtasks = formattedSubtasks.filter((st: any) => st.isCompleted).length;
-    const subtaskProgressPercentage = totalSubtasks > 0
-      ? Math.round((completedSubtasks / totalSubtasks) * 100)
-      : 0;
+    const completedSubtasks = formattedSubtasks.filter(
+      (st: any) => st.isCompleted,
+    ).length;
+    const subtaskProgressPercentage =
+      totalSubtasks > 0
+        ? Math.round((completedSubtasks / totalSubtasks) * 100)
+        : 0;
 
     // Build response with subtask progress
     const responseData = {
@@ -322,7 +346,11 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const result = await this.subTaskService.addSubtask(taskId, { title, duration }, userId);
+    const result = await this.subTaskService.addSubtask(
+      taskId,
+      { title, duration },
+      userId,
+    );
 
     sendResponse(res, {
       code: StatusCodes.CREATED,
@@ -376,7 +404,11 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const subtaskId = req.params.subtaskId;
     const updateData = req.body;
 
-    const result = await this.subTaskService.updateSubtask(taskId, subtaskId, updateData);
+    const result = await this.subTaskService.updateSubtask(
+      taskId,
+      subtaskId,
+      updateData,
+    );
 
     sendResponse(res, {
       code: StatusCodes.OK,
@@ -399,7 +431,11 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const result = await this.subTaskService.toggleSubtask(taskId, subtaskId, userId);
+    const result = await this.subTaskService.toggleSubtask(
+      taskId,
+      subtaskId,
+      userId,
+    );
 
     sendResponse(res, {
       code: StatusCodes.OK,
@@ -437,7 +473,10 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const taskId = req.params.id;
     const { subtasks } = req.body;
 
-    const result = await this.subTaskService.bulkUpdateSubtasks(taskId, subtasks);
+    const result = await this.subTaskService.bulkUpdateSubtasks(
+      taskId,
+      subtasks,
+    );
 
     sendResponse(res, {
       code: StatusCodes.OK,
@@ -506,8 +545,8 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     }
 
     const filters = {
-      status: req.query.status as string || 'all',
-      taskType: req.query.taskType as string || 'children',
+      status: (req.query.status as string) || 'all',
+      taskType: (req.query.taskType as string) || 'children',
       from: req.query.from as string,
       to: req.query.to as string,
     };
@@ -515,13 +554,13 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const options = {
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 20,
-      sortBy: req.query.sortBy as string || '-startTime',
+      sortBy: (req.query.sortBy as string) || '-startTime',
     };
 
     const result = await this.taskService.getChildrenTasksForDashboard(
       new Types.ObjectId(businessUserId),
       filters,
-      options
+      options,
     );
 
     sendResponse(res, {
@@ -559,13 +598,13 @@ export class TaskController extends GenericController<typeof Task, ITask> {
 
     const result = await this.taskService.getPreferredTimeSuggestion(
       new Types.ObjectId(userId),
-      assignedUserIds
+      assignedUserIds,
     );
 
     if (!result) {
       throw new ApiError(
         StatusCodes.NOT_FOUND,
-        'Unable to calculate preferred time suggestion'
+        'Unable to calculate preferred time suggestion',
       );
     }
 

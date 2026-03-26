@@ -3,10 +3,19 @@ import { StatusCodes } from 'http-status-codes';
 import { Types } from 'mongoose';
 import { GenericService } from '../_generic-module/generic.services';
 import { TaskProgress } from './taskProgress.model';
-import { ITaskProgress, ITaskProgressDocument, ITaskProgressSummary } from './taskProgress.interface';
+import {
+  ITaskProgress,
+  ITaskProgressDocument,
+  ITaskProgressSummary,
+} from './taskProgress.interface';
 import ApiError from '../../errors/ApiError';
 import { Task } from '../task.module/task/task.model';
-import { TaskProgressStatus, TASK_PROGRESS_CACHE_CONFIG, TASK_PROGRESS_EVENTS, TTaskProgressStatus } from './taskProgress.constant';
+import {
+  TaskProgressStatus,
+  TASK_PROGRESS_CACHE_CONFIG,
+  TASK_PROGRESS_EVENTS,
+  TTaskProgressStatus,
+} from './taskProgress.constant';
 import { redisClient } from '../../helpers/redis/redis';
 import { errorLogger, logger } from '../../shared/logger';
 import { User } from '../user.module/user/user.model';
@@ -20,17 +29,20 @@ const notificationService = new NotificationService();
 /**
  * Task Progress Service
  * Tracks each child's independent progress on collaborative tasks
- * 
+ *
  * Features:
  * - Per-child progress tracking
  * - Subtask completion tracking
  * - Redis caching for performance
  * - Automatic notifications to parents
- * 
+ *
  * @version 1.0.0
  * @author Senior Engineering Team
  */
-export class TaskProgressService extends GenericService<typeof TaskProgress, ITaskProgressDocument> {
+export class TaskProgressService extends GenericService<
+  typeof TaskProgress,
+  ITaskProgressDocument
+> {
   constructor() {
     super(TaskProgress);
   }
@@ -74,7 +86,11 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
   /**
    * Set in Cache
    */
-  private async setInCache<T>(key: string, data: T, ttl: number): Promise<void> {
+  private async setInCache<T>(
+    key: string,
+    data: T,
+    ttl: number,
+  ): Promise<void> {
     try {
       await redisClient.setEx(key, ttl, JSON.stringify(data));
     } catch (error) {
@@ -85,7 +101,10 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
   /**
    * Invalidate Cache
    */
-  private async invalidateCache(taskId?: string, userId?: string): Promise<void> {
+  private async invalidateCache(
+    taskId?: string,
+    userId?: string,
+  ): Promise<void> {
     try {
       const keysToDelete: string[] = [];
 
@@ -109,14 +128,20 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     }
   }
 
-  /**✔️
+  /**✔️☑️
    * Create or update task progress for a child
    * Called when child is assigned to a collaborative task
+   * Also called internally when child starts or completes a task (to auto-create progress record if it doesn't exist)
+   * task.service.ts -> createTask -> if collaborative -> taskProgressService.bulkCreateForTask(taskId, assignedUserIds)
+   * taskProgress.controller.ts -> updateProgressStatus -> if progress record doesn't exist
+   *  -> taskProgressService.createOrUpdateProgress(taskId, userId, status)
+   * This ensures that progress tracking is always set up for children on collaborative tasks, and simplifies the
+   *  logic in the controller by auto-handling progress record creation.
    */
   async createOrUpdateProgress(
     taskId: string,
     userId: string,
-    status: TTaskProgressStatus = TaskProgressStatus.NOT_STARTED
+    status: TTaskProgressStatus = TaskProgressStatus.NOT_STARTED,
   ): Promise<ITaskProgressDocument> {
     const taskObjectId = new Types.ObjectId(taskId);
     const userObjectId = new Types.ObjectId(userId);
@@ -154,7 +179,7 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     taskId: string,
     userId: string,
     status: TTaskProgressStatus,
-    note?: string
+    note?: string,
   ): Promise<ITaskProgressDocument> {
     const taskObjectId = new Types.ObjectId(taskId);
     const userObjectId = new Types.ObjectId(userId);
@@ -191,7 +216,10 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     await progress.save();
 
     // Send notification to parent if task completed
-    if (status === TaskProgressStatus.COMPLETED && oldStatus !== TaskProgressStatus.COMPLETED) {
+    if (
+      status === TaskProgressStatus.COMPLETED &&
+      oldStatus !== TaskProgressStatus.COMPLETED
+    ) {
       await this.notifyParentOnTaskCompletion(taskId, userId);
     }
 
@@ -210,7 +238,7 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
   async completeSubtask(
     taskId: string,
     subtaskIndex: number,
-    userId: string
+    userId: string,
   ): Promise<ITaskProgressDocument> {
     const taskObjectId = new Types.ObjectId(taskId);
     const userObjectId = new Types.ObjectId(userId);
@@ -229,7 +257,11 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     });
 
     if (!progress) {
-      progress = await this.createOrUpdateProgress(taskId, userId, TaskProgressStatus.IN_PROGRESS);
+      progress = await this.createOrUpdateProgress(
+        taskId,
+        userId,
+        TaskProgressStatus.IN_PROGRESS,
+      );
     }
 
     // Add subtask index to completed list (if not already there)
@@ -254,7 +286,12 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     }
 
     // 🚀 NEW: Emit real-time subtask completion to parent
-    await this.emitSubtaskCompletionToParent(taskId, userId, subtaskIndex, progress.progressPercentage);
+    await this.emitSubtaskCompletionToParent(
+      taskId,
+      userId,
+      subtaskIndex,
+      progress.progressPercentage,
+    );
 
     // Invalidate cache
     await this.invalidateCache(taskId, userId);
@@ -265,7 +302,10 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
   /** ✔️
    * Get progress for a specific task and user
    */
-  async getProgress(taskId: string, userId: string): Promise<ITaskProgressDocument | null> {
+  async getProgress(
+    taskId: string,
+    userId: string,
+  ): Promise<ITaskProgressDocument | null> {
     const cacheKey = this.getCacheKey('detail', taskId, userId);
 
     // Try cache first
@@ -283,7 +323,11 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
 
     // Cache the result
     if (progress) {
-      await this.setInCache(cacheKey, progress, TASK_PROGRESS_CACHE_CONFIG.PROGRESS_DETAIL_TTL);
+      await this.setInCache(
+        cacheKey,
+        progress,
+        TASK_PROGRESS_CACHE_CONFIG.PROGRESS_DETAIL_TTL,
+      );
     }
 
     return progress;
@@ -308,10 +352,12 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     }
 
     // Get all children's progress
-    const progressRecords: ITaskProgress[] = await this.model.find({
-      taskId: new Types.ObjectId(taskId),
-      isDeleted: false,
-    }).populate('userId', 'name email profileImage');
+    const progressRecords: ITaskProgress[] = await this.model
+      .find({
+        taskId: new Types.ObjectId(taskId),
+        isDeleted: false,
+      })
+      .populate('userId', 'name email profileImage');
 
     // Build children progress array
     const childrenProgress = progressRecords.map(record => {
@@ -331,15 +377,34 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     // Calculate summary
     const summary = {
       totalChildren: childrenProgress.length,
-      notStarted: childrenProgress.filter(c => c.status === TaskProgressStatus.NOT_STARTED).length,
-      inProgress: childrenProgress.filter(c => c.status === TaskProgressStatus.IN_PROGRESS).length,
-      completed: childrenProgress.filter(c => c.status === TaskProgressStatus.COMPLETED).length,
-      completionRate: childrenProgress.length > 0
-        ? Math.round((childrenProgress.filter(c => c.status === TaskProgressStatus.COMPLETED).length / childrenProgress.length) * 100)
-        : 0,
-      averageProgress: childrenProgress.length > 0
-        ? Math.round(childrenProgress.reduce((sum, c) => sum + c.progressPercentage, 0) / childrenProgress.length)
-        : 0,
+      notStarted: childrenProgress.filter(
+        c => c.status === TaskProgressStatus.NOT_STARTED,
+      ).length,
+      inProgress: childrenProgress.filter(
+        c => c.status === TaskProgressStatus.IN_PROGRESS,
+      ).length,
+      completed: childrenProgress.filter(
+        c => c.status === TaskProgressStatus.COMPLETED,
+      ).length,
+      completionRate:
+        childrenProgress.length > 0
+          ? Math.round(
+              (childrenProgress.filter(
+                c => c.status === TaskProgressStatus.COMPLETED,
+              ).length /
+                childrenProgress.length) *
+                100,
+            )
+          : 0,
+      averageProgress:
+        childrenProgress.length > 0
+          ? Math.round(
+              childrenProgress.reduce(
+                (sum, c) => sum + c.progressPercentage,
+                0,
+              ) / childrenProgress.length,
+            )
+          : 0,
     };
 
     const result: ITaskProgressSummary = {
@@ -351,7 +416,11 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     };
 
     // Cache the result
-    await this.setInCache(cacheKey, result, TASK_PROGRESS_CACHE_CONFIG.SUMMARY_TTL);
+    await this.setInCache(
+      cacheKey,
+      result,
+      TASK_PROGRESS_CACHE_CONFIG.SUMMARY_TTL,
+    );
 
     return result;
   }
@@ -361,7 +430,7 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
    */
   async getAllTasksProgress(
     userId: string,
-    options?: { status?: TTaskProgressStatus; taskType?: string }
+    options?: { status?: TTaskProgressStatus; taskType?: string },
   ): Promise<any[]> {
     const cacheKey = this.getCacheKey('tasks', userId);
 
@@ -382,7 +451,8 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     }
 
     // Get progress records
-    const progressRecords = await this.model.find(query)
+    const progressRecords = await this.model
+      .find(query)
       .populate({
         path: 'taskId',
         select: 'title taskType status totalSubtasks completedSubtasks',
@@ -406,7 +476,11 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     });
 
     // Cache the result
-    await this.setInCache(cacheKey, tasks, TASK_PROGRESS_CACHE_CONFIG.TASKS_PROGRESS_TTL);
+    await this.setInCache(
+      cacheKey,
+      tasks,
+      TASK_PROGRESS_CACHE_CONFIG.TASKS_PROGRESS_TTL,
+    );
 
     return tasks;
   }
@@ -414,7 +488,10 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
   /**
    * Notify parent when child completes a task
    */
-  private async notifyParentOnTaskCompletion(taskId: string, childId: string): Promise<void> {
+  private async notifyParentOnTaskCompletion(
+    taskId: string,
+    childId: string,
+  ): Promise<void> {
     try {
       // Get task to find parent (creator)
       const task = await Task.findById(taskId).select('createdById title');
@@ -431,7 +508,7 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
         task.createdById.toString(), // receiver (parent)
         'task_completed',
         null,
-        taskId
+        taskId,
       );
     } catch (error) {
       errorLogger.error('Error sending parent notification:', error);
@@ -456,11 +533,13 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     taskId: string,
     userId: string,
     status: TTaskProgressStatus,
-    oldStatus: TTaskProgressStatus
+    oldStatus: TTaskProgressStatus,
   ): Promise<void> {
     try {
       // Get task to find parent (creator)
-      const task = await Task.findById(taskId).select('createdById title taskType');
+      const task = await Task.findById(taskId).select(
+        'createdById title taskType',
+      );
       if (!task) return;
 
       const parentId = task.createdById.toString();
@@ -473,7 +552,10 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
       let eventType: string;
       let message: string;
 
-      if (status === TaskProgressStatus.IN_PROGRESS && oldStatus === TaskProgressStatus.NOT_STARTED) {
+      if (
+        status === TaskProgressStatus.IN_PROGRESS &&
+        oldStatus === TaskProgressStatus.NOT_STARTED
+      ) {
         eventType = 'task-progress:started';
         message = `${child.name} started working on "${task.title}"`;
       } else if (status === TaskProgressStatus.COMPLETED) {
@@ -500,7 +582,10 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
       // Also broadcast to family room (for live activity feed)
       if (task.taskType === TaskType.COLLABORATIVE) {
         await socketService.broadcastGroupActivity(parentId, {
-          type: status === TaskProgressStatus.COMPLETED ? ACTIVITY_TYPE.TASK_COMPLETED : ACTIVITY_TYPE.TASK_STARTED,
+          type:
+            status === TaskProgressStatus.COMPLETED
+              ? ACTIVITY_TYPE.TASK_COMPLETED
+              : ACTIVITY_TYPE.TASK_STARTED,
           actor: {
             userId,
             name: child.name,
@@ -515,7 +600,6 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
       }
 
       logger.info(`🚀 Emitted ${eventType} to parent ${parentId}`);
-
     } catch (error) {
       errorLogger.error('Error emitting progress update to parent:', error);
       // Don't throw - Socket.IO emission is optional
@@ -535,12 +619,15 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
     taskId: string,
     userId: string,
     subtaskIndex: number,
-    progressPercentage: number
+    progressPercentage: number,
   ): Promise<void> {
     try {
       // Get task to find parent (creator)
-      const task = await Task.findById(taskId).select('createdById title subtasks taskType');
-      if (!task || !task.subtasks || task.subtasks.length <= subtaskIndex) return;
+      const task = await Task.findById(taskId).select(
+        'createdById title subtasks taskType',
+      );
+      if (!task || !task.subtasks || task.subtasks.length <= subtaskIndex)
+        return;
 
       const parentId = task.createdById.toString();
       const subtaskTitle = task.subtasks[subtaskIndex].title;
@@ -550,41 +637,50 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
       if (!child) return;
 
       // Emit to parent
-      await socketService.emitToTaskUsers([parentId], 'task-progress:subtask-completed', {
-        taskId,
-        taskTitle: task.title,
-        subtaskIndex,
-        subtaskTitle,
-        childId: userId,
-        childName: child.name,
-        childProfileImage: child.profileImage?.imageUrl,
-        progressPercentage,
-        timestamp: new Date(),
-        message: `${child.name} completed "${subtaskTitle}" (${progressPercentage}% done)`,
-      });
+      await socketService.emitToTaskUsers(
+        [parentId],
+        'task-progress:subtask-completed',
+        {
+          taskId,
+          taskTitle: task.title,
+          subtaskIndex,
+          subtaskTitle,
+          childId: userId,
+          childName: child.name,
+          childProfileImage: child.profileImage?.imageUrl,
+          progressPercentage,
+          timestamp: new Date(),
+          message: `${child.name} completed "${subtaskTitle}" (${progressPercentage}% done)`,
+        },
+      );
 
       logger.info(`🚀 Emitted subtask-completed to parent ${parentId}`);
-
     } catch (error) {
       errorLogger.error('Error emitting subtask completion to parent:', error);
       // Don't throw - Socket.IO emission is optional
     }
   }
 
-  /**✔️
+  /**✔️☑️
    * Bulk create progress records for all assigned children
    * Called when a new collaborative task is created
+   * task.service.ts -> createTask -> if collaborative -> taskProgressService.bulkCreateForTask(taskId, assignedUserIds)
+   * This ensures progress tracking is set up for all children from the start
    */
   async bulkCreateForTask(
     taskId: string,
-    assignedUserIds: string[]
+    assignedUserIds: string[],
   ): Promise<ITaskProgressDocument[]> {
     const taskObjectId = new Types.ObjectId(taskId);
 
     const progressRecords = await Promise.all(
-      assignedUserIds.map(async (userId) => {
-        return await this.createOrUpdateProgress(taskId, userId, TaskProgressStatus.NOT_STARTED);
-      })
+      assignedUserIds.map(async userId => {
+        return await this.createOrUpdateProgress(
+          taskId,
+          userId,
+          TaskProgressStatus.NOT_STARTED,
+        );
+      }),
     );
 
     return progressRecords;
@@ -602,7 +698,7 @@ export class TaskProgressService extends GenericService<typeof TaskProgress, ITa
       },
       {
         isDeleted: true,
-      }
+      },
     );
 
     // Invalidate cache
