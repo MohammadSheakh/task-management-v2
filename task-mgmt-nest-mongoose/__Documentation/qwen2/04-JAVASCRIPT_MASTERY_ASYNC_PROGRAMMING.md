@@ -216,6 +216,8 @@ graph LR
 
 ---
 
+## lastRead
+
 ### **Callback Patterns**
 
 ```javascript

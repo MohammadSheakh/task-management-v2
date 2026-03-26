@@ -407,6 +407,8 @@ account.withdraw(200, 1234); // ✅ Works
 
 ### **Understanding the Prototype Chain**
 
+## lastRead
+
 ```mermaid
 graph TB
     subgraph "Prototype Chain"

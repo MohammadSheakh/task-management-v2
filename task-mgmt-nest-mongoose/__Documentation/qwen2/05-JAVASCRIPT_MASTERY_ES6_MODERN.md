@@ -367,6 +367,8 @@ const list = `
 
 ### **Tagged Templates**
 
+## lastRead
+
 ```javascript
 // ─────────────────────────────────────────────
 // CUSTOM TAG FUNCTION

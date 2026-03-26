@@ -328,8 +328,6 @@ console.log(sumModern(1, 2, 3)); // 6
 
 ---
 
-## lastRead
-
 ### **Function Comparison Table**
 
 | Feature                  | Declaration    | Expression      | Arrow                    |
@@ -837,6 +835,8 @@ team.printMembersArrow();
 ```
 
 ---
+
+## lastRead
 
 ### **call, apply, bind Deep Dive**
 
