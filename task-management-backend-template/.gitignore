@@ -4,3 +4,19 @@ dist
 /winston
 .env
 src/config/aim-construction-firebase-adminsdk-fbsvc-5fd17ceb32.json
+
+# Testing
+coverage/
+test-results.json
+test-results.xml
+*.test.ts
+*.spec.ts
+!src/**/*.test.ts
+!src/**/*.spec.ts
+
+# Test coverage
+.lcov
+.nyc_output/
+
+# Vitest
+vitest.config.ts.bak
