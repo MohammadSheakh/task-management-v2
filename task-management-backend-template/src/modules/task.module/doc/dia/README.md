@@ -29,6 +29,20 @@ dia/
 
 ## 📊 Diagram Index (V2 - Current)
 
+### 0. Task Status Update Flow (NEW - 27-03-26)
+**File:** `task-status-update-sequence.mermaid`
+**Purpose:** Shows complete flow of task status updates for different task types
+**Scenarios:**
+- Personal/Single Assignment: Direct status update
+- Collaborative: Individual progress → Auto-complete parent when ALL complete
+**Key Features:**
+- TaskProgress service auto-complete logic
+- Real-time Socket.io events
+- Cache invalidation
+- Parent dashboard updates
+
+---
+
 ### 1. Schema Diagram
 **File:** `task-schema-V2-14-03-26.mermaid`  
 **Purpose:** Shows Task schema structure and relationships  

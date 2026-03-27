@@ -75,7 +75,7 @@ export class TaskProgressController {
     });
   };
 
-  /**
+  /** ✔️
    * Update progress status (start/complete task)
    * PUT /task-progress/:taskId/status
    */

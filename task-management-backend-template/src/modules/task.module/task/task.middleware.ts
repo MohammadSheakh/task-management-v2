@@ -4,6 +4,7 @@ import ApiError from '../../../errors/ApiError';
 import { Task } from './task.model';
 import { Types } from 'mongoose';
 import { TaskType, TaskStatus } from './task.constant';
+import { ITask } from './task.interface';
 
 /**
  * Task Middleware
@@ -37,16 +38,22 @@ export const verifyTaskAccess = async (
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
     }
 
+    // Convert to strings for reliable comparison
+    const userIdStr = userId.toString();
+    const createdByIdStr = task.createdById.toString();
+    const ownerUserIdStr = task.ownerUserId?.toString();
+    const assignedUserIdsStr = (task.assignedUserIds || []).map((id: any) => id.toString());
+
     // Check if user has access
     const hasAccess =
-      task.createdById.toString() === userId ||
-      task.ownerUserId?.toString() === userId ||
-      (task.assignedUserIds || []).some((id: any) => id.toString() === userId);
+      createdByIdStr === userIdStr ||
+      ownerUserIdStr === userIdStr ||
+      assignedUserIdsStr.includes(userIdStr);
 
     if (!hasAccess) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        'You do not have permission to access this task'
+        'You do not have access to this task'
       );
     }
 
@@ -75,7 +82,7 @@ export const verifyTaskOwnership = async (
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const task = (req as any).task || await Task.findById(taskId);
+    const task:ITask = (req as any).task || await Task.findById(taskId);
 
     if (!task) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
@@ -84,7 +91,9 @@ export const verifyTaskOwnership = async (
     // Only creator or owner can modify
     const isOwner =
       task.createdById.toString() === userId ||
-      task.ownerUserId?.toString() === userId;
+      task.ownerUserId?.toString() === userId ||
+      task.assignedUserIds?.some((id: any) => id.toString() === userId)
+      ;
 
     if (!isOwner) {
       throw new ApiError(

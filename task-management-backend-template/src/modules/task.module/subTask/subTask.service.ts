@@ -6,7 +6,11 @@ import ApiError from '../../../errors/ApiError';
 import { Types } from 'mongoose';
 import { Task } from '../task/task.model';
 import { SubTask } from './subTask.model';
-import { TaskStatus } from '../task/task.constant';
+import { TaskStatus, TaskType } from '../task/task.constant';
+import { TaskProgress } from '../../taskProgress.module/taskProgress.model';
+import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
+import { SubTaskProgress } from '../subTaskProgress/subTaskProgress.model';
+import { logger, errorLogger } from '../../../shared/logger';
 
 /**
  * SubTask Service
@@ -72,29 +76,43 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
    * @param isCompleted - New completion status
    * @param userId - User performing the update
    * @returns Updated subtask
+   * 
+   * NOTE: This method now ONLY creates/updates SubTaskProgress for the child.
+   * It does NOT modify the global SubTask.isCompleted field.
+   * Each child's completion is tracked independently in SubTaskProgress collection.
    */
   async toggleSubTaskStatus(
     subtaskId: string,
     isCompleted: boolean,
     userId: Types.ObjectId
   ): Promise<ISubTask> {
-    const updateData: any = {
-      isCompleted,
-      completedAt: isCompleted ? new Date() : undefined,
-    };
-
-    const updatedSubtask = await this.model.findByIdAndUpdate(
+    // 🆕 NEW: ONLY create/update SubTaskProgress for this child
+    // Do NOT update the global SubTask document
+    await this.createSubTaskProgress(
       subtaskId,
-      updateData,
-      { new: true }
-    ).select('-__v');
+      userId,
+      isCompleted
+    );
 
+    // Update parent task progress (based on this child's progress)
+    await this.updateParentTaskProgressFromChildProgress(subtaskId, userId);
+
+    // 🆕 NEW: For collaborative tasks, check if child completed ALL subtasks
+    // This will update TaskProgress for this child
+    const subtask = await this.model.findById(subtaskId);
+    if (subtask) {
+      await this.checkAndSyncChildTaskProgress(
+        subtask.taskId.toString(),
+        userId
+      );
+    }
+
+    // Return the subtask definition (read-only)
+    const updatedSubtask = await this.model.findById(subtaskId).select('-__v');
+    
     if (!updatedSubtask) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
     }
-
-    // Update parent task progress
-    await this.updateParentTaskProgress(updatedSubtask.taskId.toString());
 
     return updatedSubtask;
   }
@@ -400,5 +418,237 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
       totalSubtasks,
       completedSubtasks,
     };
+  }
+
+  /**
+   * Check if child completed all subtasks of a collaborative task
+   * If yes, update their TaskProgress to "completed"
+   * @param taskId - Parent task ID
+   * @param userId - Child user ID
+   * @private
+   */
+  private async checkAndSyncChildTaskProgress(
+    taskId: string,
+    userId: Types.ObjectId
+  ): Promise<void> {
+    try {
+      // 1. Get task to verify it's collaborative
+      const task = await Task.findById(taskId).lean();
+      if (!task || task.taskType !== TaskType.COLLABORATIVE) {
+        return; // Only for collaborative tasks
+      }
+
+      // 2. Get all subtasks for this task
+      const allSubtasks = await SubTask.find({
+        taskId: new Types.ObjectId(taskId),
+        isDeleted: false,
+      }).lean();
+
+      if (allSubtasks.length === 0) {
+        return; // No subtasks
+      }
+
+      // 3. Count completed subtasks
+      const completedSubtasks = allSubtasks.filter(st => st.isCompleted).length;
+      const totalSubtasks = allSubtasks.length;
+
+      // 4. Check if ALL subtasks are completed
+      if (completedSubtasks === totalSubtasks) {
+        // 5. Find or create TaskProgress for this child
+        let taskProgress = await TaskProgress.findOne({
+          taskId: new Types.ObjectId(taskId),
+          userId: userId,
+          isDeleted: false,
+        });
+
+        if (!taskProgress) {
+          // Create new progress record
+          taskProgress = new TaskProgress({
+            taskId: new Types.ObjectId(taskId),
+            userId: userId,
+            status: TaskProgressStatus.COMPLETED,
+            completedAt: new Date(),
+            progressPercentage: 100,
+            completedSubtaskIndexes: allSubtasks.map((_, index) => index),
+          });
+          await taskProgress.save();
+          
+          logger.info(
+            `[SubTask] Created TaskProgress for child ${userId} - All ${completedSubtasks}/${totalSubtasks} subtasks completed`
+          );
+        } else {
+          // Update existing progress
+          taskProgress.status = TaskProgressStatus.COMPLETED;
+          taskProgress.completedAt = new Date();
+          taskProgress.progressPercentage = 100;
+          taskProgress.completedSubtaskIndexes = allSubtasks.map((_, index) => index);
+          await taskProgress.save();
+          
+          logger.info(
+            `[SubTask] Updated TaskProgress for child ${userId} - All ${completedSubtasks}/${totalSubtasks} subtasks completed`
+          );
+        }
+
+        // 6. Sync parent task status (check if ALL children completed)
+        await this.syncParentTaskStatusWithChildrenProgress(taskId);
+      }
+    } catch (error) {
+      errorLogger.error('[SubTask] Error in checkAndSyncChildTaskProgress:', error);
+      // Don't throw - this is a background check, shouldn't break main flow
+    }
+  }
+
+  /**
+   * Sync parent task status based on all children's TaskProgress
+   * @param taskId - Parent task ID
+   * @private
+   */
+  private async syncParentTaskStatusWithChildrenProgress(taskId: string): Promise<void> {
+    try {
+      // Import TaskProgress service to reuse logic
+      const { TaskProgressService } = await import('../../taskProgress.module/taskProgress.service');
+      const taskProgressService = new TaskProgressService();
+      
+      // Use the existing sync method from TaskProgressService
+      await (taskProgressService as any).syncParentTaskStatusWithChildrenProgress(taskId);
+    } catch (error) {
+      errorLogger.error('[SubTask] Error in syncParentTaskStatusWithChildrenProgress:', error);
+      // Don't throw - this is a background check
+    }
+  }
+
+  /**
+   * Create or update SubTaskProgress for a child
+   * Tracks per-child subtask completion independently
+   * @param subtaskId - SubTask ID
+   * @param userId - Child user ID
+   * @param isCompleted - Completion status
+   * @private
+   */
+  private async createSubTaskProgress(
+    subtaskId: string,
+    userId: Types.ObjectId,
+    isCompleted: boolean
+  ): Promise<void> {
+    try {
+      const subtask = await this.model.findById(subtaskId);
+      if (!subtask) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+      }
+
+      await SubTaskProgress.findOneAndUpdate(
+        {
+          taskId: new Types.ObjectId(subtask.taskId),
+          subtaskId: new Types.ObjectId(subtaskId),
+          userId: userId,
+          isDeleted: false,
+        },
+        {
+          taskId: new Types.ObjectId(subtask.taskId),
+          subtaskId: new Types.ObjectId(subtaskId),
+          userId: userId,
+          isCompleted,
+          completedAt: isCompleted ? new Date() : undefined,
+        },
+        { upsert: true, new: true }
+      );
+      
+      logger.info(
+        `[SubTask] SubTaskProgress ${isCompleted ? 'created/updated' : 'reset'} for child ${userId} on subtask ${subtaskId}`
+      );
+    } catch (error) {
+      errorLogger.error('[SubTask] Error in createSubTaskProgress:', error);
+      // Don't throw - background operation
+    }
+  }
+
+  /**
+   * Update parent task progress based on child's subtask completion
+   * @param subtaskId - SubTask ID
+   * @param userId - Child user ID who completed the subtask
+   * @private
+   */
+  private async updateParentTaskProgressFromChildProgress(
+    subtaskId: string,
+    userId: Types.ObjectId
+  ): Promise<void> {
+    try {
+      const subtask = await this.model.findById(subtaskId);
+      if (!subtask) {
+        return;
+      }
+
+      const taskId = subtask.taskId.toString();
+      
+      // For collaborative tasks, update based on this child's progress
+      const task = await Task.findById(taskId).lean();
+      if (!task || task.taskType !== TaskType.COLLABORATIVE) {
+        // For non-collaborative tasks, use old logic (global subtask completion)
+        await this.updateParentTaskProgressOld(taskId);
+        return;
+      }
+
+      // Count completed subtasks by this child
+      const completedCount = await SubTaskProgress.countDocuments({
+        taskId: new Types.ObjectId(taskId),
+        userId: userId,
+        isCompleted: true,
+        isDeleted: false,
+      });
+
+      const totalSubtasks = await SubTask.countDocuments({
+        taskId: new Types.ObjectId(taskId),
+        isDeleted: false,
+      });
+
+      // Update TaskProgress for this child
+      const taskProgress = await TaskProgress.findOne({
+        taskId: new Types.ObjectId(taskId),
+        userId: userId,
+        isDeleted: false,
+      });
+
+      if (taskProgress) {
+        const progressPercentage = totalSubtasks > 0 
+          ? Math.round((completedCount / totalSubtasks) * 100) 
+          : 0;
+
+        taskProgress.progressPercentage = progressPercentage;
+        
+        // If all subtasks completed by this child
+        if (completedCount === totalSubtasks && totalSubtasks > 0) {
+          taskProgress.status = TaskProgressStatus.COMPLETED;
+          taskProgress.completedAt = new Date();
+          taskProgress.completedSubtaskIndexes = Array.from({ length: totalSubtasks }, (_, i) => i);
+        } else if (completedCount > 0) {
+          taskProgress.status = TaskProgressStatus.IN_PROGRESS;
+        }
+
+        await taskProgress.save();
+
+        // Sync parent task status
+        await this.syncParentTaskStatusWithChildrenProgress(taskId);
+      }
+    } catch (error) {
+      errorLogger.error('[SubTask] Error in updateParentTaskProgressFromChildProgress:', error);
+      // Don't throw - background operation
+    }
+  }
+
+  /**
+   * Old method for non-collaborative tasks
+   * @param taskId - Parent task ID
+   * @private
+   */
+  private async updateParentTaskProgressOld(taskId: string): Promise<void> {
+    const stats = await SubTask.getTaskCompletionStats(taskId);
+
+    await Task.findByIdAndUpdate(taskId, {
+      totalSubtasks: stats.total,
+      completedSubtasks: stats.completed,
+      // Auto-complete task if all subtasks are done
+      status: stats.total > 0 && stats.completed === stats.total ? TaskStatus.COMPLETED : undefined,
+      completedTime: stats.total > 0 && stats.completed === stats.total ? new Date() : undefined,
+    });
   }
 }

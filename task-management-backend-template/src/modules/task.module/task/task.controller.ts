@@ -276,12 +276,25 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     }
 
     // Verify user has access to this task
+    // Convert userId to string for comparison
+    const userIdStr = userId.toString();
+    
+    const createdByIdStr = result.createdById?._id 
+      ? result.createdById._id.toString() 
+      : result.createdById?.toString();
+    
+    const ownerUserIdStr = result.ownerUserId 
+      ? result.ownerUserId.toString() 
+      : result.ownerUserId?.toString();
+    
+    const assignedUserIdsStr = (result.assignedUserIds || []).map((id: any) => 
+      id._id ? id._id.toString() : id.toString()
+    );
+
     const hasAccess =
-      result.createdById?._id?.toString() === userId ||
-      result.ownerUserId?.toString() === userId ||
-      (result.assignedUserIds || []).some(
-        (id: any) => id.toString() === userId,
-      );
+      createdByIdStr === userIdStr ||
+      ownerUserIdStr === userIdStr ||
+      assignedUserIdsStr.includes(userIdStr);
 
     if (!hasAccess) {
       throw new ApiError(
@@ -557,7 +570,8 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       sortBy: (req.query.sortBy as string) || '-startTime',
     };
 
-    const result = await this.taskService.getChildrenTasksForDashboard(
+    // const result = await this.taskService.getChildrenTasksForDashboard(
+    const result = await this.taskService.getChildrenTasksForDashboardV2(
       new Types.ObjectId(businessUserId),
       filters,
       options,

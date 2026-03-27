@@ -59,9 +59,12 @@ router.get(
 
 /*-───────────────────────────────── 2️⃣🔂
 |  Child | TaskProgress | edit-update-task-flow.png | Update progress status (start/complete)
-|  @desc Mark task as started or completed
+|  @desc Mark task as started or completed (for COLLABORATIVE tasks only)
+|  @desc Auto-completes parent task when ALL assigned children complete
 |  @auth Child user (task assignee)
 |  @rateLimit 30 requests per minute (prevents spam)
+|  @note For personal/singleAssignment tasks, use /tasks/:id/status instead
+|  @note When last child completes → parent task auto-marked as completed
 └──────────────────────────────────*/
 router.put(
   '/:taskId/status',

@@ -882,7 +882,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   // Parent Dashboard: Get All Children's Tasks
   // ────────────────────────────────────────────────────────────────────────
 
-  /** ✔️ 🔁
+  /** ✔️ 🔁  💎✨🔍 -> V2 Found
    * Get all children's tasks for parent dashboard
    * Figma: teacher-parent-dashboard/dashboard/dashboard-flow-01.png
    *
@@ -912,10 +912,10 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
     /*----------------------- -----------------------*/
     // Try cache first
-    const cached = await this.getFromCache(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   return cached;
+    // }
 
     // Get all active children for this business user
     const { ChildrenBusinessUser } =
@@ -1086,6 +1086,307 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       filters: {
         status: filters.status || 'all',
         taskType: filters.taskType || 'children',
+      },
+    };
+
+    // console.log('getChildrenTasksForDashboard response :: ', response);
+
+    // Cache the result (2 minutes for task lists)
+    await this.setInCache(cacheKey, response, 120);
+
+    return response;
+  }
+
+  async getChildrenTasksForDashboardV2(
+    businessUserId: Types.ObjectId,
+    filters: any,
+    options: any,
+  ) {
+    const cacheKey = `${TASK_CACHE_CONFIG.PREFIX}:dashboard:children-tasks:${businessUserId.toString()}:${filters.status || 'all'}:${filters.taskType || 'children'}:page:${options.page || 1}`;
+
+    /*----------------------- -----------------------*/
+    // Try cache first
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   return cached;
+    // }
+
+    // Get all active children for this business user
+    const { ChildrenBusinessUser } =
+      await import('../../childrenBusinessUser.module/childrenBusinessUser.model');
+
+    const childrenRelations = await ChildrenBusinessUser.find({
+      parentBusinessUserId: businessUserId,
+      status: 'active',
+      isDeleted: false,
+    })
+      .select('childUserId')
+      .lean();
+
+    const childUserIds = childrenRelations.map((rel: any) => rel.childUserId);
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Build query based on taskType filter
+    // IMPORTANT: 'children' is NOT a real taskType in the database
+    // It's a UI filter concept that means "show all children's tasks"
+    // Real taskTypes in DB: TaskType.PERSONAL, TaskType.SINGLE_ASSIGNMENT, TaskType.COLLABORATIVE
+    // ────────────────────────────────────────────────────────────────────────
+    const taskTypeFilter = filters.taskType || 'children';
+
+    let query: any = {
+      isDeleted: false,
+    };
+
+    if (taskTypeFilter === TaskType.PERSONAL) {
+      // Parent's personal tasks only (tasks where parent is the owner)
+      query.ownerUserId = businessUserId;
+      query.taskType = TaskType.PERSONAL;
+    } else {
+      // 'children' filter: Show all tasks assigned to any of the parent's children
+      // This includes:
+      // - singleAssignment tasks assigned to one child
+      // - collaborative tasks assigned to multiple children
+      query.assignedUserIds = { $in: childUserIds };
+      // Don't filter by taskType here - we want ALL children's tasks
+      // The taskType field in DB can be 'singleAssignment' or 'collaborative'
+    }
+
+    // Apply status filter
+    if (filters.status && filters.status !== 'all') {
+      query.status = filters.status;
+    }
+
+    // Date range filter
+    if (filters.from || filters.to) {
+      query.startTime = {};
+      if (filters.from) query.startTime.$gte = new Date(filters.from);
+      if (filters.to) query.startTime.$lte = new Date(filters.to);
+    }
+
+    // Execute paginated query with population
+    const result = await this.model.paginate(query, {
+      ...options,
+      populate: [
+        {
+          path: 'assignedUserIds',
+          select: 'name email profileImage',
+        },
+        {
+          path: 'createdById',
+          select: 'name email profileImage',
+        },
+        {
+          path: 'ownerUserId',
+          select: 'name email profileImage',
+        },
+      ],
+    });
+
+    console.log(
+      'getChildrenTasksForDashboard -> result :🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪: ',
+      result,
+    );
+
+    // Transform response to include child-focused information
+    // FIX: result.docs contains the actual tasks array
+    const tasks =
+      result?.results?.map((task: any) => {
+        // Get assigned users (could be 0, 1, or multiple children)
+        const assignedUsers = task.assignedUserIds || [];
+
+        console.log('task :🧪::: ', task);
+
+        return {
+          _id: task._id,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          taskType: task.taskType,
+          scheduledTime: task.scheduledTime,
+          startTime: task.startTime,
+          dueDate: task.dueDate,
+          totalSubtasks: task.totalSubtasks || 0,
+          completedSubtasks: task.completedSubtasks || 0,
+          completionPercentage:
+            task.totalSubtasks > 0
+              ? Math.round((task.completedSubtasks / task.totalSubtasks) * 100)
+              : task.status === TaskStatus.COMPLETED
+                ? 100
+                : 0,
+          subtasks:
+            task.subtasks?.map((st: any, idx: number) => ({
+              _id: st._id,
+              title: st.title,
+              isCompleted: st.isCompleted,
+              order: st.order || idx + 1,
+            })) || [],
+
+          // ──────────────────────────────────────────────────────────────
+          // Child/Children Information (who the task is assigned to)
+          // Supports: 0 (personal), 1 (single), or multiple (collaborative)
+          // ──────────────────────────────────────────────────────────────
+          assignedTo:
+            assignedUsers.length > 0
+              ? assignedUsers.map((child: any) => ({
+                  _id: child._id,
+                  name: child.name,
+                  email: child.email,
+                  profileImage:
+                    child.profileImage?.imageUrl || '/uploads/users/user.png',
+                }))
+              : null,
+
+          // ──────────────────────────────────────────────────────────────
+          // Creator Information (who created this task)
+          // Usually the parent/teacher who assigned the task
+          // ──────────────────────────────────────────────────────────────
+          createdBy: task.createdById
+            ? {
+                _id: task.createdById._id,
+                name: task.createdById.name,
+                email: task.createdById.email,
+                profileImage:
+                  task.createdById.profileImage?.imageUrl ||
+                  '/uploads/users/user.png',
+              }
+            : null,
+
+          // ──────────────────────────────────────────────────────────────
+          // Owner Information (for personal tasks only)
+          // Personal tasks are owned by the user, not assigned to others
+          // ──────────────────────────────────────────────────────────────
+          owner: task.ownerUserId
+            ? {
+                _id: task.ownerUserId._id,
+                name: task.ownerUserId.name,
+                email: task.ownerUserId.email,
+                profileImage:
+                  task.ownerUserId.profileImage?.imageUrl ||
+                  '/uploads/users/user.png',
+              }
+            : null,
+        };
+      }) || [];
+
+
+    //=============================================================
+    
+    let baseQuery: any = {
+      isDeleted: false,
+    };
+
+    // Build the children tasks query (for "All" and status tabs)
+    let childrenTasksQuery = { ...baseQuery };
+
+    if (taskTypeFilter !== TaskType.PERSONAL) {
+      childrenTasksQuery.assignedUserIds = { $in: childUserIds };
+      
+      // Apply status filter only for status-specific tabs
+      if (filters.status && filters.status !== 'all') {
+        childrenTasksQuery.status = filters.status;
+      }
+      
+      // Date range filter
+      if (filters.from || filters.to) {
+        childrenTasksQuery.startTime = {};
+        if (filters.from) childrenTasksQuery.startTime.$gte = new Date(filters.from);
+        if (filters.to) childrenTasksQuery.startTime.$lte = new Date(filters.to);
+      }
+    }
+
+    // Build personal tasks query
+    let personalTasksQuery = { ...baseQuery };
+    personalTasksQuery.ownerUserId = businessUserId;
+    personalTasksQuery.taskType = TaskType.PERSONAL;
+
+    // Apply same date range to personal tasks if exists
+    if (filters.from || filters.to) {
+      personalTasksQuery.startTime = {};
+      if (filters.from) personalTasksQuery.startTime.$gte = new Date(filters.from);
+      if (filters.to) personalTasksQuery.startTime.$lte = new Date(filters.to);
+    }
+
+    // --- 🔢 Get All Counts in One Aggregation Pipeline ---
+    const countsPipeline = [
+      {
+        $facet: {
+          // Status counts for children's tasks
+          statusCounts: [
+            { $match: childrenTasksQuery },
+            {
+              $group: {
+                _id: '$status',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                status: '$_id',
+                count: 1,
+              },
+            },
+          ],
+          
+          // Personal tasks count
+          personalCount: [
+            { $match: personalTasksQuery },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                count: 1,
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const aggregationResult = await this.model.aggregate(countsPipeline);
+
+    // Process the results
+    const statusCounts = aggregationResult[0].statusCounts;
+    const personalCount = aggregationResult[0].personalCount[0]?.count || 0;
+
+    // Convert status counts to object
+    const countByStatus = statusCounts.reduce((acc, curr) => {
+      acc[curr.status] = curr.count;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Calculate total (sum of all status counts)
+    const totalChildrenTasks = Object.values(countByStatus).reduce((sum, count) => sum + count, 0);
+
+    // --- 📄 Execute paginated query for the active tab ---
+    let activeQuery = taskTypeFilter === TaskType.PERSONAL 
+      ? personalTasksQuery 
+      : childrenTasksQuery;
+    
+    //===============================================================
+
+    const response = {
+      tasks,
+      pagination: {
+        page: result.page || 1,
+        limit: result.limit || 10,
+        total: result.total || 0,
+        totalPages: result.totalPages || 0,
+      },
+      filters: {
+        status: filters.status || 'all',
+        taskType: filters.taskType || 'children',
+      },
+      counts: {
+        total: totalChildrenTasks + personalCount, // All tasks
+        byStatus: countByStatus, // { notStarted: 1, inProgress: 2, completed: 2 }
+        personal: personalCount, // Personal tasks count
       },
     };
 

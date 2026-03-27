@@ -20,10 +20,10 @@ export const createTaskProgressValidationSchema = z.object({
  */
 export const updateTaskProgressValidationSchema = z.object({
   params: z.object({
-    taskId: z.string().uuid('Invalid task ID format'),
+    taskId: z.string(), // .uuid('Invalid task ID format')
   }),
   body: z.object({
-    userId: z.string().uuid('Invalid user ID format'),
+    // userId: z.string(), // .uuid('Invalid user ID format')
     status: z.nativeEnum(TASK_PROGRESS_STATUS),
     note: z.string().max(500, 'Note cannot exceed 500 characters').optional(),
   }),

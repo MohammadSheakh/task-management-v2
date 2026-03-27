@@ -19,7 +19,7 @@ import {
 import { redisClient } from '../../helpers/redis/redis';
 import { errorLogger, logger } from '../../shared/logger';
 import { User } from '../user.module/user/user.model';
-import { TaskType } from '../task.module/task/task.constant';
+import { TaskType, TaskStatus } from '../task.module/task/task.constant';
 import { NotificationService } from '../notification.module/notification/notification.service';
 import { socketService } from '../../helpers/socket/socketForChatV3';
 import { ACTIVITY_TYPE } from '../notification.module/notification/notification.constant';
@@ -226,10 +226,135 @@ export class TaskProgressService extends GenericService<
     // 🚀 NEW: Emit real-time progress update to parent
     await this.emitProgressUpdateToParent(taskId, userId, status, oldStatus);
 
+    // 🆕 NEW: Sync parent task status based on all children's progress
+    if (
+      status === TaskProgressStatus.COMPLETED &&
+      oldStatus !== TaskProgressStatus.COMPLETED
+    ) {
+      await this.syncParentTaskStatusWithChildrenProgress(taskId);
+    } else if (
+      status === TaskProgressStatus.IN_PROGRESS &&
+      oldStatus === TaskProgressStatus.NOT_STARTED
+    ) {
+      // Child started working → update parent to "inProgress"
+      await this.syncParentTaskStatusWithChildrenProgress(taskId);
+    }
+
     // Invalidate cache
     await this.invalidateCache(taskId, userId);
 
     return progress;
+  }
+
+  /** ✔️
+   * Check if all children completed a collaborative task
+   * If yes, auto-complete the parent task
+   * Also checks if ANY child started → update parent to "inProgress"
+   * @param taskId - The task ID to check
+   * @private
+   */
+  private async syncParentTaskStatusWithChildrenProgress(taskId: string): Promise<void> {
+    try {
+      // 1. Get task to verify it's collaborative
+      const task = await Task.findById(taskId).lean();
+      if (!task || task.taskType !== TaskType.COLLABORATIVE) {
+        return; // Only for collaborative tasks
+      }
+
+      // 2. Get all assigned users for this collaborative task
+      const assignedUserIds = task.assignedUserIds || [];
+      if (assignedUserIds.length === 0) {
+        return; // No assigned users
+      }
+
+      // 3. Get all progress records for this task
+      const allProgress = await this.model
+        .find({
+          taskId: new Types.ObjectId(taskId),
+          userId: { $in: assignedUserIds.map(id => new Types.ObjectId(id)) },
+          isDeleted: false,
+        })
+        .lean();
+
+      // 4. Count by status
+      const notStartedCount = allProgress.filter(
+        p => p.status === TaskProgressStatus.NOT_STARTED,
+      ).length;
+      
+      const completedCount = allProgress.filter(
+        p => p.status === TaskProgressStatus.COMPLETED,
+      ).length;
+
+      const totalAssignedUsers = assignedUserIds.length;
+
+      // 5. Determine parent task status
+      let newParentStatus: TaskStatus | null = null;
+
+      if (completedCount === totalAssignedUsers) {
+        // ALL completed → Parent: "completed"
+        newParentStatus = TaskStatus.COMPLETED;
+      } else if (notStartedCount < totalAssignedUsers) {
+        // At least ONE started → Parent: "inProgress"
+        newParentStatus = TaskStatus.IN_PROGRESS;
+      }
+      // else: All notStarted → Keep parent as "pending"
+
+      // 6. Update parent task if needed
+      if (newParentStatus && task.status !== newParentStatus) {
+        await Task.findByIdAndUpdate(
+          new Types.ObjectId(taskId),
+          {
+            status: newParentStatus,
+            ...(newParentStatus === TaskStatus.COMPLETED && {
+              completedAt: new Date(),
+            }),
+            ...(newParentStatus === TaskStatus.IN_PROGRESS && {
+              startTime: task.startTime || new Date(),
+            }),
+          },
+          { new: true },
+        );
+
+        // Log for observability
+        logger.info(
+          `[TaskProgress] Synced parent task ${taskId} status to ${newParentStatus} - ` +
+          `Completed: ${completedCount}/${totalAssignedUsers}, NotStarted: ${notStartedCount}/${totalAssignedUsers}`,
+        );
+
+        // Invalidate task cache
+        await this.invalidateParentTaskCache(taskId);
+
+        // Emit event for real-time update
+        socketService.emitToRoom(`task:${taskId}`, 'task:status-synced', {
+          taskId,
+          status: newParentStatus,
+          completedCount,
+          totalAssignedUsers,
+          syncedAt: new Date(),
+          syncedBy: 'system',
+          reason: 'children_progress_updated',
+        });
+      }
+    } catch (error) {
+      errorLogger.error('[TaskProgress] Error in syncParentTaskStatusWithChildrenProgress:', error);
+      // Don't throw - this is a background check, shouldn't break main flow
+    }
+  }
+
+  /**
+   * Invalidate parent task cache
+   */
+  private async invalidateParentTaskCache(taskId: string): Promise<void> {
+    try {
+      const cacheKey = `task:detail:${taskId}`;
+      await redisClient.del(cacheKey);
+      
+      // Also invalidate list caches
+      await redisClient.del('task:list');
+      await redisClient.del('task:statistics');
+    } catch (error) {
+      errorLogger.error('[TaskProgress] Error invalidating parent task cache:', error);
+    }
   }
 
   /**
@@ -243,9 +368,14 @@ export class TaskProgressService extends GenericService<
     const taskObjectId = new Types.ObjectId(taskId);
     const userObjectId = new Types.ObjectId(userId);
 
-    // Verify task exists and has the subtask
-    const task = await Task.findById(taskId);
-    if (!task || !task.subtasks || task.subtasks.length <= subtaskIndex) {
+    // ✅ FIX: Get subtask from SubTask collection (not embedded in Task)
+    const { SubTask } = await import('../task.module/subTask/subTask.model');
+    const subtasks = await SubTask.find({
+      taskId: taskObjectId,
+      isDeleted: false,
+    }).sort({ order: 1 });
+
+    if (!subtasks || subtasks.length <= subtaskIndex) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task or subtask not found');
     }
 
@@ -270,12 +400,23 @@ export class TaskProgressService extends GenericService<
     }
 
     // Update progress percentage
-    progress.updateProgressPercentage(task.subtasks.length);
+    progress.updateProgressPercentage(subtasks.length);
 
     // Set startedAt if this is the first subtask
     if (progress.completedSubtaskIndexes.length === 1 && !progress.startedAt) {
       progress.startedAt = new Date();
       progress.status = TaskProgressStatus.IN_PROGRESS;
+    }
+
+    // 🆕 NEW: Check if ALL subtasks completed → auto-complete child's task progress
+    const totalSubtasks = subtasks.length;
+    const completedSubtasks = progress.completedSubtaskIndexes.length;
+
+    if (completedSubtasks === totalSubtasks && totalSubtasks > 0) {
+      // All subtasks completed → mark task as completed
+      progress.status = TaskProgressStatus.COMPLETED;
+      progress.completedAt = new Date();
+      progress.progressPercentage = 100;
     }
 
     await progress.save();
@@ -285,13 +426,13 @@ export class TaskProgressService extends GenericService<
       await this.notifyParentOnTaskCompletion(taskId, userId);
     }
 
-    // 🚀 NEW: Emit real-time subtask completion to parent
-    await this.emitSubtaskCompletionToParent(
-      taskId,
-      userId,
-      subtaskIndex,
-      progress.progressPercentage,
-    );
+    // 🆕 NEW: Sync parent task status based on all children's progress
+    if (progress.status === TaskProgressStatus.COMPLETED) {
+      await this.syncParentTaskStatusWithChildrenProgress(taskId);
+    } else if (progress.status === TaskProgressStatus.IN_PROGRESS) {
+      // Child started working via subtasks → update parent to "inProgress"
+      await this.syncParentTaskStatusWithChildrenProgress(taskId);
+    }
 
     // Invalidate cache
     await this.invalidateCache(taskId, userId);

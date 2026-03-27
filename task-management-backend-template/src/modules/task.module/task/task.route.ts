@@ -173,9 +173,7 @@ router
 |  @auth All authenticated users (child, business)
 |  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router
-  .route('/daily-progress')
-  .get(auth(TRole.commonUser), taskLimiter, controller.getDailyProgress);
+// NOTE: Route removed - see line 253 for active definition
 
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | home-flow.png | Get task details by ID
@@ -226,6 +224,8 @@ router
 |  @desc Update task status with automatic timestamp handling
 |  @auth All authenticated users (child, business)
 |  @access Task creator, owner, or assigned users only
+|  @note For COLLABORATIVE tasks, use /task-progress/:taskId/status instead
+|  @note This endpoint directly updates parent task status (personal & singleAssignment only)
 └──────────────────────────────────*/
 router
   .route('/:id/status')
@@ -316,6 +316,16 @@ router
 router
   .route('/suggest-preferred-time')
   .get(auth(TRole.commonUser), controller.getPreferredTimeSuggestion);
+
+// ────────────────────────────────────────────────────────────────────────
+// SubTask Progress Routes (Per-Child Subtask Completion Tracking)
+// NEW: For collaborative tasks, each child has independent subtask progress
+// Figma: app-user/group-children-user/home-flow.png
+//        task-details-with-subTasks.png
+// ────────────────────────────────────────────────────────────────────────
+import { SubTaskProgressRoute } from '../subTaskProgress/subTaskProgress.route';
+
+router.use('/subtask-progress', SubTaskProgressRoute);
 
 // ────────────────────────────────────────────────────────────────────────
 // Parent Dashboard: Children's Tasks
