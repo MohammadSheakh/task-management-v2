@@ -70,7 +70,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return subtasks;
   }
 
-  /**
+  /** ✔️
    * Toggle subtask completion status
    * @param subtaskId - SubTask ID
    * @param isCompleted - New completion status
@@ -86,6 +86,9 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     isCompleted: boolean,
     userId: Types.ObjectId
   ): Promise<ISubTask> {
+
+    console.log("hit service 🪄🪄");
+
     // 🆕 NEW: ONLY create/update SubTaskProgress for this child
     // Do NOT update the global SubTask document
     await this.createSubTaskProgress(
@@ -113,6 +116,8 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     if (!updatedSubtask) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
     }
+
+    console.log("updatedSubtask :: 🧪 ", updatedSubtask);
 
     return updatedSubtask;
   }

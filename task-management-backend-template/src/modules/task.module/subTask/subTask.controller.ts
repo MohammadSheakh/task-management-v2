@@ -83,13 +83,15 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
     });
   };
 
-  /**
+  /** ✔️
    * Toggle subtask completion status
    */
   toggleStatus = async (req: Request, res: Response) => {
     const subtaskId = req.params.id;
     const { isCompleted } = req.body;
     const userId = req.user?.userId;
+
+    // console.log("isCompleted :: ", isCompleted);
 
     if (!userId) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
@@ -105,6 +107,7 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       userId
     );
 
+    // console.log("result :: ", result);
     sendResponse(res, {
       code: StatusCodes.OK,
       data: result,

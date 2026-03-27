@@ -269,7 +269,6 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const select = '-__v';
     const result = await this.service.getById(taskId, populateOptions, select);
 
-    console.log('result :: ', result);
 
     if (!result) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
@@ -320,7 +319,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const completedSubtasks = formattedSubtasks.filter(
       (st: any) => st.isCompleted,
     ).length;
-    const subtaskProgressPercentage =
+    const subtaskProgressPercentage = 
       totalSubtasks > 0
         ? Math.round((completedSubtasks / totalSubtasks) * 100)
         : 0;

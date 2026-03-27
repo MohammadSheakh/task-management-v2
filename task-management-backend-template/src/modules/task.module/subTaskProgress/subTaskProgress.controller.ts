@@ -132,6 +132,8 @@ export class SubTaskProgressController extends GenericController<
     const userId = req.user?.userId;
     const { isCompleted } = req.body;
 
+    console.log("Hit .. toggleMySubtask with:", { taskId, subtaskId, userId, isCompleted });
+
     if (!userId) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
