@@ -1,11 +1,11 @@
 //@ts-ignore
 import { Types } from 'mongoose';
-import { TAnalyticsTimeRange } from '../analytics.constant';
+import { TAnalyticsTimeRange, TAnalyticsTrendDirection, TAnalyticsPeriod, TProductivityTrend } from '../analytics.constant';
 
 /**
  * User Analytics Interface
  * Comprehensive analytics for individual users
- * 
+ *
  * @see Figma: home-flow.png, profile-permission-account-interface.png
  */
 
@@ -40,7 +40,7 @@ export interface IProductivityScore {
     tasksCompleted: number;
     onTimeCompletion: number;
   };
-  trend: 'up' | 'down' | 'stable';
+  trend: TProductivityTrend;
   percentile: number;      // User's percentile among all users
 }
 
@@ -54,9 +54,9 @@ export interface ICompletionRateAnalytics {
     thisYear?: number;
   };
   trend: {
-    direction: 'increasing' | 'decreasing' | 'stable';
+    direction: TAnalyticsTrendDirection;
     percentageChange: number;
-    period: 'week' | 'month';
+    period: TAnalyticsPeriod;
   };
 }
 

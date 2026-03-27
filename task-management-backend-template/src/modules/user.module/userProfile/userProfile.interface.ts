@@ -1,20 +1,7 @@
 //@ts-ignore
 import { Model, Types } from 'mongoose';
 import { PaginateOptions, PaginateResult } from '../../../types/paginate';
-
-/**
- * Support Mode Enum
- * Defines how the app should communicate with the user
- * @see Figma: response-based-on-mode.png, profile-permission-account-interface.png
- */
-export type TSupportMode = 'calm' | 'encouraging' | 'logical';
-
-/**
- * Notification Style Enum
- * Defines how reminders should feel
- * @see Figma: profile-permission-account-interface.png (Notification Style section)
- */
-export type TNotificationStyle = 'gentle' | 'firm' | 'xyz';
+import { TSupportMode, TNotificationStyle, TGender } from './userProfile.constants';
 
 export interface IUserProfile {
   // _taskId: undefined | Types.ObjectId;
@@ -25,7 +12,8 @@ export interface IUserProfile {
 
   location?: string;
   dob?: Date;
-  gender?: any;
+  gender?: TGender;
+  age : number;
 
   // ─── Support Mode & Notification Preferences ───────────────────────────
   /**

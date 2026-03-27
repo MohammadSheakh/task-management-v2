@@ -56,12 +56,24 @@ export enum NotificationStatus {
 }
 
 /**
+ * Reminder Type Enum
+ * Defines when the reminder should be triggered relative to deadline
+ */
+export enum ReminderType {
+  BEFORE_DEADLINE = 'before_deadline',
+  AT_DEADLINE = 'at_deadline',
+  AFTER_DEADLINE = 'after_deadline',
+  CUSTOM = 'custom',
+}
+
+/**
  * Type exports from enums (for MongoDB schema validation and TypeScript)
  */
 export type TNotificationType = `${NotificationType}`;
 export type TNotificationPriority = `${NotificationPriority}`;
 export type TNotificationChannel = `${NotificationChannel}`;
 export type TNotificationStatus = `${NotificationStatus}`;
+export type TReminderType = `${ReminderType}`;
 
 /**
  * Legacy constant exports (for backward compatibility)
@@ -71,6 +83,7 @@ export const NOTIFICATION_TYPE = NotificationType;
 export const NOTIFICATION_PRIORITY = NotificationPriority;
 export const NOTIFICATION_CHANNEL = NotificationChannel;
 export const NOTIFICATION_STATUS = NotificationStatus;
+export const REMINDER_TYPE = ReminderType;
 
 /**
  * Notification Limits Configuration

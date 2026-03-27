@@ -1,10 +1,17 @@
 //@ts-ignore
 import { Types } from 'mongoose';
+import {
+  TGroupMemberRole,
+  TGroupActivityType,
+  TGroupPerformancePeriod,
+  TGroupTrendDirection,
+  TGroupTrendsPeriod,
+} from './groupAnalytics.constant';
 
 /**
  * Group Analytics Interface
  * Analytics for team/group performance, member statistics, and leaderboards
- * 
+ *
  * @see Figma: dashboard-flow-01.png, team-member-flow-01.png
  */
 
@@ -13,7 +20,7 @@ export interface IMemberStats {
   memberId: Types.ObjectId;
   memberName: string;
   memberEmail: string;
-  role: 'owner' | 'admin' | 'member';
+  role: TGroupMemberRole;
   joinedDate: Date;
   tasksAssigned: number;
   tasksCompleted: number;
@@ -48,7 +55,7 @@ export interface IGroupOverviewAnalytics {
 
 // Group Activity Feed Item
 export interface IGroupActivity {
-  type: 'task_completed' | 'task_created' | 'task_updated' | 'member_joined' | 'member_left';
+  type: TGroupActivityType;
   memberId: Types.ObjectId;
   memberName: string;
   taskTitle?: string;
@@ -73,7 +80,7 @@ export interface ILeaderboardEntry {
 // Group Performance Metrics
 export interface IGroupPerformanceMetrics {
   groupId: Types.ObjectId;
-  period: 'week' | 'month' | 'all';
+  period: TGroupPerformancePeriod;
   totalTasksCompleted: number;
   averageCompletionRate: number;
   averageResponseTime: number;  // Time from assignment to first action (hours)
@@ -83,7 +90,7 @@ export interface IGroupPerformanceMetrics {
     lowEngagement: number;    // < 50% completion rate
   };
   trend: {
-    direction: 'improving' | 'declining' | 'stable';
+    direction: TGroupTrendDirection;
     percentageChange: number;
   };
 }
@@ -106,7 +113,7 @@ export interface IMemberComparison {
 
 // Group Trends Data
 export interface IGroupTrendsData {
-  period: 'week' | 'month' | 'quarter';
+  period: TGroupTrendsPeriod;
   data: {
     date: string;
     tasksCompleted: number;
@@ -128,8 +135,8 @@ export interface IGroupAnalyticsService {
   getGroupOverview(groupId: Types.ObjectId): Promise<IGroupOverviewAnalytics>;
   getMemberStats(groupId: Types.ObjectId): Promise<IMemberStats[]>;
   getLeaderboard(groupId: Types.ObjectId, limit?: number): Promise<ILeaderboardEntry[]>;
-  getPerformanceMetrics(groupId: Types.ObjectId, period?: 'week' | 'month' | 'all'): Promise<IGroupPerformanceMetrics>;
+  getPerformanceMetrics(groupId: Types.ObjectId, period?: TGroupPerformancePeriod): Promise<IGroupPerformanceMetrics>;
   getMemberComparison(groupId: Types.ObjectId, memberId: Types.ObjectId): Promise<IMemberComparison>;
-  getGroupTrends(groupId: Types.ObjectId, period?: 'week' | 'month' | 'quarter'): Promise<IGroupTrendsData>;
+  getGroupTrends(groupId: Types.ObjectId, period?: TGroupTrendsPeriod): Promise<IGroupTrendsData>;
   getActivityFeed(groupId: Types.ObjectId, limit?: number): Promise<IGroupActivity[]>;
 }

@@ -2,7 +2,7 @@ import { Model, Types } from 'mongoose';
 
 
 import { PaginateOptions, PaginateResult } from '../../../types/paginate';
-import { UserSubscriptionStatusType } from './userSubscription.constant';
+import { UserSubscriptionStatusType, TSubscriptionGateway, TPaymentEnvironment, TPlatform } from './userSubscription.constant';
 
 export interface IUserSubscription {
   // _taskId: undefined | Types.ObjectId;
@@ -17,23 +17,16 @@ export interface IUserSubscription {
   isAutoRenewed : boolean;
   cancelledAt :  Date ;
   cancelledAtPeriodEnd : boolean;
-  status :
-          UserSubscriptionStatusType.active |
-          UserSubscriptionStatusType.past_due |
-          UserSubscriptionStatusType.cancelled |
-          UserSubscriptionStatusType.unpaid |
-          UserSubscriptionStatusType.incomplete |
-          UserSubscriptionStatusType.incomplete_expired |
-          UserSubscriptionStatusType.trialing;
+  status: UserSubscriptionStatusType;
 
   // 🆕 Payment Gateway Tracking
-  paymentGateway: 'stripe' | 'revenuecat';
-  
+  paymentGateway: TSubscriptionGateway;
+
   // Stripe Specific (for Business plans)
   stripe_subscription_id : string; // 🟢🟢 for recurring payment
   stripe_transaction_id : string; // 🟢🟢 for one time payment
   stripe_customer_id?: string;
-  
+
   // 🆕 RevenueCat Specific (for Individual plans)
   revenueCatUserId?: string;
   revenueCatOrderId?: string;
@@ -41,11 +34,11 @@ export interface IUserSubscription {
   appleReceiptData?: string;  // iOS receipt data
   googlePurchaseToken?: string;  // Android purchase token
   originalTransactionId?: string;  // For cross-platform upgrades
-  revenueCatEnvironment?: 'production' | 'sandbox';
-  
+  revenueCatEnvironment?: TPaymentEnvironment;
+
   // 🆕 Purchase Platform
-  purchasePlatform: 'ios' | 'android' | 'web';
-  
+  purchasePlatform: TPlatform;
+
   isActive : boolean;
 
   isDeleted : boolean;

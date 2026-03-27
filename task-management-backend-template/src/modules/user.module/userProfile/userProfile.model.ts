@@ -21,6 +21,11 @@ const userProfileSchema = new Schema<IUserProfile>({
         trim: true,
     },
 
+    age: {
+        type: Number,
+        trim: true,
+    },
+
     dob: {
         type: Date,
     },

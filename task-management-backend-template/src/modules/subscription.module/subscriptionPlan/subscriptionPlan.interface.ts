@@ -1,6 +1,6 @@
 import { Model, Types } from 'mongoose';
 import { PaginateOptions, PaginateResult } from '../../../types/paginate';
-import { TInitialDuration, TRenewalFrequency } from './subscriptionPlan.constant';
+import { TInitialDuration, TRenewalFrequency, TSubscriptionPurchaseChannel, TPlatform } from './subscriptionPlan.constant';
 import { TCurrency } from '../../../enums/payment';
 import { TSubscription } from '../../../enums/subscription';
 
@@ -17,16 +17,13 @@ export interface ISubscriptionPlan {
   // _taskId: undefined | Types.ObjectId;
   _id?: Types.ObjectId; // undefined |  Types.ObjectId |
   subscriptionName : string;
-  subscriptionType: TSubscription.individual |
-            TSubscription.business_starter |
-            TSubscription.business_level1 |
-            TSubscription.business_level2;
+  subscriptionType: TSubscription;
 
-  initialDuration :  TInitialDuration.month ;
-  renewalFrequncy : TRenewalFrequency.monthly ;
+  initialDuration: TInitialDuration;
+  renewalFrequncy: TRenewalFrequency;
   amount : string //number;
 
-  currency : TCurrency.usd;
+  currency: TCurrency;
   features: String[];
 
   /*-─────────────────────────────────
@@ -35,18 +32,18 @@ export interface ISubscriptionPlan {
   maxChildrenAccount : Number;
 
   // 🆕 Payment Gateway Configuration
-  purchaseChannel: 'stripe' | 'revenuecat' | 'both';
-  
+  purchaseChannel: TSubscriptionPurchaseChannel;
+
   // Stripe Specific (for Business plans)
   stripe_product_id : String;
   stripe_price_id : String;
-  
+
   // 🆕 RevenueCat Specific (for Individual plans)
   revenueCatProductIdentifier?: String;  // e.g., "individual_monthly"
   revenueCatPackageIdentifier?: String;  // e.g., "monthly"
-  
+
   // 🆕 Platform availability
-  availablePlatforms: ('ios' | 'android' | 'web')[];
+  availablePlatforms: TPlatform[];
 
   isActive : Boolean;
   isDeleted : Boolean;

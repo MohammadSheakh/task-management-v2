@@ -79,6 +79,128 @@ export type TAnalyticsType =
   | 'performance';
 
 /**
+ * Analytics Trend Direction Enum
+ * Defines the direction of a metric trend
+ */
+export enum AnalyticsTrendDirection {
+  INCREASING = 'increasing',
+  DECREASING = 'decreasing',
+  STABLE = 'stable',
+}
+
+/**
+ * Analytics Period Enum
+ * Defines the time period for analytics
+ */
+export enum AnalyticsPeriod {
+  DAY = 'day',
+  WEEK = 'week',
+  MONTH = 'month',
+}
+
+/**
+ * Analytics Report Period Enum
+ * Defines the period for cohort and churn analysis
+ */
+export enum AnalyticsReportPeriod {
+  MONTH = 'month',
+  QUARTER = 'quarter',
+  YEAR = 'year',
+}
+
+/**
+ * Analytics Impact Level Enum
+ * Defines the impact level of insights
+ */
+export enum AnalyticsImpactLevel {
+  HIGH = 'high',
+  MEDIUM = 'medium',
+  LOW = 'low',
+}
+
+/**
+ * Chart Interval Enum
+ * Defines the interval type for chart data
+ */
+export enum ChartInterval {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly',
+}
+
+/**
+ * Analytics Job Status Enum
+ * Defines the status of analytics jobs
+ */
+export enum AnalyticsJobStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
+/**
+ * Export Format Enum
+ * Defines the format for analytics exports
+ */
+export enum ExportFormat {
+  CSV = 'csv',
+  PDF = 'pdf',
+  JSON = 'json',
+}
+
+/**
+ * Analytics Module Type Enum
+ * Defines the type of analytics module
+ */
+export enum AnalyticsModuleType {
+  USER = 'user',
+  TASK = 'task',
+  GROUP = 'group',
+  ADMIN = 'admin',
+}
+
+/**
+ * Export Status Enum
+ * Defines the status of export jobs
+ */
+export enum ExportStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
+/**
+ * Type exports from enums
+ */
+export type TAnalyticsTrendDirection = `${AnalyticsTrendDirection}`;
+export type TAnalyticsPeriod = `${AnalyticsPeriod}`;
+export type TAnalyticsReportPeriod = `${AnalyticsReportPeriod}`;
+export type TAnalyticsImpactLevel = `${AnalyticsImpactLevel}`;
+export type TChartInterval = `${ChartInterval}`;
+export type TAnalyticsJobStatus = `${AnalyticsJobStatus}`;
+export type TExportFormat = `${ExportFormat}`;
+export type TAnalyticsModuleType = `${AnalyticsModuleType}`;
+export type TExportStatus = `${ExportStatus}`;
+
+/**
+ * Productivity Trend Enum
+ * Defines the trend direction for productivity scores
+ */
+export enum ProductivityTrend {
+  UP = 'up',
+  DOWN = 'down',
+  STABLE = 'stable',
+}
+
+/**
+ * Type export from enum
+ */
+export type TProductivityTrend = `${ProductivityTrend}`;
+
+/**
  * Productivity Score Configuration
  * Weights for calculating user productivity score (0-100)
  */

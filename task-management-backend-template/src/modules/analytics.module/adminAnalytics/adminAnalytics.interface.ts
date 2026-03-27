@@ -1,10 +1,18 @@
 //@ts-ignore
 import { Types } from 'mongoose';
+import {
+  TAnalyticsTimeRange,
+  TAnalyticsTrendDirection,
+  TAnalyticsPeriod,
+  TAnalyticsReportPeriod,
+  TAnalyticsImpactLevel,
+  TChartInterval,
+} from '../analytics.constant';
 
 /**
  * Admin Analytics Interface
  * Platform-wide analytics for system administrators
- * 
+ *
  * @see Figma: dashboard-section-flow.png, user-list-flow.png, subscription-flow.png
  */
 
@@ -92,9 +100,9 @@ export interface IPlatformTaskMetrics {
     collaborative: number;
   };
   trend: {
-    direction: 'increasing' | 'decreasing' | 'stable';
+    direction: TAnalyticsTrendDirection;
     percentageChange: number;
-    period: 'day' | 'week' | 'month';
+    period: TAnalyticsPeriod;
   };
 }
 
@@ -156,7 +164,7 @@ export interface ICohortData {
 
 // Churn Analysis Data
 export interface IChurnAnalytics {
-  period: 'month' | 'quarter' | 'year';
+  period: TAnalyticsReportPeriod;
   totalChurnedUsers: number;
   churnRate: number;  // percentage
   byReason?: {
@@ -184,14 +192,14 @@ export interface IPredictiveAnalytics {
     type: 'growth' | 'revenue' | 'engagement' | 'risk';
     title: string;
     description: string;
-    impact: 'high' | 'medium' | 'low';
+    impact: TAnalyticsImpactLevel;
     action?: string;
   }[];
 }
 
 // User Ratio Chart Data (for dashboard visualization)
 export interface IUserRatioChartData {
-  type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  type: TChartInterval;
   data: {
     period: string;  // Format depends on type: "HH:mm" | "EEEE" | "MMM dd" | "MMM yyyy"
     totalUsers: number;
@@ -204,7 +212,7 @@ export interface IUserRatioChartData {
     totalUsers: number;
     averageActiveUsers: number;
     averageActivityRate: number;
-    trend: 'increasing' | 'decreasing' | 'stable';
+    trend: TAnalyticsTrendDirection;
     percentageChange: number;
   };
 }
@@ -216,11 +224,8 @@ export interface IAdminAnalyticsService {
   getRevenueAnalytics(): Promise<IRevenueAnalytics>;
   getTaskMetrics(): Promise<IPlatformTaskMetrics>;
   getEngagementMetrics(): Promise<IUserEngagementMetrics>;
-  getUserRatioChartData(type?: 'daily' | 'weekly' | 'monthly' | 'yearly'): Promise<IUserRatioChartData>;
+  getUserRatioChartData(type?: TChartInterval): Promise<IUserRatioChartData>;
   getCohortAnalysis(months?: number): Promise<ICohortData[]>;
-  getChurnAnalytics(period?: 'month' | 'quarter' | 'year'): Promise<IChurnAnalytics>;
+  getChurnAnalytics(period?: TAnalyticsReportPeriod): Promise<IChurnAnalytics>;
   getPredictiveAnalytics(months?: number): Promise<IPredictiveAnalytics>;
 }
-
-// Import time range type
-import { TAnalyticsTimeRange } from '../analytics.constant';

@@ -1,5 +1,5 @@
 import { Document, Types } from 'mongoose';
-import { NotificationType, NotificationPriority, NotificationChannel, NotificationStatus } from './notification.constant';
+import { NotificationType, NotificationPriority, NotificationChannel, NotificationStatus, ReminderType } from './notification.constant';
 
 /**
  * Notification Type
@@ -24,6 +24,12 @@ export type TNotificationChannel = `${NotificationChannel}`;
  * Derived from NotificationStatus enum
  */
 export type TNotificationStatus = `${NotificationStatus}`;
+
+/**
+ * Reminder Type
+ * Derived from ReminderType enum
+ */
+export type TReminderType = `${ReminderType}`;
 
 /**
  * Notification Interface
@@ -215,7 +221,7 @@ export interface ITaskReminderConfig {
   taskId: string;
   userId: string;
   reminderTime: Date;
-  reminderType: 'before_deadline' | 'at_deadline' | 'after_deadline' | 'custom';
+  reminderType: TReminderType;
   message?: string;
   channels?: TNotificationChannel[];
 }

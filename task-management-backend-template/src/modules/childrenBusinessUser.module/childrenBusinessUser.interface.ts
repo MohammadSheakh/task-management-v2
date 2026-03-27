@@ -1,11 +1,6 @@
 import { Types, Document, Model } from 'mongoose';
 import { PaginateOptions, PaginateResult } from '../../types/paginate';
-
-/**
- * Children Business User Status
- * Represents the current state of the child account in the family
- */
-export type TChildrenBusinessUserStatus = 'active' | 'inactive' | 'removed';
+import { TChildrenBusinessUserStatus } from './childrenBusinessUser.constant';
 
 /**
  * Children Business User Interface
@@ -13,7 +8,7 @@ export type TChildrenBusinessUserStatus = 'active' | 'inactive' | 'removed';
  *
  * @version 2.0.0
  * @author Senior Engineering Team
- * 
+ *
  * @note Only ONE child per business user can be the Secondary User
  * Secondary User has special privileges:
  * - Can create tasks for the family

@@ -5,6 +5,8 @@
  * @author Senior Engineering Team
  */
 
+import { NotificationChannel } from '../notification/notification.constant';
+
 /**
  * Task Reminder Trigger Type Enum
  */
@@ -42,6 +44,7 @@ export enum TaskReminderFrequency {
 export type TTaskReminderTrigger = `${TaskReminderTrigger}`;
 export type TTaskReminderStatus = `${TaskReminderStatus}`;
 export type TTaskReminderFrequency = `${TaskReminderFrequency}`;
+export type TNotificationChannel = `${NotificationChannel}`;
 
 /**
  * Legacy constant exports (for backward compatibility)

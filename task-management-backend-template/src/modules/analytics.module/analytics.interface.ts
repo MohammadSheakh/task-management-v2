@@ -1,6 +1,12 @@
 //@ts-ignore
 import { Model, Types } from 'mongoose';
 import { PaginateOptions, PaginateResult } from '../../types/paginate';
+import {
+  TAnalyticsJobStatus,
+  TExportFormat,
+  TAnalyticsModuleType,
+  TExportStatus,
+} from './analytics.constant';
 
 /**
  * Main Analytics Module Interface
@@ -75,7 +81,7 @@ export interface ICacheMetadata {
 export interface IAnalyticsJobStatus {
   jobId: string;
   jobName: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: TAnalyticsJobStatus;
   startedAt?: Date;
   completedAt?: Date;
   error?: string;
@@ -86,15 +92,15 @@ export interface IAnalyticsJobStatus {
  * Analytics Export Data
  */
 export interface IAnalyticsExportData {
-  format: 'csv' | 'pdf' | 'json';
-  analyticsType: 'user' | 'task' | 'group' | 'admin';
+  format: TExportFormat;
+  analyticsType: TAnalyticsModuleType;
   filters: {
     from?: Date;
     to?: Date;
     userId?: Types.ObjectId;
     groupId?: Types.ObjectId;
   };
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: TExportStatus;
   downloadUrl?: string;
   expiresAt?: Date;
 }
