@@ -1,18 +1,20 @@
+//@ts-ignore
 import { Request, Response } from 'express';
+//@ts-ignore
 import { StatusCodes } from 'http-status-codes';
+//@ts-ignore
+import { Types } from 'mongoose';
 import { GenericController } from '../../_generic-module/generic.controller';
 import { Notification } from './notification.model';
 import { INotificationDocument } from './notification.interface';
 import { NotificationService } from './notification.service';
-import { TRole } from '../../../middlewares/roles';
 import ApiError from '../../../errors/ApiError';
 import {
   NotificationPriority,
   NotificationChannel,
-  NotificationType,
 } from './notification.constant';
 import sendResponse from '../../../shared/sendResponse';
-import { Types } from 'mongoose';
+
 
 /**
  * Notification Controller

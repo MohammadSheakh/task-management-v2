@@ -1,11 +1,12 @@
-import { TFolderName } from "../../../enums/folderName";
+
 //@ts-ignore
 import multer from "multer";
 import { processUploadedFilesForCreate, processUploadedFilesForUpdate } from "../../../middlewares/processUploadedFiles";
 import { Request, Response, NextFunction } from 'express';
 import { Types } from 'mongoose';
-import { ApiError } from '../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
+import { TFolderName } from "../../../enums/folderNames";
+import ApiError from "../../../errors/ApiError";
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
