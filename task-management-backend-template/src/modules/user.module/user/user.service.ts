@@ -938,6 +938,28 @@ export class UserService extends GenericService<typeof User, IUser> {
   }
 
   /**
+   * Update child's support mode (for parent/teacher)
+   * @param childUserId - Child user ID
+   * @param supportMode - New support mode
+   * @returns Updated support mode info
+   * @access Parent/Business users only
+   */
+  async updateChildSupportMode(childUserId: string, supportMode: string) {
+    const userProfile = await UserProfile.findOneAndUpdate(
+      { userId: childUserId },
+      { supportMode },
+      { new: true, upsert: true }
+    ).select('userId supportMode notificationStyle updatedAt');
+
+    return {
+      userId: userProfile.userId,
+      supportMode: userProfile.supportMode,
+      notificationStyle: userProfile.notificationStyle,
+      updatedAt: userProfile.updatedAt,
+    };
+  }
+
+  /**
    * Update user's notification style
    * @param userId - User ID
    * @param notificationStyle - New notification style

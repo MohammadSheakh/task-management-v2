@@ -1,6 +1,7 @@
 //@ts-ignore
 import { model, Schema } from 'mongoose';
-import { IUserProfile, IUserProfileModel, TSupportMode, TNotificationStyle } from './userProfile.interface';
+import { IUserProfile, IUserProfileModel } from './userProfile.interface';
+import { SupportMode, NotificationStyle } from './userProfile.constant';
 import paginate from '../../../common/plugins/paginate';
 
 const userProfileSchema = new Schema<IUserProfile>({
@@ -41,8 +42,8 @@ const userProfileSchema = new Schema<IUserProfile>({
      */
     supportMode: {
         type: String,
-        enum: ['calm', 'encouraging', 'logical'],
-        default: 'calm',
+        enum: Object.values(SupportMode),
+        default: SupportMode.CALM,
     },
 
     /**
@@ -51,8 +52,8 @@ const userProfileSchema = new Schema<IUserProfile>({
      */
     notificationStyle: {
         type: String,
-        enum: ['gentle', 'firm', 'xyz'],
-        default: 'gentle',
+        enum: Object.values(NotificationStyle),
+        default: NotificationStyle.GENTLE,
     },
 });
 

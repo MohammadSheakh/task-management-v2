@@ -53,6 +53,26 @@ export const updateSupportModeValidationSchema = z.object({
 });
 
 /**
+ * Update Child Support Mode Validation Schema
+ * For parent to update their child's support mode
+ * @see Figma: task-details-flow-apis.png
+ */
+export const updateChildSupportModeValidationSchema = z.object({
+  body: z.object({
+    childUserId: z.string({
+      required_error: 'Child user ID is required',
+      invalid_type_error: 'Child user ID must be a string',
+    }).refine((val) => mongoose.Types.ObjectId.isValid(val), {
+      message: 'Invalid child user ID',
+    }),
+    supportMode: z.enum(['calm', 'encouraging', 'logical'], {
+      required_error: 'Support mode is required',
+      invalid_type_error: 'Support mode must be one of: calm, encouraging, logical',
+    }),
+  }),
+});
+
+/**
  * Notification Style Validation Schema
  * @see Figma: profile-permission-account-interface.png (Notification Style section)
  */

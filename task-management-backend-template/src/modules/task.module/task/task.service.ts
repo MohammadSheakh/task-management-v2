@@ -1097,12 +1097,59 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     return response;
   }
 
-  async getChildrenTasksForDashboardV2(
+  /**
+   * V3 - Get children's tasks for dashboard with enhanced collaborative task progress
+   *
+   * ✨ ENHANCEMENT OVER V2:
+   * - For COLLABORATIVE tasks only: includes individual child progress from TaskProgress collection
+   * - Each child in assignedTo array now has their personal progress status, percentage, and timestamps
+   * - Perfect for parent dashboard to see exactly how each child is progressing on shared tasks
+   *
+   * 📊 RESPONSE STRUCTURE FOR COLLABORATIVE TASKS:
+   * assignedTo: [
+   *   {
+   *     _id: "child1",
+   *     name: "Alex",
+   *     email: "alex@example.com",
+   *     profileImage: "...",
+   *     progress: {
+   *       status: "inProgress",
+   *       progressPercentage: 60,
+   *       startedAt: Date,
+   *       completedAt: null,
+   *       completedSubtaskCount: 3
+   *     }
+   *   },
+   *   {
+   *     _id: "child2",
+   *     name: "Sam",
+   *     email: "sam@example.com",
+   *     profileImage: "...",
+   *     progress: {
+   *       status: "notStarted",
+   *       progressPercentage: 0,
+   *       startedAt: null,
+   *       completedAt: null,
+   *       completedSubtaskCount: 0
+   *     }
+   *   }
+   * ]
+   *
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param filters - Query filters (status, taskType, from, to)
+   * @param options - Pagination options (page, limit, sortBy)
+   * @returns Enhanced tasks with individual child progress for collaborative tasks
+   *
+   * @version 3.0.0
+   * @author Senior Engineering Team
+   * @date 2026-03-28
+   */
+  async getChildrenTasksForDashboardV3(
     businessUserId: Types.ObjectId,
     filters: any,
     options: any,
   ) {
-    const cacheKey = `${TASK_CACHE_CONFIG.PREFIX}:dashboard:children-tasks:${businessUserId.toString()}:${filters.status || 'all'}:${filters.taskType || 'children'}:page:${options.page || 1}`;
+    const cacheKey = `${TASK_CACHE_CONFIG.PREFIX}:dashboard:children-tasks:v3:${businessUserId.toString()}:${filters.status || 'all'}:${filters.taskType || 'children'}:page:${options.page || 1}`;
 
     /*----------------------- -----------------------*/
     // Try cache first
@@ -1182,10 +1229,48 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       ],
     });
 
-    console.log(
-      'getChildrenTasksForDashboard -> result :🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪: ',
-      result,
+    logger.info(
+      'getChildrenTasksForDashboardV3 -> Paginated result retrieved',
     );
+
+    // ✨ V3 ENHANCEMENT: Get TaskProgress for all collaborative tasks
+    const collaborativeTaskIds = result?.results
+      ?.filter((task: any) => task.taskType === TaskType.COLLABORATIVE)
+      ?.map((task: any) => task._id);
+
+    let taskProgressMap = new Map();
+
+    if (collaborativeTaskIds && collaborativeTaskIds.length > 0) {
+      // Import TaskProgress model dynamically
+      const { TaskProgress } = await import(
+        '../../taskProgress.module/taskProgress.model'
+      );
+
+      // Get all progress records for these collaborative tasks
+      const progressRecords = await TaskProgress.find({
+        taskId: { $in: collaborativeTaskIds },
+        userId: { $in: childUserIds },
+        isDeleted: false,
+      })
+        .populate('userId', 'name email profileImage')
+        .lean();
+
+      // Group progress by taskId
+      progressRecords.forEach((record: any) => {
+        const taskId = record.taskId.toString();
+        if (!taskProgressMap.has(taskId)) {
+          taskProgressMap.set(taskId, new Map());
+        }
+        const childId = record.userId._id.toString();
+        taskProgressMap.get(taskId).set(childId, {
+          status: record.status,
+          progressPercentage: record.progressPercentage,
+          startedAt: record.startedAt,
+          completedAt: record.completedAt,
+          completedSubtaskCount: record.completedSubtaskIndexes?.length || 0,
+        });
+      });
+    }
 
     // Transform response to include child-focused information
     // FIX: result.docs contains the actual tasks array
@@ -1194,7 +1279,11 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         // Get assigned users (could be 0, 1, or multiple children)
         const assignedUsers = task.assignedUserIds || [];
 
-        console.log('task :🧪::: ', task);
+        // ✨ V3 ENHANCEMENT: Add progress data for each child in collaborative tasks
+        const isCollaborative = task.taskType === TaskType.COLLABORATIVE;
+        const taskProgressForThisTask = isCollaborative
+          ? taskProgressMap.get(task._id.toString())
+          : null;
 
         return {
           _id: task._id,
@@ -1224,17 +1313,37 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
           // ──────────────────────────────────────────────────────────────
           // Child/Children Information (who the task is assigned to)
+          // ✨ V3 ENHANCEMENT: For COLLABORATIVE tasks, includes progress data
           // Supports: 0 (personal), 1 (single), or multiple (collaborative)
           // ──────────────────────────────────────────────────────────────
           assignedTo:
             assignedUsers.length > 0
-              ? assignedUsers.map((child: any) => ({
-                  _id: child._id,
-                  name: child.name,
-                  email: child.email,
-                  profileImage:
-                    child.profileImage?.imageUrl || '/uploads/users/user.png',
-                }))
+              ? assignedUsers.map((child: any) => {
+                  const childData: any = {
+                    _id: child._id,
+                    name: child.name,
+                    email: child.email,
+                    profileImage:
+                      child.profileImage?.imageUrl ||
+                      '/uploads/users/user.png',
+                  };
+
+                  // ✨ V3: Add progress data for collaborative tasks only
+                  if (isCollaborative && taskProgressForThisTask) {
+                    const childProgress = taskProgressForThisTask.get(
+                      child._id.toString(),
+                    );
+                    childData.progress = childProgress || {
+                      status: 'notStarted',
+                      progressPercentage: 0,
+                      startedAt: null,
+                      completedAt: null,
+                      completedSubtaskCount: 0,
+                    };
+                  }
+
+                  return childData;
+                })
               : null,
 
           // ──────────────────────────────────────────────────────────────
@@ -1269,9 +1378,12 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         };
       }) || [];
 
-
     //=============================================================
-    
+    // 📊 DASHBOARD COUNTS: Calculate counts for all status tabs
+    // This is used to show badge counts on dashboard filters
+    // Example: "All (6) | Not Started (1) | In Progress (2) | Completed (2)"
+    //=============================================================
+
     let baseQuery: any = {
       isDeleted: false,
     };
@@ -1281,17 +1393,19 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
     if (taskTypeFilter !== TaskType.PERSONAL) {
       childrenTasksQuery.assignedUserIds = { $in: childUserIds };
-      
+
       // Apply status filter only for status-specific tabs
       if (filters.status && filters.status !== 'all') {
         childrenTasksQuery.status = filters.status;
       }
-      
+
       // Date range filter
       if (filters.from || filters.to) {
         childrenTasksQuery.startTime = {};
-        if (filters.from) childrenTasksQuery.startTime.$gte = new Date(filters.from);
-        if (filters.to) childrenTasksQuery.startTime.$lte = new Date(filters.to);
+        if (filters.from)
+          childrenTasksQuery.startTime.$gte = new Date(filters.from);
+        if (filters.to)
+          childrenTasksQuery.startTime.$lte = new Date(filters.to);
       }
     }
 
@@ -1303,8 +1417,10 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     // Apply same date range to personal tasks if exists
     if (filters.from || filters.to) {
       personalTasksQuery.startTime = {};
-      if (filters.from) personalTasksQuery.startTime.$gte = new Date(filters.from);
-      if (filters.to) personalTasksQuery.startTime.$lte = new Date(filters.to);
+      if (filters.from)
+        personalTasksQuery.startTime.$gte = new Date(filters.from);
+      if (filters.to)
+        personalTasksQuery.startTime.$lte = new Date(filters.to);
     }
 
     // --- 🔢 Get All Counts in One Aggregation Pipeline ---
@@ -1328,7 +1444,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
               },
             },
           ],
-          
+
           // Personal tasks count
           personalCount: [
             { $match: personalTasksQuery },
@@ -1353,7 +1469,8 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
     // Process the results
     const statusCounts = aggregationResult[0].statusCounts;
-    const personalCount = aggregationResult[0].personalCount[0]?.count || 0;
+    const personalCount =
+      aggregationResult[0].personalCount[0]?.count || 0;
 
     // Convert status counts to object
     const countByStatus = statusCounts.reduce((acc, curr) => {
@@ -1362,13 +1479,17 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     }, {} as Record<string, number>);
 
     // Calculate total (sum of all status counts)
-    const totalChildrenTasks = Object.values(countByStatus).reduce((sum, count) => sum + count, 0);
+    const totalChildrenTasks = Object.values(countByStatus).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
 
     // --- 📄 Execute paginated query for the active tab ---
-    let activeQuery = taskTypeFilter === TaskType.PERSONAL 
-      ? personalTasksQuery 
-      : childrenTasksQuery;
-    
+    let activeQuery =
+      taskTypeFilter === TaskType.PERSONAL
+        ? personalTasksQuery
+        : childrenTasksQuery;
+
     //===============================================================
 
     const response = {
@@ -1390,12 +1511,739 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       },
     };
 
-    // console.log('getChildrenTasksForDashboard response :: ', response);
+    logger.info('getChildrenTasksForDashboardV3 -> Response built successfully');
 
     // Cache the result (2 minutes for task lists)
     await this.setInCache(cacheKey, response, 120);
 
     return response;
+  }
+
+  /**
+   * V4 - Get children's tasks with enhanced subtask handling for collaborative and singleAssignment tasks
+   *
+   * ✨ ENHANCEMENT OVER V3:
+   * - Properly handles subtasks for BOTH collaborative AND singleAssignment tasks
+   * - For COLLABORATIVE tasks: includes SubTaskProgress for each subtask (per-child completion status)
+   * - For singleAssignment tasks: includes global subtask completion status
+   * - Each subtask now has proper completion tracking based on task type
+   *
+   * 📊 SUBTASK STRUCTURE BY TASK TYPE:
+   *
+   * 1. COLLABORATIVE TASKS:
+   *    subtasks: [
+   *      {
+   *        _id: "sub001",
+   *        title: "Research planets",
+   *        order: 1,
+   *        myCompletion: {
+   *          isCompleted: true,
+   *          completedAt: Date,
+   *          completedBy: ["child1", "child2"]
+   *        }
+   *      }
+   *    ]
+   *
+   * 2. SINGLE ASSIGNMENT TASKS:
+   *    subtasks: [
+   *      {
+   *        _id: "sub001",
+   *        title: "Exercise 1-10",
+   *        order: 1,
+   *        isCompleted: true,
+   *        completedAt: Date
+   *      }
+   *    ]
+   *
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param filters - Query filters (status, taskType, from, to)
+   * @param options - Pagination options (page, limit, sortBy)
+   * @returns Enhanced tasks with proper subtask handling for both task types
+   *
+   * @version 4.0.0
+   * @author Senior Engineering Team
+   * @date 2026-03-28
+   */
+  async getChildrenTasksForDashboardV4(
+    businessUserId: Types.ObjectId,
+    filters: any,
+    options: any,
+  ) {
+    const cacheKey = `${TASK_CACHE_CONFIG.PREFIX}:dashboard:children-tasks:v4:${businessUserId.toString()}:${filters.status || 'all'}:${filters.taskType || 'children'}:page:${options.page || 1}`;
+
+    /*----------------------- -----------------------*/
+    // Try cache first
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   return cached;
+    // }
+
+    // Get all active children for this business user
+    const { ChildrenBusinessUser } =
+      await import('../../childrenBusinessUser.module/childrenBusinessUser.model');
+
+    const childrenRelations = await ChildrenBusinessUser.find({
+      parentBusinessUserId: businessUserId,
+      status: 'active',
+      isDeleted: false,
+    })
+      .select('childUserId')
+      .lean();
+
+    const childUserIds = childrenRelations.map((rel: any) => rel.childUserId);
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Build query based on taskType filter
+    // IMPORTANT: 'children' is NOT a real taskType in the database
+    // It's a UI filter concept that means "show all children's tasks"
+    // Real taskTypes in DB: TaskType.PERSONAL, TaskType.SINGLE_ASSIGNMENT, TaskType.COLLABORATIVE
+    // ────────────────────────────────────────────────────────────────────────
+    const taskTypeFilter = filters.taskType || 'children';
+
+    let query: any = {
+      isDeleted: false,
+    };
+
+    if (taskTypeFilter === TaskType.PERSONAL) {
+      // Parent's personal tasks only (tasks where parent is the owner)
+      query.ownerUserId = businessUserId;
+      query.taskType = TaskType.PERSONAL;
+    } else {
+      // 'children' filter: Show all tasks assigned to any of the parent's children
+      // This includes:
+      // - singleAssignment tasks assigned to one child
+      // - collaborative tasks assigned to multiple children
+      query.assignedUserIds = { $in: childUserIds };
+      // Don't filter by taskType here - we want ALL children's tasks
+      // The taskType field in DB can be 'singleAssignment' or 'collaborative'
+    }
+
+    // Apply status filter
+    if (filters.status && filters.status !== 'all') {
+      query.status = filters.status;
+    }
+
+    // Date range filter
+    if (filters.from || filters.to) {
+      query.startTime = {};
+      if (filters.from) query.startTime.$gte = new Date(filters.from);
+      if (filters.to) query.startTime.$lte = new Date(filters.to);
+    }
+
+    // Execute paginated query with population
+    const result = await this.model.paginate(query, {
+      ...options,
+      populate: [
+        {
+          path: 'assignedUserIds',
+          select: 'name email profileImage',
+        },
+        {
+          path: 'createdById',
+          select: 'name email profileImage',
+        },
+        {
+          path: 'ownerUserId',
+          select: 'name email profileImage',
+        },
+      ],
+    });
+
+    logger.info(
+      'getChildrenTasksForDashboardV4 -> Paginated result retrieved',
+    );
+
+    // ✨ V4 ENHANCEMENT: Get SubTasks for ALL tasks (collaborative + singleAssignment)
+    const taskIds = result?.results?.map((task: any) => task._id);
+    let subtaskMap = new Map();
+    let subtaskProgressMap = new Map();
+
+    if (taskIds && taskIds.length > 0) {
+      // Import SubTask model dynamically
+      const { SubTask } = await import('../subTask/subTask.model');
+
+      // Get all subtasks for these tasks
+      const allSubtasks = await SubTask.find({
+        taskId: { $in: taskIds },
+        isDeleted: false,
+      })
+        .sort({ order: 1 })
+        .lean();
+
+      // Group subtasks by taskId
+      allSubtasks.forEach((subtask: any) => {
+        const taskId = subtask.taskId.toString();
+        if (!subtaskMap.has(taskId)) {
+          subtaskMap.set(taskId, []);
+        }
+        subtaskMap.get(taskId).push({
+          _id: subtask._id,
+          title: subtask.title,
+          isCompleted: subtask.isCompleted,
+          order: subtask.order,
+          completedAt: subtask.completedAt,
+          duration: subtask.duration,
+        });
+      });
+
+      // ✨ V4: For COLLABORATIVE tasks, get SubTaskProgress for each child
+      const collaborativeTaskIds = result?.results
+        ?.filter((task: any) => task.taskType === TaskType.COLLABORATIVE)
+        ?.map((task: any) => task._id);
+
+      if (collaborativeTaskIds && collaborativeTaskIds.length > 0) {
+        const { SubTaskProgress } = await import(
+          '../subTaskProgress/subTaskProgress.model'
+        );
+
+        // Get all subtask progress records for collaborative tasks
+        const progressRecords = await SubTaskProgress.find({
+          taskId: { $in: collaborativeTaskIds },
+          userId: { $in: childUserIds },
+          isDeleted: false,
+        })
+          .populate('userId', 'name email')
+          .lean();
+
+        // Group by taskId -> subtaskId -> userId
+        progressRecords.forEach((record: any) => {
+          const taskId = record.taskId.toString();
+          const subtaskId = record.subtaskId.toString();
+          const userId = record.userId._id.toString();
+
+          if (!subtaskProgressMap.has(taskId)) {
+            subtaskProgressMap.set(taskId, new Map());
+          }
+          if (!subtaskProgressMap.get(taskId).has(subtaskId)) {
+            subtaskProgressMap.get(taskId).set(subtaskId, new Map());
+          }
+          subtaskProgressMap.get(taskId).get(subtaskId).set(userId, {
+            isCompleted: record.isCompleted,
+            completedAt: record.completedAt,
+            note: record.note,
+          });
+        });
+      }
+    }
+
+    // ✨ V3: Get TaskProgress for collaborative tasks (child-level progress)
+    const collaborativeTaskIds = result?.results
+      ?.filter((task: any) => task.taskType === TaskType.COLLABORATIVE)
+      ?.map((task: any) => task._id);
+
+    let taskProgressMap = new Map();
+
+    if (collaborativeTaskIds && collaborativeTaskIds.length > 0) {
+      const { TaskProgress } = await import(
+        '../../taskProgress.module/taskProgress.model'
+      );
+
+      const progressRecords = await TaskProgress.find({
+        taskId: { $in: collaborativeTaskIds },
+        userId: { $in: childUserIds },
+        isDeleted: false,
+      })
+        .populate('userId', 'name email profileImage')
+        .lean();
+
+      progressRecords.forEach((record: any) => {
+        const taskId = record.taskId.toString();
+        if (!taskProgressMap.has(taskId)) {
+          taskProgressMap.set(taskId, new Map());
+        }
+        const childId = record.userId._id.toString();
+        taskProgressMap.get(taskId).set(childId, {
+          status: record.status,
+          progressPercentage: record.progressPercentage,
+          startedAt: record.startedAt,
+          completedAt: record.completedAt,
+          completedSubtaskCount: record.completedSubtaskIndexes?.length || 0,
+        });
+      });
+    }
+
+    // Transform response to include child-focused information
+    const tasks =
+      result?.results?.map((task: any) => {
+        const assignedUsers = task.assignedUserIds || [];
+        const isCollaborative = task.taskType === TaskType.COLLABORATIVE;
+        const isSingleAssignment = task.taskType === TaskType.SINGLE_ASSIGNMENT;
+        const taskProgressForThisTask = isCollaborative
+          ? taskProgressMap.get(task._id.toString())
+          : null;
+        const subtasksForThisTask = subtaskMap.get(task._id.toString()) || [];
+        const subtaskProgressForThisTask = isCollaborative
+          ? subtaskProgressMap.get(task._id.toString())
+          : null;
+
+        // ✨ V4: Format subtasks based on task type
+        const formattedSubtasks = subtasksForThisTask.map((st: any, idx: number) => {
+          const subtaskObj: any = {
+            _id: st._id,
+            title: st.title,
+            order: st.order || idx + 1,
+            duration: st.duration || null,
+          };
+
+          if (isCollaborative) {
+            // COLLABORATIVE: Show my completion status for each subtask
+            const mySubtaskProgress = subtaskProgressForThisTask?.get(st._id.toString());
+            const childId = assignedUsers[0]?._id?.toString(); // Get first assigned child's ID
+
+            if (mySubtaskProgress && childId) {
+              const myCompletion = mySubtaskProgress.get(childId);
+              subtaskObj.myCompletion = myCompletion || {
+                isCompleted: false,
+                completedAt: null,
+                note: null,
+              };
+            } else {
+              subtaskObj.myCompletion = {
+                isCompleted: false,
+                completedAt: null,
+                note: null,
+              };
+            }
+          } else if (isSingleAssignment) {
+            // SINGLE ASSIGNMENT: Show global completion status
+            subtaskObj.isCompleted = st.isCompleted || false;
+            subtaskObj.completedAt = st.completedAt || null;
+          }
+
+          return subtaskObj;
+        });
+
+        return {
+          _id: task._id,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          taskType: task.taskType,
+          scheduledTime: task.scheduledTime,
+          startTime: task.startTime,
+          dueDate: task.dueDate,
+          totalSubtasks: task.totalSubtasks || 0,
+          completedSubtasks: task.completedSubtasks || 0,
+          completionPercentage:
+            task.totalSubtasks > 0
+              ? Math.round((task.completedSubtasks / task.totalSubtasks) * 100)
+              : task.status === TaskStatus.COMPLETED
+                ? 100
+                : 0,
+          subtasks: formattedSubtasks,
+
+          // ──────────────────────────────────────────────────────────────
+          // Child/Children Information (who the task is assigned to)
+          // ✨ V3/V4: For COLLABORATIVE tasks, includes progress data
+          // ──────────────────────────────────────────────────────────────
+          assignedTo:
+            assignedUsers.length > 0
+              ? assignedUsers.map((child: any) => {
+                  const childData: any = {
+                    _id: child._id,
+                    name: child.name,
+                    email: child.email,
+                    profileImage:
+                      child.profileImage?.imageUrl ||
+                      '/uploads/users/user.png',
+                  };
+
+                  // ✨ V3/V4: Add progress data for collaborative tasks only
+                  if (isCollaborative && taskProgressForThisTask) {
+                    const childProgress = taskProgressForThisTask.get(
+                      child._id.toString(),
+                    );
+                    childData.progress = childProgress || {
+                      status: 'notStarted',
+                      progressPercentage: 0,
+                      startedAt: null,
+                      completedAt: null,
+                      completedSubtaskCount: 0,
+                    };
+                  }
+
+                  return childData;
+                })
+              : null,
+
+          // ──────────────────────────────────────────────────────────────
+          // Creator Information
+          // ──────────────────────────────────────────────────────────────
+          createdBy: task.createdById
+            ? {
+                _id: task.createdById._id,
+                name: task.createdById.name,
+                email: task.createdById.email,
+                profileImage:
+                  task.createdById.profileImage?.imageUrl ||
+                  '/uploads/users/user.png',
+              }
+            : null,
+
+          // ──────────────────────────────────────────────────────────────
+          // Owner Information (for personal tasks only)
+          // ──────────────────────────────────────────────────────────────
+          owner: task.ownerUserId
+            ? {
+                _id: task.ownerUserId._id,
+                name: task.ownerUserId.name,
+                email: task.ownerUserId.email,
+                profileImage:
+                  task.ownerUserId.profileImage?.imageUrl ||
+                  '/uploads/users/user.png',
+              }
+            : null,
+        };
+      }) || [];
+
+    //=============================================================
+    // 📊 DASHBOARD COUNTS
+    //=============================================================
+
+    let baseQuery: any = {
+      isDeleted: false,
+    };
+
+    let childrenTasksQuery = { ...baseQuery };
+
+    if (taskTypeFilter !== TaskType.PERSONAL) {
+      childrenTasksQuery.assignedUserIds = { $in: childUserIds };
+
+      if (filters.status && filters.status !== 'all') {
+        childrenTasksQuery.status = filters.status;
+      }
+
+      if (filters.from || filters.to) {
+        childrenTasksQuery.startTime = {};
+        if (filters.from)
+          childrenTasksQuery.startTime.$gte = new Date(filters.from);
+        if (filters.to)
+          childrenTasksQuery.startTime.$lte = new Date(filters.to);
+      }
+    }
+
+    let personalTasksQuery = { ...baseQuery };
+    personalTasksQuery.ownerUserId = businessUserId;
+    personalTasksQuery.taskType = TaskType.PERSONAL;
+
+    if (filters.from || filters.to) {
+      personalTasksQuery.startTime = {};
+      if (filters.from)
+        personalTasksQuery.startTime.$gte = new Date(filters.from);
+      if (filters.to)
+        personalTasksQuery.startTime.$lte = new Date(filters.to);
+    }
+
+    const countsPipeline = [
+      {
+        $facet: {
+          statusCounts: [
+            { $match: childrenTasksQuery },
+            {
+              $group: {
+                _id: '$status',
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                status: '$_id',
+                count: 1,
+              },
+            },
+          ],
+          personalCount: [
+            { $match: personalTasksQuery },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                count: 1,
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    const aggregationResult = await this.model.aggregate(countsPipeline);
+
+    const statusCounts = aggregationResult[0].statusCounts;
+    const personalCount =
+      aggregationResult[0].personalCount[0]?.count || 0;
+
+    const countByStatus = statusCounts.reduce((acc, curr) => {
+      acc[curr.status] = curr.count;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const totalChildrenTasks = Object.values(countByStatus).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+
+    const response = {
+      tasks,
+      pagination: {
+        page: result.page || 1,
+        limit: result.limit || 10,
+        total: result.total || 0,
+        totalPages: result.totalPages || 0,
+      },
+      filters: {
+        status: filters.status || 'all',
+        taskType: filters.taskType || 'children',
+      },
+      counts: {
+        total: totalChildrenTasks + personalCount,
+        byStatus: countByStatus,
+        personal: personalCount,
+      },
+    };
+
+    logger.info('getChildrenTasksForDashboardV4 -> Response built successfully');
+
+    // Cache the result (2 minutes for task lists)
+    await this.setInCache(cacheKey, response, 120);
+
+    return response;
+  }
+
+  /**
+   * Get task details for parent dashboard
+   *
+   * 🎯 PARENT DASHBOARD TASK DETAILS SCREEN
+   * Figma: teacher-parent-dashboard/dashboard/task-details-of-a-task.png
+   *        teacher-parent-dashboard/dashboard/task-details-of-collaborative-tasks.png
+   *
+   * ✨ FEATURES:
+   * - Complete task information (title, description, dates, status)
+   * - For COLLABORATIVE tasks: Shows all assigned children with their individual progress
+   * - For SINGLE_ASSIGNMENT tasks: Shows assigned child with task progress
+   * - Subtasks with completion status
+   * - Support mode information
+   * - Creator and owner information
+   *
+   * @param taskId - Task ID
+   * @param businessUserId - Parent/Teacher business user ID
+   * @returns Complete task details for parent dashboard
+   *
+   * @version 1.0.0
+   * @author Senior Engineering Team
+   * @date 2026-03-28
+   */
+  async getTaskDetailsForParent(
+    taskId: string,
+    businessUserId: Types.ObjectId,
+  ): Promise<any> {
+    const cacheKey = `${TASK_CACHE_CONFIG.PREFIX}:parent-task-details:${taskId}:${businessUserId.toString()}`;
+
+    // Try cache first
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Get task with population
+    const task = await this.model.findById(taskId)
+      .populate('createdById', 'name email profileImage')
+      .populate('ownerUserId', 'name email profileImage')
+      .populate('assignedUserIds', 'name email profileImage')
+      .select('-__v')
+      .lean();
+
+    if (!task) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
+
+    // Verify this parent has access
+    const { ChildrenBusinessUser } = await import('../../childrenBusinessUser.module/childrenBusinessUser.model');
+    const childrenRelations = await ChildrenBusinessUser.find({
+      parentBusinessUserId: businessUserId,
+      status: 'active',
+      isDeleted: false,
+    }).select('childUserId').lean();
+
+    const childUserIds = childrenRelations.map((rel: any) => rel.childUserId.toString());
+    const createdByIdStr = task.createdById?._id?.toString() || task.createdById?.toString();
+
+    const hasAccess =
+      createdByIdStr === businessUserId.toString() ||
+      (task.assignedUserIds && task.assignedUserIds.some((child: any) =>
+        childUserIds.includes(child._id?.toString() || child.toString())
+      ));
+
+    if (!hasAccess) {
+      throw new ApiError(StatusCodes.FORBIDDEN, 'You do not have access to this task');
+    }
+
+    // Get subtasks
+    const { SubTask } = await import('../subTask/subTask.model');
+    const subtasks = await SubTask.find({
+      taskId: new Types.ObjectId(taskId),
+      isDeleted: false,
+    }).sort({ order: 1 }).lean();
+
+    // ✨ Handle collaborative vs singleAssignment differently
+    const isCollaborative = task.taskType === TaskType.COLLABORATIVE;
+    let taskProgressRecords: any[] = [];
+    let subtaskProgressRecords: any[] = [];
+
+    // Get user profiles for all assigned children to fetch supportMode
+    const { UserProfile } = await import('../../user.module/userProfile/userProfile.model');
+    const childProfileMap = new Map<string, string>();
+    
+    if (task.assignedUserIds && task.assignedUserIds.length > 0) {
+      const assignedChildIds = task.assignedUserIds.map((child: any) => 
+        new Types.ObjectId(child._id.toString())
+      );
+      const userProfiles = await UserProfile.find({
+        userId: { $in: assignedChildIds },
+      }).select('userId supportMode').lean();
+      
+      userProfiles.forEach((profile: any) => {
+        childProfileMap.set(profile.userId.toString(), profile.supportMode || 'calm');
+      });
+    }
+
+    if (isCollaborative) {
+      // Get TaskProgress for all assigned children
+      const { TaskProgress } = await import('../../taskProgress.module/taskProgress.model');
+      taskProgressRecords = await TaskProgress.find({
+        taskId: new Types.ObjectId(taskId),
+        userId: { $in: childUserIds.map(id => new Types.ObjectId(id)) },
+        isDeleted: false,
+      }).populate('userId', 'name email profileImage').lean();
+
+      // Get SubTaskProgress for all subtasks
+      const { SubTaskProgress } = await import('../subTaskProgress/subTaskProgress.model');
+      subtaskProgressRecords = await SubTaskProgress.find({
+        taskId: new Types.ObjectId(taskId),
+        userId: { $in: childUserIds.map(id => new Types.ObjectId(id)) },
+        isDeleted: false,
+      }).populate('userId', 'name email').lean();
+    }
+
+    // Format assigned children with their progress
+    const assignedTo = (task.assignedUserIds || []).map((child: any) => {
+      const childIdStr = child._id.toString();
+      const childData: any = {
+        child: {
+          _id: child._id,
+          name: child.name,
+          email: child.email,
+          profileImage: child.profileImage?.imageUrl || '/uploads/users/user.png',
+        },
+        supportMode: childProfileMap.get(childIdStr) || 'calm',
+      };
+
+      if (isCollaborative) {
+        const progress = taskProgressRecords.find(
+          (p: any) => p.userId._id.toString() === childIdStr
+        );
+
+        childData.progress = progress ? {
+          status: progress.status,
+          progressPercentage: progress.progressPercentage,
+          startedAt: progress.startedAt,
+          completedAt: progress.completedAt,
+          completedSubtaskCount: progress.completedSubtaskIndexes?.length || 0,
+        } : {
+          status: 'notStarted',
+          progressPercentage: 0,
+          startedAt: null,
+          completedAt: null,
+          completedSubtaskCount: 0,
+        };
+      }
+
+      return childData;
+    });
+
+    // Format subtasks
+    const formattedSubtasks = subtasks.map((st: any, idx: number) => {
+      const subtaskObj: any = {
+        _id: st._id,
+        title: st.title,
+        order: st.order || idx + 1,
+        duration: st.duration || null,
+      };
+
+      if (isCollaborative) {
+        const subtaskProgressForThis = subtaskProgressRecords.filter(
+          (p: any) => p.subtaskId.toString() === st._id.toString()
+        );
+
+        subtaskObj.childrenCompletion = subtaskProgressForThis.map((p: any) => ({
+          childId: p.userId._id,
+          childName: p.userId.name,
+          isCompleted: p.isCompleted,
+          completedAt: p.completedAt,
+          note: p.note,
+        }));
+      } else {
+        subtaskObj.isCompleted = st.isCompleted || false;
+        subtaskObj.completedAt = st.completedAt || null;
+      }
+
+      return subtaskObj;
+    });
+
+    // Calculate subtask progress
+    const totalSubtasks = formattedSubtasks.length;
+    const completedSubtasks = isCollaborative
+      ? 0
+      : formattedSubtasks.filter((st: any) => st.isCompleted).length;
+
+    const subtaskProgress = {
+      total: totalSubtasks,
+      completed: completedSubtasks,
+      percentage: totalSubtasks > 0
+        ? Math.round((completedSubtasks / totalSubtasks) * 100)
+        : 0,
+    };
+
+    // Build response
+    const responseData = {
+      taskId: task._id,
+      title: task.title,
+      description: task.description,
+      taskType: task.taskType,
+      status: task.status,
+      priority: task.priority,
+      scheduledTime: task.scheduledTime,
+      startTime: task.startTime,
+      dueDate: task.dueDate,
+      completedTime: task.completedTime,
+      createdAt: task.createdAt,
+      assignedTo,
+      subtasks: formattedSubtasks,
+      subtaskProgress,
+      createdBy: task.createdById ? {
+        _id: task.createdById._id,
+        name: task.createdById.name,
+        email: task.createdById.email,
+        profileImage: task.createdById.profileImage?.imageUrl || '/uploads/users/user.png',
+      } : null,
+      owner: task.ownerUserId ? {
+        _id: task.ownerUserId._id,
+        name: task.ownerUserId.name,
+        email: task.ownerUserId.email,
+        profileImage: task.ownerUserId.profileImage?.imageUrl || '/uploads/users/user.png',
+      } : null,
+    };
+
+    // Cache the result
+    await this.setInCache(cacheKey, responseData, 300);
+
+    return responseData;
   }
 
   // ────────────────────────────────────────────────────────────────────────

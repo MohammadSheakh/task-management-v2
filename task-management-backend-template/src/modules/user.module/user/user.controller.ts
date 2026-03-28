@@ -567,6 +567,26 @@ export class UserController extends GenericController<
     });
   });
 
+  /** ----------------------------------------------✔️
+   * @role Business | Parent | Task Details | task-details-flow-apis.png | Update child's support mode
+   * @Section Profile
+   * @module UserProfile
+   * @figmaIndex task-details-flow-apis.png
+   * @desc Parent updates their child's support mode preference
+   *----------------------------------------------*/
+  updateChildSupportMode = catchAsync(async (req: Request, res: Response) => {
+    const { childUserId, supportMode } = req.body;
+
+    const result = await this.userService.updateChildSupportMode(childUserId, supportMode);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Child support mode updated successfully',
+      success: true,
+    });
+  });
+
   /** ----------------------------------------------
    * @role User
    * @Section Profile

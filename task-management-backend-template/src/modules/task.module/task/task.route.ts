@@ -86,6 +86,99 @@ router
     controller.getChildrenTasksForDashboard,
   );
 
+/*-─────────────────────────────────
+|  Business (Parent/Teacher) | Task | dashboard-flow-01.png | Get all children's tasks with enhanced collaborative progress
+|  @desc V3 ENHANCEMENT: Get paginated list of all children's tasks with INDIVIDUAL CHILD PROGRESS for collaborative tasks
+|  @desc For COLLABORATIVE tasks only: each child in assignedTo array includes their personal progress from TaskProgress collection
+|  @desc Progress includes: status, progressPercentage, startedAt, completedAt, completedSubtaskCount
+|  @desc Supports filters: All | Not Started | In Progress | Completed | Personal Task
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed' (default: 'all')
+|  @query taskType - Filter by type: 'children' | 'personal' (default: 'children')
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -startTime)
+|  @version 3.0.0
+|  @author Senior Engineering Team
+|  @date 2026-03-28
+└──────────────────────────────────*/
+router
+  .route('/dashboard/children-tasks/v3')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getChildrenTasksForDashboardV3,
+  );
+
+/*-─────────────────────────────────
+|  Business (Parent/Teacher) | Task | dashboard-flow-01.png | Get all children's tasks with enhanced subtask handling
+|  @desc V4 ENHANCEMENT: Get paginated list of all children's tasks with ENHANCED SUBTASK HANDLING
+|  @desc Shows subtasks for BOTH collaborative AND singleAssignment tasks
+|  @desc For COLLABORATIVE tasks: includes myCompletion status per subtask (from SubTaskProgress collection)
+|  @desc For singleAssignment tasks: includes global isCompleted status per subtask
+|  @desc Includes all V3 features (child progress tracking for collaborative tasks)
+|  @desc Supports filters: All | Not Started | In Progress | Completed | Personal Task
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed' (default: 'all')
+|  @query taskType - Filter by type: 'children' | 'personal' (default: 'children')
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -startTime)
+|  @version 4.0.0
+|  @author Senior Engineering Team
+|  @date 2026-03-28
+└──────────────────────────────────*/
+router
+  .route('/dashboard/children-tasks/v4')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getChildrenTasksForDashboardV4,
+  );
+
+/*-─────────────────────────────────
+|  Business (Parent/Teacher) | Task | task-details-of-a-task.png | Get task details for parent dashboard
+|  @desc Get complete task details optimized for parent dashboard
+|  @desc For COLLABORATIVE: Shows all children with individual progress
+|  @desc For SINGLE_ASSIGNMENT: Shows assigned child with progress
+|  @desc Includes: Task info, assigned children, subtasks, progress, creator/owner info
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @param id - Task ID
+|  @version 1.0.0
+|  @author Senior Engineering Team
+|  @date 2026-03-28
+|  @figma teacher-parent-dashboard/dashboard/task-details-of-a-task.png
+|  @figma teacher-parent-dashboard/dashboard/task-details-of-collaborative-tasks.png
+└──────────────────────────────────*/
+router
+  .route('/:id/parent-details')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    controller.getTaskDetailsForParent,
+  );
+
 /*-───────────────────────────────── ✔️☑️
 |  Child (Secondary) | Business | Task | edit-update-task-flow.png | Create a new task
 |  @desc Create personal, single assignment, or collaborative task

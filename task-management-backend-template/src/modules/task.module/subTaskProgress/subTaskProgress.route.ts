@@ -18,7 +18,7 @@ const controller = new SubTaskProgressController();
 |  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
 router.get(
-  '/tasks/:taskId/my-progress',
+  '/:taskId/my-progress',
   auth(TRole.commonUser),
   progressLimiter,
   controller.getMyProgress,
@@ -31,7 +31,7 @@ router.get(
 |  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
 router.get(
-  '/tasks/:taskId/children-progress',
+  '/:taskId/children-progress',
   auth(TRole.business),
   progressLimiter,
   controller.getAllChildrenProgress,
@@ -44,7 +44,7 @@ router.get(
 |  @rateLimit 30 requests per minute (prevents spam)
 └──────────────────────────────────*/
 router.put(
-  '/tasks/:taskId/subtasks/:subtaskId/toggle-status',
+  '/:taskId/subtasks/:subtaskId/toggle-status',
   auth(TRole.commonUser),
   progressLimiter,
   controller.toggleMySubtask,

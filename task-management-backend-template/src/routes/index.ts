@@ -22,6 +22,7 @@ import { AnalyticsRoutes } from '../modules/analytics.module/analytics.route';
 import { ChildrenBusinessUserRoute } from '../modules/childrenBusinessUser.module/childrenBusinessUser.route';
 import { TaskProgressRoute } from '../modules/taskProgress.module/taskProgress.route';
 import { SubTaskRoute } from '../modules/task.module/subTask/subTask.route';
+import { SubTaskProgressRoute } from '../modules/task.module/subTaskProgress/subTaskProgress.route';
 
 // 🆕 RevenueCat Routes
 import revenueCatRoutes from '../modules/subscription.module/revenueCat/revenueCat.route';
@@ -92,6 +93,10 @@ const apiRoutes = [
   { // 🟢 NEW - Track per-child progress on collaborative tasks
     path: '/task-progress',
     route: TaskProgressRoute,
+  },
+  { // 🟢 NEW - SubTask Progress Tracking (per-child subtask completion)
+    path: '/sub-task-progress',
+    route: SubTaskProgressRoute,
   },
 
   ////////////////////// Created By Mohammad Sheakh

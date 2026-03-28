@@ -18,6 +18,9 @@ import { TaskMonitoringController } from './taskMonitoring.controller';
 
 const router = express.Router();
 
+// Create controller instance
+const controller = new TaskMonitoringController();
+
 // ────────────────────────────────────────────────────────────────────────
 // Task Monitoring Dashboard Routes
 // Figma: teacher-parent-dashboard/task-monitoring/task-monitoring-flow-01.png
@@ -37,7 +40,7 @@ const monitoringLimiter = rateLimiter('user'); // 30 req/min
 |  Auth: Required
 |  Rate Limit: 30 req/min per userId
 |  @param businessUserId - Parent/Teacher business user ID (or use logged-in user)
-|  
+|
 |  @response {
 |    notStartedTasks: number,      // Children's pending tasks
 |    inProgressTasks: number,      // Children's in-progress tasks
@@ -47,10 +50,10 @@ const monitoringLimiter = rateLimiter('user'); // 30 req/min
 |  }
 └──────────────────────────────────*/
 router.get(
-  '/summary/:businessUserId?',
+  '/summary', // /:businessUserId?
   auth(TRole.business, TRole.admin),
   monitoringLimiter,
-  TaskMonitoringController.getTaskMonitoringSummary
+  controller.getTaskMonitoringSummary
 );
 
 
@@ -59,10 +62,10 @@ router.get(
 |  Action: Get task activity chart data (monthly/annual bar chart)
 |  Auth: Required
 |  Rate Limit: 30 req/min per userId
-|  @param businessUserId - Parent/Teacher business user ID (or use logged-in user)
+|        for Parent/Teacher  use logged-in user)
 |  @query period - 'monthly' (last 12 months) | 'annual' (last 5 years) [default: 'monthly']
 |  @query year - Specific year (optional, defaults to current year)
-|  
+|
 |  @response {
 |    period: 'monthly' | 'annual',
 |    year: number,
@@ -83,10 +86,10 @@ router.get(
 |  }
 └──────────────────────────────────*/
 router.get(
-  '/activity/:businessUserId?',
+  '/activity', // /:businessUserId?
   auth(TRole.business, TRole.admin),
   monitoringLimiter,
-  TaskMonitoringController.getTaskActivityChart
+  controller.getTaskActivityChart
 );
 
 

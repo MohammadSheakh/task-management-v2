@@ -9,8 +9,7 @@ import { TRole } from "../../middlewares/roles";
 import { Conversation } from "../../modules/chatting.module/conversation/conversation.model";
 import { IConversation } from "../../modules/chatting.module/conversation/conversation.interface";
 import { ConversationParticipents } from "../../modules/chatting.module/conversationParticipents/conversationParticipents.model";
-// ❌ REMOVED: Group module not needed
-// import { GroupInvitation } from "../../modules/group.module/groupInvitation/groupInvitation.model";
+
 //@ts-ignore
 import mongoose from 'mongoose';
 import { buildTranslatedField } from "../../utils/buildTranslatedField";

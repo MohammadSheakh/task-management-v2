@@ -39,10 +39,10 @@ export class TaskMonitoringController {
    * @param res - Express response object
    */
   getTaskMonitoringSummary = catchAsync(async (req: Request, res: Response) => {
-    const { businessUserId } = req.params;
+    // const { businessUserId } = req.params;
 
     // Use logged-in user's ID if businessUserId not provided
-    const userId = businessUserId || (req.user as IUser)?.userId;
+    const userId = (req.user as IUser)?.userId; //  businessUserId || 
 
     if (!userId) {
       throw new Error('Business user ID is required');
@@ -98,5 +98,3 @@ export class TaskMonitoringController {
     });
   });
 }
-
-export const TaskMonitoringController = new TaskMonitoringController();

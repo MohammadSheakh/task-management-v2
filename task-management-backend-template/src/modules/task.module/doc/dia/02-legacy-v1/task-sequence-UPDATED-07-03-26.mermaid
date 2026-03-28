@@ -18,7 +18,7 @@ sequenceDiagram
     participant Notif as Notification Service
     
     %% Scenario 1: Create Task with Embedded Subtasks
-    rect rgb(232, 245, 233)
+    %% rect rgb(232, 245, 233)
     note right of U: Create Personal Task
     U->>FE: Enter task details + subtasks
     FE->>API: POST /tasks {title, description, startTime, subtasks[]}
@@ -31,10 +31,10 @@ sequenceDiagram
     Ctrl-->>API: 201 Created
     API-->>FE: task data (with virtual fields: time, assignedBy)
     FE-->>U: Task created successfully
-    end
+    %% end
     
     %% Scenario 2: Create Collaborative Task
-    rect rgb(255, 243, 224)
+    %% rect rgb(255, 243, 224)
     note right of U: Create Group Task
     U->>FE: Select multiple assignees
     FE->>API: POST /tasks {taskType: 'collaborative', assignedUserIds[]}
@@ -49,10 +49,10 @@ sequenceDiagram
     Ctrl-->>API: 201 Created
     API-->>FE: task data
     FE-->>U: Task assigned to team
-    end
+    %% end
     
     %% Scenario 3: Add Subtask to Existing Task
-    rect rgb(227, 242, 253)
+    %% rect rgb(227, 242, 253)
     note right of U: Add Subtask
     U->>FE: Add new subtask
     FE->>API: POST /subtasks {taskId, title, duration}
@@ -65,10 +65,10 @@ sequenceDiagram
     SubSvc-->>API: 201 Created
     API-->>FE: subtask data
     FE-->>U: Subtask added
-    end
+    %% end
     
     %% Scenario 4: Toggle Subtask Status
-    rect rgb(243, 229, 245)
+    %% rect rgb(243, 229, 245)
     note right of U: Complete Subtask
     U->>FE: Check subtask checkbox
     FE->>API: PUT /subtasks/:id/toggle-status
@@ -94,10 +94,10 @@ sequenceDiagram
     SubSvc-->>API: 200 OK
     API-->>FE: updated subtask
     FE-->>U: Progress updated
-    end
+    %% end
     
     %% Scenario 5: Get Tasks with Filtering
-    rect rgb(255, 235, 238)
+    %% rect rgb(255, 235, 238)
     note right of U: View Task List
     U->>FE: Open tasks (filter: status=pending)
     FE->>API: GET /tasks?status=pending&page=1&limit=10
@@ -116,10 +116,10 @@ sequenceDiagram
     Ctrl-->>API: 200 OK
     API-->>FE: tasks[]
     FE-->>U: Display task list
-    end
+    %% end
     
     %% Scenario 6: Get Task Details
-    rect rgb(224, 247, 250)
+    %% rect rgb(224, 247, 250)
     note right of U: View Task Details
     U->>FE: Click task
     FE->>API: GET /tasks/:id
@@ -139,10 +139,10 @@ sequenceDiagram
     Ctrl-->>API: 200 OK
     API-->>FE: task details
     FE-->>U: Display task + subtasks
-    end
+    %% end
     
     %% Scenario 7: Update Task
-    rect rgb(255, 248, 225)
+    %% rect rgb(255, 248, 225)
     note right of U: Edit Task
     U->>FE: Update task details
     FE->>API: PUT /tasks/:id {title, description, startTime}
@@ -164,10 +164,10 @@ sequenceDiagram
         API-->>FE: error
         FE-->>U: Permission denied
     end
-    end
+    %% end
     
     %% Scenario 8: Update Task Status
-    rect rgb(236, 240, 248)
+    %% rect rgb(236, 240, 248)
     note right of U: Mark Task Complete
     U->>FE: Click "Complete" button
     FE->>API: PUT /tasks/:id/status {status: 'completed'}
@@ -191,7 +191,7 @@ sequenceDiagram
         API-->>FE: error
         FE-->>U: Cannot transition to this status
     end
-    end
+    %% end
     
     %% Scenario 9: Get Daily Progress
     rect rgb(255, 235, 238)

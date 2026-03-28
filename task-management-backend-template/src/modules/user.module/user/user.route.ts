@@ -12,7 +12,7 @@ const UPLOADS_FOLDER = 'uploads/users';
 const upload = fileUploadHandler(UPLOADS_FOLDER);
 import * as validation from './user.validation';
 import { setRequestFiltersV2, setRequstFilterAndValue } from '../../../middlewares/setRequstFilterAndValue';
-import { imageUploadPipelineForUpdateUserProfile } from './user.middleware';
+import { imageUploadPipelineForUpdateUserProfile, verifyChildBelongsToBusinessUser } from './user.middleware';
 import { IsProviderRejected } from '../../../middlewares/provider/IsProviderRejected';
 
 export const optionValidationChecking = <T extends keyof IUser | 'sortBy' | 'page' | 'limit' | 'populate' | 'from' | 'to' | 'providerApprovalStatus'>(
@@ -256,6 +256,21 @@ router.route('/support-mode').put(
   auth(TRole.common),
   validateRequest(validation.updateSupportModeValidationSchema),
   controller.updateSupportMode
+);
+
+/*-───────────────────────────────── ✔️
+|  Business | Parent | Task Details | task-details-flow-apis.png | Update child's support mode
+|  @module UserProfile
+|  @figmaIndex task-details-flow-apis.png
+|  @desc Parent updates their child's support mode (calm/encouraging/logical)
+|  @auth Business users only
+|  @permission Can only update support mode for own children
+└──────────────────────────────────*/
+router.route('/child-support-mode').put(
+  auth(TRole.business),
+  validateRequest(validation.updateChildSupportModeValidationSchema),
+  verifyChildBelongsToBusinessUser,
+  controller.updateChildSupportMode
 );
 
 /*-─────────────────────────────────

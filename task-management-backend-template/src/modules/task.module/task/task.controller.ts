@@ -629,8 +629,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       sortBy: (req.query.sortBy as string) || '-startTime',
     };
 
-    // const result = await this.taskService.getChildrenTasksForDashboard(
-    const result = await this.taskService.getChildrenTasksForDashboardV2(
+    const result = await this.taskService.getChildrenTasksForDashboard(
       new Types.ObjectId(businessUserId),
       filters,
       options,
@@ -640,6 +639,145 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       code: StatusCodes.OK,
       data: result,
       message: 'Children tasks retrieved successfully for dashboard',
+      success: true,
+    });
+  };
+
+  /** ----------------------------------------------
+   * @role Business (Parent/Teacher)
+   * @Section Dashboard
+   * @module Task
+   * @figmaIndex dashboard-flow-01.png, dashboard-flow-02.png
+   * @desc Get all children's tasks with enhanced collaborative progress tracking
+   * @desc V3 ENHANCEMENT: For COLLABORATIVE tasks, includes individual child progress from TaskProgress collection
+   * @desc Each child in assignedTo array has their personal progress status, percentage, and timestamps
+   * @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed'
+   * @query taskType - Filter by type: 'children' | 'personal'
+   * @query page - Page number (default: 1)
+   * @query limit - Items per page (default: 20)
+   * @query sortBy - Sort field (default: -startTime)
+   * @version 3.0.0
+   * @author Senior Engineering Team
+   * @date 2026-03-28
+   *----------------------------------------------*/
+  getChildrenTasksForDashboardV3 = async (req: Request, res: Response) => {
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const filters = {
+      status: (req.query.status as string) || 'all',
+      taskType: (req.query.taskType as string) || 'children',
+      from: req.query.from as string,
+      to: req.query.to as string,
+    };
+
+    const options = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 20,
+      sortBy: (req.query.sortBy as string) || '-startTime',
+    };
+
+    const result = await this.taskService.getChildrenTasksForDashboardV3(
+      new Types.ObjectId(businessUserId),
+      filters,
+      options,
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Children tasks with progress retrieved successfully for dashboard',
+      success: true,
+    });
+  };
+
+  /** ----------------------------------------------
+   * @role Business (Parent/Teacher)
+   * @Section Dashboard
+   * @module Task
+   * @figmaIndex dashboard-flow-01.png, dashboard-flow-02.png
+   * @desc Get all children's tasks with enhanced subtask handling for collaborative and singleAssignment tasks
+   * @desc V4 ENHANCEMENT: 
+   * @desc - Shows subtasks for BOTH collaborative AND singleAssignment tasks
+   * @desc - For COLLABORATIVE: includes myCompletion status per subtask (from SubTaskProgress)
+   * @desc - For singleAssignment: includes global isCompleted status per subtask
+   * @desc - Includes all V3 features (child progress tracking for collaborative tasks)
+   * @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed'
+   * @query taskType - Filter by type: 'children' | 'personal'
+   * @query page - Page number (default: 1)
+   * @query limit - Items per page (default: 20)
+   * @query sortBy - Sort field (default: -startTime)
+   * @version 4.0.0
+   * @author Senior Engineering Team
+   * @date 2026-03-28
+   *----------------------------------------------*/
+  getChildrenTasksForDashboardV4 = async (req: Request, res: Response) => {
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const filters = {
+      status: (req.query.status as string) || 'all',
+      taskType: (req.query.taskType as string) || 'children',
+      from: req.query.from as string,
+      to: req.query.to as string,
+    };
+
+    const options = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 20,
+      sortBy: (req.query.sortBy as string) || '-startTime',
+    };
+
+    const result = await this.taskService.getChildrenTasksForDashboardV4(
+      new Types.ObjectId(businessUserId),
+      filters,
+      options,
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Children tasks with subtask progress retrieved successfully for dashboard',
+      success: true,
+    });
+  };
+
+  /** ----------------------------------------------
+   * @role Business (Parent/Teacher)
+   * @Section Dashboard
+   * @module Task
+   * @figmaIndex task-details-of-a-task.png, task-details-of-collaborative-tasks.png
+   * @desc Get complete task details optimized for parent dashboard
+   * @desc For COLLABORATIVE: Shows all children with individual progress
+   * @desc For SINGLE_ASSIGNMENT: Shows assigned child with progress
+   * @query taskId - Task ID from params
+   * @version 1.0.0
+   * @author Senior Engineering Team
+   * @date 2026-03-28
+   *----------------------------------------------*/
+  getTaskDetailsForParent = async (req: Request, res: Response) => {
+    const taskId = req.params.id;
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const result = await this.taskService.getTaskDetailsForParent(
+      taskId,
+      new Types.ObjectId(businessUserId)
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task details retrieved successfully for parent dashboard',
       success: true,
     });
   };

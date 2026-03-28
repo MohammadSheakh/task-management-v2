@@ -8,6 +8,7 @@ import { SubTaskProgressService } from './subTaskProgress.service';
 import ApiError from '../../../errors/ApiError';
 import sendResponse from '../../../shared/sendResponse';
 import { Types } from 'mongoose';
+import { logger } from '../../../shared/logger';
 
 /**
  * SubTask Progress Controller
@@ -125,6 +126,11 @@ export class SubTaskProgressController extends GenericController<
   /**
    * Toggle my subtask completion
    * PUT /tasks/:taskId/subtasks/:subtaskId/toggle-status
+   * 
+   * ✨ SMART HANDLING:
+   * - For COLLABORATIVE tasks: Updates SubTaskProgress (my personal completion)
+   * - For SINGLE_ASSIGNMENT tasks: Updates SubTask.isCompleted (global completion)
+   * - For PERSONAL tasks: Updates SubTask.isCompleted (global completion)
    */
   toggleMySubtask = async (req: Request, res: Response) => {
     const taskId = req.params.taskId;
@@ -132,7 +138,11 @@ export class SubTaskProgressController extends GenericController<
     const userId = req.user?.userId;
     const { isCompleted } = req.body;
 
-    console.log("Hit .. toggleMySubtask with:", { taskId, subtaskId, userId, isCompleted });
+    console.log("🆕🆕🆕🆕🆕🆕")
+
+    logger.info(
+      `[SubTaskProgress] toggleMySubtask called: taskId=${taskId}, subtaskId=${subtaskId}, userId=${userId}, isCompleted=${isCompleted}`
+    );
 
     if (!userId) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
@@ -142,34 +152,125 @@ export class SubTaskProgressController extends GenericController<
       throw new ApiError(StatusCodes.BAD_REQUEST, 'isCompleted status is required');
     }
 
-    const progress = await this.subTaskProgressService.createOrUpdateProgress(
-      taskId,
-      subtaskId,
-      new Types.ObjectId(userId),
-      isCompleted
-    );
+    // ✨ SMART HANDLING: Check task type to determine which collection to update
+    const { Task } = await import('../task/task.model');
+    const task = await Task.findById(taskId).lean();
 
-    // Get updated progress for this child
-    const allProgress = await this.subTaskProgressService.getChildProgress(
-      taskId,
-      new Types.ObjectId(userId)
-    );
+    if (!task || task.isDeleted) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
 
-    const totalSubtasks = allProgress.length;
-    const completedSubtasks = allProgress.filter((p) => p.isCompleted).length;
-    const progressPercentage =
-      totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+    let progress: any;
+    let message: string;
+
+    if (task.taskType === 'collaborative') {
+      // ✨ COLLABORATIVE: Update SubTaskProgress (my personal completion only)
+      logger.info(
+        `[SubTaskProgress] Task is COLLABORATIVE - updating SubTaskProgress collection`
+      );
+
+      progress = await this.subTaskProgressService.createOrUpdateProgress(
+        taskId,
+        subtaskId,
+        new Types.ObjectId(userId),
+        isCompleted
+      );
+
+      message = 'Subtask progress updated successfully (collaborative task)';
+    } else {
+      // ✨ SINGLE_ASSIGNMENT or PERSONAL: Update SubTask.isCompleted (global completion)
+      logger.info(
+        `[SubTaskProgress] Task is ${task.taskType.toUpperCase()} - updating SubTask.isCompleted directly`
+      );
+
+      // Directly update SubTask.isCompleted for singleAssignment/personal tasks
+      const { SubTask } = await import('../subTask/subTask.model');
+      const { Task } = await import('../task/task.model');
+      const { TaskStatus } = await import('../task/task.constant');
+
+      // Update the subtask
+      progress = await SubTask.findByIdAndUpdate(
+        subtaskId,
+        {
+          isCompleted,
+          completedAt: isCompleted ? new Date() : null,
+        },
+        { new: true }
+      ).select('-__v').lean();
+
+      if (!progress) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+      }
+
+      // Update parent task progress
+      const allSubtasks = await SubTask.find({
+        taskId: new Types.ObjectId(taskId),
+        isDeleted: false,
+      }).lean();
+
+      const totalSubtasks = allSubtasks.length;
+      const completedSubtasksCount = allSubtasks.filter((s: any) => s.isCompleted).length;
+
+      const updateData: any = {
+        totalSubtasks,
+        completedSubtasks: completedSubtasksCount,
+      };
+
+      // Auto-complete parent task if all subtasks are done
+      if (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks) {
+        updateData.status = TaskStatus.COMPLETED;
+        updateData.completedTime = new Date();
+      } else if (completedSubtasksCount > 0 && completedSubtasksCount < totalSubtasks) {
+        updateData.status = TaskStatus.IN_PROGRESS;
+      }
+
+      await Task.findByIdAndUpdate(taskId, updateData);
+
+      message = 'Subtask status updated successfully';
+    }
+
+    // Get updated progress for this child (for collaborative tasks)
+    // or get updated subtask (for singleAssignment/personal tasks)
+    let allProgress: any[] = [];
+    let totalSubtasks = 0;
+    let completedSubtasks = 0;
+    let progressPercentage = 0;
+
+    if (task.taskType === 'collaborative') {
+      allProgress = await this.subTaskProgressService.getChildProgress(
+        taskId,
+        new Types.ObjectId(userId)
+      );
+
+      totalSubtasks = allProgress.length;
+      completedSubtasks = allProgress.filter((p) => p.isCompleted).length;
+      progressPercentage =
+        totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+    } else {
+      // For singleAssignment/personal, get all subtasks for this task
+      const { SubTask } = await import('../subTask/subTask.model');
+      allProgress = await SubTask.find({
+        taskId: new Types.ObjectId(taskId),
+        isDeleted: false,
+      }).lean();
+
+      totalSubtasks = allProgress.length;
+      completedSubtasks = allProgress.filter((s: any) => s.isCompleted).length;
+      progressPercentage =
+        totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+    }
 
     sendResponse(res, {
       code: StatusCodes.OK,
-      data: progress,
-      meta: {
+      data: {
+        progress: progress,
+        taskType: task.taskType,
         myProgressPercentage: progressPercentage,
         completedSubtasks,
         totalSubtasks,
         allSubtasksCompleted: completedSubtasks === totalSubtasks && totalSubtasks > 0,
       },
-      message: 'Subtask progress updated successfully',
+      message,
       success: true,
     });
   };
