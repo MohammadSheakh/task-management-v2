@@ -1,0 +1,124 @@
+stateDiagram-v2
+    %% ===========================================
+    %% ANALYTICS MODULE - STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% ANALYTICS REQUEST STATES
+    state AnalyticsRequest {
+        [*] --> Pending: Request Received
+        Pending --> Authenticating: Verify JWT
+        Authenticating --> Caching: Auth Success
+        Caching --> CacheHit: Cache Found
+        Caching --> CacheMiss: Cache Not Found
+        CacheHit --> Formatting: Return Cached
+        CacheMiss --> Aggregating: Query MongoDB
+        Aggregating --> Formatting: Data Retrieved
+        Formatting --> Responding: Format Response
+        Responding --> Caching: Store in Cache
+        Responding --> [*]: Return to User
+        
+        note right of Caching
+            Cache TTLs:
+            - Charts: 5 min
+            - Family: 5 min
+            - User: 5 min
+            - Admin: 10 min
+        end note
+    }
+
+    %% CHART AGGREGATION STATES ⭐ NEW!
+    state ChartAggregation {
+        [*] --> ChartRequested: API Call
+        ChartRequested --> CheckCache: Check Redis
+        CheckCache --> CacheHit: Hit
+        CheckCache --> AggregateData: Miss
+        AggregateData --> FormatChart: Format for Chart.js
+        FormatChart --> StoreCache: Cache (5 min)
+        StoreCache --> [*]: Return Chart Data
+        CacheHit --> FormatChart
+    }
+
+    %% FAMILY ANALYTICS STATES ⭐ UPDATED
+    state FamilyAnalytics {
+        [*] --> FamilyRequested: Parent Request
+        FamilyRequested --> CheckRelationship: Verify Family
+        CheckRelationship --> AggregateFamily: Valid Relationship
+        CheckRelationship --> Denied: No Relationship
+        AggregateFamily --> BroadcastRealTime: Socket.IO
+        BroadcastRealTime --> UpdateFeed: Activity Feed
+        UpdateFeed --> [*]: Return Data
+        Denied --> [*]
+    }
+
+    %% REAL-TIME BROADCAST STATES ⭐ NEW!
+    state RealTimeBroadcast {
+        [*] --> EventTriggered: Task Complete
+        EventTriggered --> InvalidateCache: Clear Analytics Cache
+        InvalidateCache --> BroadcastFamily: Socket.IO Family Room
+        BroadcastFamily --> ParentReceives: Parent Dashboard Updates
+        ParentReceives --> [*]: Real-Time Complete
+        
+        note right of BroadcastFamily
+            Events:
+            - group:activity
+            - task-progress:started
+            - task-progress:completed
+        end note
+    }
+
+    %% CACHE STATES
+    state CacheStates {
+        [*] --> CheckCache: Request
+        CheckCache --> Valid: Cache Hit
+        CheckCache --> Expired: Cache Miss
+        Valid --> Return: Return Data
+        Expired --> Aggregate: Query DB
+        Aggregate --> Store: Store in Redis
+        Store --> Return: Return Data
+        Return --> [*]
+    }
+
+    %% ADMIN ANALYTICS STATES
+    state AdminAnalytics {
+        [*] --> DashboardRequested: Admin Request
+        DashboardRequested --> VerifyAdmin: Check Role
+        VerifyAdmin --> AggregatePlatform: Admin Verified
+        VerifyAdmin --> AccessDenied: Not Admin
+        AggregatePlatform --> GenerateCharts: Create Chart Data
+        GenerateCharts --> CacheResults: Cache (10 min)
+        CacheResults --> [*]: Return Dashboard
+        AccessDenied --> [*]
+    }
+
+    %% USER ANALYTICS STATES
+    state UserAnalytics {
+        [*] --> ProgressRequested: User Request
+        ProgressRequested --> VerifyUser: Check Ownership
+        VerifyUser --> AggregateUser: User Verified
+        VerifyUser --> AccessDenied: Not Owner
+        AggregateUser --> CalculateStreak: Calculate Streak
+        CalculateStreak --> CalculateScore: Productivity Score
+        CalculateScore --> CacheResults: Cache (5 min)
+        CacheResults --> [*]: Return Analytics
+        AccessDenied --> [*]
+    }
+
+    %% Styling
+    state AnalyticsRequest {
+        style Pending fill:#90caf9
+        style Authenticating fill:#64b5f6
+        style Caching fill:#42a5f5
+        style CacheHit fill:#81c784
+        style CacheMiss fill:#ffb74d
+        style Aggregating fill:#e57373
+        style Formatting fill:#ba68c8
+        style Responding fill:#4db6ac
+    }
+    
+    style ChartAggregation fill:#c8e6c9,stroke:#2e7d32
+    style FamilyAnalytics fill:#c8e6c9,stroke:#2e7d32
+    style RealTimeBroadcast fill:#fff9c4,stroke:#f9a825
+    style CacheStates fill:#ffe0b2,stroke:#e65100
+    style AdminAnalytics fill:#f3e5f5,stroke:#7b1fa2
+    style UserAnalytics fill:#e3f2fd,stroke:#1565c0

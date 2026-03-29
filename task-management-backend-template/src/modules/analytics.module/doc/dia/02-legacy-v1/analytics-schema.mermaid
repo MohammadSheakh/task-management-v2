@@ -1,0 +1,117 @@
+erDiagram
+    %% User Analytics Entities
+    USER ||--o{ TASK : creates
+    USER ||--o{ ANALYTICS_USER_OVERVIEW : has
+    USER ||--o{ ANALYTICS_STREAK : has
+    USER ||--o{ ANALYTICS_PRODUCTIVITY : has
+
+    ANALYTICS_USER_OVERVIEW {
+        ObjectId userId FK
+        number totalTasks
+        number completedTasks
+        number pendingTasks
+        number inProgressTasks
+        number completionRate
+        number currentStreak
+        number longestStreak
+        number productivityScore
+        date lastUpdated
+    }
+
+    ANALYTICS_STREAK {
+        ObjectId userId FK
+        number currentStreak
+        number longestStreak
+        date lastActiveDate
+        array streakHistory
+    }
+
+    ANALYTICS_PRODUCTIVITY {
+        ObjectId userId FK
+        number score
+        object breakdown
+        string trend
+        number percentile
+    }
+
+    %% Task Analytics Entities
+    TASK ||--o{ ANALYTICS_TASK_STATUS : has
+    TASK ||--o{ ANALYTICS_TASK_TREND : has
+
+    ANALYTICS_TASK_STATUS {
+        string scope "global|group|user"
+        ObjectId groupId FK
+        ObjectId userId FK
+        number totalTasks
+        object distribution
+        number overdueTasks
+        number dueToday
+    }
+
+    ANALYTICS_TASK_TREND {
+        string period
+        array dataPoints
+        object summary
+    }
+
+    %% Group Analytics Entities
+    GROUP ||--o{ ANALYTICS_GROUP_OVERVIEW : has
+    GROUP ||--o{ GROUP_MEMBER : contains
+    GROUP ||--o{ ANALYTICS_LEADERBOARD : has
+
+    ANALYTICS_GROUP_OVERVIEW {
+        ObjectId groupId FK
+        string groupName
+        number memberCount
+        number activeMembersToday
+        object overview
+        array topPerformers
+        array recentActivity
+    }
+
+    ANALYTICS_LEADERBOARD {
+        ObjectId groupId FK
+        array entries
+        date lastUpdated
+    }
+
+    GROUP_MEMBER ||--o{ ANALYTICS_MEMBER_STATS : has
+
+    ANALYTICS_MEMBER_STATS {
+        ObjectId groupId FK
+        ObjectId memberId FK
+        string memberName
+        string role
+        number tasksAssigned
+        number tasksCompleted
+        number completionRate
+        number currentStreak
+    }
+
+    %% Admin Analytics Entities
+    ANALYTICS_ADMIN_DASHBOARD {
+        string scope "platform"
+        object platformOverview
+        object userGrowth
+        object revenue
+        object taskMetrics
+        object engagement
+        date lastUpdated
+    }
+
+    %% Cache Entities (Redis)
+    ANALYTICS_CACHE {
+        string key PK
+        string type "user|task|group|admin"
+        any data
+        number ttl
+        date createdAt
+        number hits
+    }
+
+    %% Relationships
+    ANALYTICS_USER_OVERVIEW }o..o{ ANALYTICS_CACHE : "cached in"
+    ANALYTICS_STREAK }o..o{ ANALYTICS_CACHE : "cached in"
+    ANALYTICS_PRODUCTIVITY }o..o{ ANALYTICS_CACHE : "cached in"
+    ANALYTICS_GROUP_OVERVIEW }o..o{ ANALYTICS_CACHE : "cached in"
+    ANALYTICS_ADMIN_DASHBOARD }o..o{ ANALYTICS_CACHE : "cached in"

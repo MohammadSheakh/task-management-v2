@@ -22,22 +22,6 @@ export const createSubTaskValidationSchema = z.object({
       .max(200, 'Title cannot exceed 200 characters'),
 
     // ─── Optional Fields ─────────────────────────────────────────────
-    description: z
-      .string()
-      .max(1000, 'Description cannot exceed 1000 characters')
-      .optional(),
-
-    duration: z
-      .string()
-      .optional(),
-
-    assignedToUserId: z
-      .string()
-      .refine((val) => val.match(/^[0-9a-fA-F]{24}$/), {
-        message: 'Invalid assignedToUserId format',
-      })
-      .optional(),
-
     order: z
       .number()
       .optional(),
@@ -56,20 +40,6 @@ export const updateSubTaskValidationSchema = z.object({
       .string()
       .min(1, 'Title cannot be empty')
       .max(200, 'Title cannot exceed 200 characters')
-      .optional(),
-
-    description: z
-      .string()
-      .max(1000, 'Description cannot exceed 1000 characters')
-      .optional(),
-
-    duration: z.string().optional(),
-
-    assignedToUserId: z
-      .string()
-      .refine((val) => val.match(/^[0-9a-fA-F]{24}$/), {
-        message: 'Invalid assignedToUserId format',
-      })
       .optional(),
 
     isCompleted: z.boolean().optional(),

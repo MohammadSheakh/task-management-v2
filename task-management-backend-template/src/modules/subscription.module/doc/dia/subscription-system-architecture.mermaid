@@ -1,0 +1,98 @@
+flowchart TB
+    subgraph Frontend
+        ADMIN[Admin Dashboard]
+        USER[User/Teacher Dashboard]
+    end
+
+    subgraph API Gateway
+        ROUTE[Subscription Routes]
+        AUTH[Auth Middleware]
+        ADMIN_AUTH[Admin Auth]
+    end
+
+    subgraph Subscription Module
+        subgraph SubscriptionPlan
+            SP_CTRL[SubscriptionPlan Controller]
+            SP_SVC[SubscriptionPlan Service]
+            SP_MODEL[SubscriptionPlan Model]
+        end
+
+        subgraph UserSubscription
+            US_CTRL[UserSubscription Controller]
+            US_SVC[UserSubscription Service]
+            US_MODEL[UserSubscription Model]
+            US_CRON[UserSubscription Cron]
+        end
+    end
+
+    subgraph Payment Module
+        PAY_SVC[Payment Service]
+        PAY_TXN[PaymentTransaction]
+        STRIPE[Stripe Gateway]
+    end
+
+    subgraph External
+        STRIPE_API[Stripe API]
+        REDIS[(Redis Cache)]
+        MONGODB[(MongoDB)]
+    end
+
+    %% Admin Flows
+    ADMIN -->|Create Plan| ROUTE
+    ROUTE -->|POST /subscription-plans/| ADMIN_AUTH
+    ADMIN_AUTH --> SP_CTRL
+    SP_CTRL --> SP_SVC
+    SP_SVC --> SP_MODEL
+    SP_MODEL --> MONGODB
+    SP_SVC -->|Create Stripe Product| STRIPE
+    STRIPE --> STRIPE_API
+
+    ADMIN -->|Update/Delete Plan| ROUTE
+    ROUTE -->|PUT/DELETE /:id| ADMIN_AUTH
+    ADMIN_AUTH --> SP_CTRL
+
+    %% User Flows
+    USER -->|View Plans| ROUTE
+    ROUTE -->|GET /paginate| AUTH
+    AUTH --> SP_CTRL
+    SP_CTRL -->|Query active plans| SP_MODEL
+    SP_MODEL --> MONGODB
+    SP_MODEL -->|Cache plans| REDIS
+
+    USER -->|Purchase Plan| ROUTE
+    ROUTE -->|POST /purchase/:id| AUTH
+    AUTH --> SP_CTRL
+    SP_CTRL --> US_SVC
+    US_SVC -->|Create subscription| US_MODEL
+    US_MODEL --> MONGODB
+    US_SVC -->|Process payment| PAY_SVC
+    PAY_SVC --> STRIPE
+    STRIPE --> STRIPE_API
+    STRIPE -->|Success| PAY_TXN
+    PAY_TXN --> MONGODB
+
+    USER -->|Cancel Subscription| ROUTE
+    ROUTE -->|POST /cancel| AUTH
+    AUTH --> US_CTRL
+    US_CTRL --> US_SVC
+    US_SVC -->|Update status| US_MODEL
+    US_MODEL --> MONGODB
+
+    USER -->|Start Free Trial| ROUTE
+    ROUTE -->|POST /free-trial/start| AUTH
+    AUTH --> US_CTRL
+    US_CTRL --> US_SVC
+    US_SVC -->|Create trial| US_MODEL
+    US_MODEL --> MONGODB
+
+    %% Cron Jobs
+    US_CRON -->|Daily check| US_MODEL
+    US_CRON -->|Auto-renewal| PAY_SVC
+    US_CRON -->|Expire subscriptions| US_MODEL
+
+    %% Styling
+    style ADMIN fill:#42a5f5,color:#fff
+    style USER fill:#66bb6a,color:#fff
+    style STRIPE_API fill:#ffca28,color:#000
+    style MONGODB fill:#4db33d,color:#fff
+    style REDIS fill:#ff7043,color:#fff

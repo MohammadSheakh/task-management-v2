@@ -1,0 +1,174 @@
+sequenceDiagram
+    %% ===========================================
+    %% NOTIFICATION MODULE - SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant S as System
+    participant P as Parent
+    participant C as Child
+    participant FE as Frontend
+    participant API as API Gateway
+    participant NOTIF as notification.service
+    participant REMINDER as taskReminder.service
+    participant REDIS as Redis Cache
+    participant DB as MongoDB
+    participant SOCKET as Socket.IO
+    participant BULLMQ as BullMQ
+    participant WORKER as Worker
+    participant PUSH as FCM Push
+
+    %% ===========================================
+    %% SCENARIO 1: Real-Time Notification Delivery
+    %% ===========================================
+    Note over S,DB: Scenario 1: Real-Time Notification Delivery ⭐ NEW!
+
+    S->>NOTIF: Create Notification
+    NOTIF->>DB: Create NOTIFICATION
+    DB-->>NOTIF: notificationId
+    NOTIF->>SOCKET: emitNotificationToUser()
+    SOCKET->>SOCKET: Check user online
+    SOCKET->>P: Emit 'notification:new'
+    P->>FE: Show notification instantly
+    SOCKET-->>NOTIF: Delivered
+    NOTIF->>REDIS: Invalidate unread cache
+    NOTIF-->>S: Success
+
+    %% ===========================================
+    %% SCENARIO 2: Offline User - Fallback to Push
+    %% ===========================================
+    Note over S,DB: Scenario 2: Offline User - Fallback to Push ⭐ NEW!
+
+    S->>NOTIF: Create Notification
+    NOTIF->>DB: Create NOTIFICATION
+    DB-->>NOTIF: notificationId
+    NOTIF->>SOCKET: emitNotificationToUser()
+    SOCKET->>SOCKET: Check user online
+    SOCKET-->>NOTIF: User offline
+    NOTIF->>PUSH: Send Push Notification
+    PUSH->>P: Show push notification
+    PUSH-->>NOTIF: Sent
+    NOTIF->>REDIS: Invalidate unread cache
+    NOTIF-->>S: Success (via push)
+
+    %% ===========================================
+    %% SCENARIO 3: Family Activity Broadcasting
+    %% ===========================================
+    Note over C,DB: Scenario 3: Family Activity Broadcasting ⭐ NEW!
+
+    C->>FE: Complete Task
+    FE->>API: PUT /task-progress/:id/status
+    API->>TP: updateProgressStatus()
+    TP->>DB: Update TASK_PROGRESS
+    DB-->>TP: Completed
+    TP->>SOCKET: broadcastGroupActivity()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>P: group:activity event
+    P->>FE: Dashboard updates automatically
+    FE-->>P: Show real-time update
+    TP-->>API: Success
+    API-->>FE: Task completed
+    FE-->>C: Success + Celebration
+
+    %% ===========================================
+    %% SCENARIO 4: Scheduled Reminder (BullMQ)
+    %% ===========================================
+    Note over S,DB: Scenario 4: Scheduled Reminder (BullMQ)
+
+    S->>REMINDER: Create Reminder
+    REMINDER->>DB: Create TASK_REMINDER
+    DB-->>REMINDER: reminderId
+    REMINDER->>BULLMQ: Add to task-reminders-queue
+    BULLMQ->>BULLMQ: Schedule for reminderTime
+    BULLMQ->>WORKER: Process job (at reminderTime)
+    WORKER->>REMINDER: processReminder()
+    REMINDER->>DB: Get reminder details
+    DB-->>REMINDER: Reminder data
+    REMINDER->>NOTIF: Create notification
+    NOTIF->>DB: Create NOTIFICATION
+    DB-->>NOTIF: notificationId
+    NOTIF->>SOCKET: Emit to user
+    SOCKET->>P: Show reminder
+    REMINDER->>DB: Mark as sent
+    DB-->>REMINDER: Updated
+    REMINDER-->>WORKER: Complete
+    WORKER-->>BULLMQ: Job completed
+
+    %% ===========================================
+    %% SCENARIO 5: User Views Notifications
+    %% ===========================================
+    Note over P,DB: Scenario 5: User Views Notifications
+
+    P->>FE: View Notifications
+    FE->>API: GET /notifications/my
+    API->>NOTIF: getUserNotifications()
+    NOTIF->>REDIS: Check cache
+    REDIS-->>NOTIF: Cache hit
+    NOTIF-->>API: Cached data
+    API-->>FE: Notifications list
+    FE-->>P: Display notifications
+
+    %% ===========================================
+    %% SCENARIO 6: User Marks Notification as Read
+    %% ===========================================
+    Note over P,DB: Scenario 6: User Marks Notification as Read
+
+    P->>FE: Mark as Read
+    FE->>API: POST /notifications/:id/read
+    API->>NOTIF: markAsRead()
+    NOTIF->>DB: Update status = 'read'
+    DB-->>NOTIF: Updated
+    NOTIF->>REDIS: Del unread cache
+    NOTIF->>SOCKET: emit('notification:read')
+    SOCKET->>P: Real-time update
+    NOTIF-->>API: Success
+    API-->>FE: Notification read
+    FE-->>P: Success
+
+    %% ===========================================
+    %% SCENARIO 7: Get Unread Count (Cached)
+    %% ===========================================
+    Note over P,DB: Scenario 7: Get Unread Count (Cached)
+
+    P->>FE: Check unread count
+    FE->>API: GET /notifications/unread-count
+    API->>NOTIF: getUnreadCount()
+    NOTIF->>REDIS: Check cache
+    REDIS-->>NOTIF: Cache hit (60s TTL)
+    NOTIF-->>API: Cached count
+    API-->>FE: Unread count
+    FE-->>P: Display badge (5)
+
+    %% ===========================================
+    %% SCENARIO 8: Bulk Notification (Admin)
+    %% ===========================================
+    Note over S,DB: Scenario 8: Bulk Notification (Admin)
+
+    Admin->>API: POST /notifications/bulk
+    API->>NOTIF: sendBulkNotification()
+    NOTIF->>DB: Create multiple notifications
+    DB-->>NOTIF: notificationIds[]
+    loop For each user
+        NOTIF->>SOCKET: Emit to user
+        SOCKET->>User: Show notification
+    end
+    NOTIF->>REDIS: Invalidate caches
+    NOTIF-->>API: Bulk sent
+    API-->>Admin: Success
+
+    %% Styling
+    rect rgb(227, 242, 253)
+        Note over P: Parent User
+    end
+    
+    rect rgb(232, 245, 233)
+        Note over C: Child User
+    end
+    
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer ⭐
+    end
+    
+    rect rgb(255, 204, 128)
+        Note over PUSH: Fallback (Offline) ⭐
+    end

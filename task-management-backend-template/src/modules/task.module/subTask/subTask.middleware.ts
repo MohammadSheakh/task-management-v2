@@ -1,7 +1,9 @@
 //@ts-ignore
 import multer from "multer";
-import { processUploadedFilesForCreate, processUploadedFilesForUpdate } from "../../middlewares/processUploadedFiles";
-import { TFolderName } from "../../enums/folderNames";
+// import { processUploadedFilesForCreate, processUploadedFilesForUpdate } from "../../middlewares/processUploadedFiles";
+import { TFolderName } from "../../../enums/folderNames";
+import { processUploadedFilesForCreate, processUploadedFilesForUpdate } from "../../../middlewares/processUploadedFiles";
+// import { TFolderName } from "../../enums/folderNames";
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 

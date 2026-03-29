@@ -1,0 +1,219 @@
+flowchart TB
+    %% ===========================================
+    %% MODULE DEPENDENCY DIAGRAM
+    %% ===========================================
+    
+    subgraph CoreModules["🔧 Core Modules"]
+        AUTH["🔐 auth.module<br/>(Authentication)"]
+        USER["👤 user.module<br/>(User Management)"]
+        TOKEN["🎫 token.module<br/>(JWT Tokens)"]
+        OTP["📱 otp.module<br/>(OTP Verification)"]
+    end
+    
+    subgraph TaskModules["📋 Task Modules"]
+        TASK["task.module<br/>(Task CRUD)"]
+        SUBTASK["subtask<br/>(Subtask Management)"]
+    end
+    
+    subgraph GroupModules["👥 Group Modules"]
+        GROUP["group.module<br/>(Group CRUD)"]
+        MEMBER["groupMember<br/>(Member Management)"]
+        INVITE["groupInvitation<br/>(Invitations)"]
+    end
+    
+    subgraph NotificationModules["🔔 Notification Modules"]
+        NOTIF["notification.module<br/>(Notifications)"]
+        REMINDER["taskReminder<br/>(Task Reminders)"]
+    end
+    
+    subgraph AnalyticsModules["📊 Analytics Modules"]
+        USER_ANALYTICS["userAnalytics<br/>(User Stats)"]
+        TASK_ANALYTICS["taskAnalytics<br/>(Task Stats)"]
+        GROUP_ANALYTICS["groupAnalytics<br/>(Group Stats)"]
+        ADMIN_ANALYTICS["adminAnalytics<br/>(Admin Stats)"]
+    end
+    
+    subgraph SubscriptionModules["💳 Subscription Modules"]
+        SUB_PLAN["subscriptionPlan<br/>(Plan Management)"]
+        USER_SUB["userSubscription<br/>(User Subscriptions)"]
+    end
+    
+    subgraph PaymentModules["💰 Payment Modules"]
+        PAYMENT["payment<br/>(Payment Processing)"]
+        TXN["paymentTransaction<br/>(Transaction Tracking)"]
+        WEBHOOK["stripeWebhook<br/>(Webhook Handling)"]
+    end
+    
+    subgraph SupportingModules["🛠️ Supporting Modules"]
+        ATTACH["attachments<br/>(File Uploads)"]
+        CHAT["chatting.module<br/>(Messaging)"]
+        SETTINGS["settings.module<br/>(Settings/FAQ)"]
+    end
+    
+    subgraph Shared["📦 Shared Components"]
+        GENERIC["_generic-module<br/>(Generic Controller/Service)"]
+        MIDDLEWARE["middlewares<br/>(Auth, Roles, Validation)"]
+        HELPERS["helpers<br/>(Redis, BullMQ, Socket)"]
+        COMMON["common<br/>(Pagination, Utils)"]
+    end
+    
+    subgraph External["🌐 External Dependencies"]
+        STRIPE["💳 Stripe API"]
+        MONGO["🍃 MongoDB"]
+        REDIS["🔴 Redis"]
+        BULLMQ["🐂 BullMQ"]
+        SOCKET["Socket.IO"]
+    end
+    
+    %% Core Module Dependencies
+    AUTH --> USER
+    AUTH --> TOKEN
+    AUTH --> OTP
+    USER --> TOKEN
+    
+    %% Task Module Dependencies
+    TASK --> AUTH
+    TASK --> USER
+    TASK --> GROUP
+    TASK --> NOTIF
+    TASK --> SUBTASK
+    TASK --> ANALYTICS_MODULES
+    SUBTASK --> TASK
+    
+    %% Group Module Dependencies
+    GROUP --> AUTH
+    GROUP --> USER
+    GROUP --> MEMBER
+    GROUP --> INVITE
+    GROUP --> NOTIF
+    MEMBER --> GROUP
+    INVITE --> GROUP
+    INVITE --> EMAIL_WORKER
+    
+    %% Notification Module Dependencies
+    NOTIF --> AUTH
+    NOTIF --> USER
+    NOTIF --> TASK
+    NOTIF --> REMINDER
+    REMINDER --> NOTIF
+    REMINDER --> BULLMQ
+    
+    %% Analytics Module Dependencies
+    USER_ANALYTICS --> TASK
+    USER_ANALYTICS --> REDIS
+    TASK_ANALYTICS --> TASK
+    TASK_ANALYTICS --> REDIS
+    GROUP_ANALYTICS --> GROUP
+    GROUP_ANALYTICS --> NOTIF
+    GROUP_ANALYTICS --> REDIS
+    ADMIN_ANALYTICS --> USER
+    ADMIN_ANALYTICS --> TASK
+    ADMIN_ANALYTICS --> GROUP
+    ADMIN_ANALYTICS --> SUB_PLAN
+    ADMIN_ANALYTICS --> TXN
+    
+    %% Subscription Module Dependencies
+    SUB_PLAN --> AUTH
+    SUB_PLAN --> STRIPE
+    USER_SUB --> SUB_PLAN
+    USER_SUB --> USER
+    USER_SUB --> PAYMENT
+    USER_SUB --> BULLMQ
+    
+    %% Payment Module Dependencies
+    PAYMENT --> STRIPE
+    TXN --> PAYMENT
+    TXN --> USER
+    TXN --> USER_SUB
+    WEBHOOK --> TXN
+    WEBHOOK --> NOTIF
+    WEBHOOK --> STRIPE
+    
+    %% Supporting Module Dependencies
+    ATTACH --> USER
+    ATTACH --> TASK
+    CHAT --> USER
+    CHAT --> REDIS
+    CHAT --> SOCKET
+    SETTINGS --> USER
+    
+    %% All Modules Depend on Shared
+    TASK --> GENERIC
+    GROUP --> GENERIC
+    NOTIF --> GENERIC
+    USER_ANALYTICS --> GENERIC
+    SUB_PLAN --> GENERIC
+    USER_SUB --> GENERIC
+    PAYMENT --> GENERIC
+    TXN --> GENERIC
+    
+    TASK --> MIDDLEWARE
+    GROUP --> MIDDLEWARE
+    NOTIF --> MIDDLEWARE
+    USER_ANALYTICS --> MIDDLEWARE
+    SUB_PLAN --> MIDDLEWARE
+    USER_SUB --> MIDDLEWARE
+    PAYMENT --> MIDDLEWARE
+    TXN --> MIDDLEWARE
+    
+    TASK --> HELPERS
+    GROUP --> HELPERS
+    NOTIF --> HELPERS
+    USER_ANALYTICS --> HELPERS
+    SUB_PLAN --> HELPERS
+    USER_SUB --> HELPERS
+    PAYMENT --> HELPERS
+    TXN --> HELPERS
+    
+    TASK --> COMMON
+    GROUP --> COMMON
+    NOTIF --> COMMON
+    USER_ANALYTICS --> COMMON
+    SUB_PLAN --> COMMON
+    USER_SUB --> COMMON
+    PAYMENT --> COMMON
+    TXN --> COMMON
+    
+    %% External Dependencies
+    PAYMENT --> STRIPE
+    WEBHOOK --> STRIPE
+    SUB_PLAN --> STRIPE
+    
+    TASK --> MONGO
+    GROUP --> MONGO
+    NOTIF --> MONGO
+    USER --> MONGO
+    USER_ANALYTICS --> MONGO
+    SUB_PLAN --> MONGO
+    USER_SUB --> MONGO
+    TXN --> MONGO
+    
+    USER_ANALYTICS --> REDIS
+    GROUP --> REDIS
+    NOTIF --> REDIS
+    CHAT --> REDIS
+    
+    NOTIF --> BULLMQ
+    REMINDER --> BULLMQ
+    USER_SUB --> BULLMQ
+    
+    CHAT --> SOCKET
+    NOTIF --> SOCKET
+    
+    %% Styling
+    style CoreModules fill:#e3f2fd,stroke:#1565c0,color:#000
+    style TaskModules fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style GroupModules fill:#fff3e0,stroke:#e65100,color:#000
+    style NotificationModules fill:#fce4ec,stroke:#c2185b,color:#000
+    style AnalyticsModules fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style SubscriptionModules fill:#e0f7fa,stroke:#006064,color:#000
+    style PaymentModules fill:#fff8e1,stroke:#f57f17,color:#000
+    style SupportingModules fill:#ffebee,stroke:#c62828,color:#000
+    style Shared fill:#f5f5f5,stroke:#616161,color:#000
+    style External fill:#fafafa,stroke:#9e9e9e,color:#000
+    
+    style STRIPE fill:#6772e5,color:#fff
+    style MONGO fill:#4db33d,color:#fff
+    style REDIS fill:#ff7043,color:#fff
+    style BULLMQ fill:#ffca28,color:#000
+    style SOCKET fill:#010101,color:#fff

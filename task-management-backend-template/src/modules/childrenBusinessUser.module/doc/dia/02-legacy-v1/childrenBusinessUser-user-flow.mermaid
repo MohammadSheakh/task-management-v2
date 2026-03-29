@@ -1,0 +1,61 @@
+flowchart TD
+    subgraph "User Registration & Subscription"
+        A[User Registers] --> B{User Type?}
+        B -->|Individual| C1[Purchase Individual Subscription]
+        B -->|Business| C2[Purchase Business Subscription]
+        C1 --> D1[Individual User Account]
+        C2 --> D2[Business User Account]
+    end
+
+    subgraph "Business User Creates Children"
+        D2 --> E[Login to Dashboard]
+        E --> F[Navigate to Team Members]
+        F --> G[Click Add Child]
+        G --> H{Subscription Limit?}
+        H -->|Reached Max| I[Show Upgrade Prompt]
+        H -->|Under Limit| J[Enter Child Details]
+        J --> K[Submit Form]
+    end
+
+    subgraph "System Processing"
+        K --> L{Validate Input}
+        L -->|Invalid| M[Show Error]
+        L -->|Valid| N{Email Exists?}
+        N -->|Yes| O[Show Error: Email Taken]
+        N -->|No| P[Create Child Account]
+        P --> Q[Set accountCreatorId]
+        Q --> R[Create Relationship]
+        R --> S[Show Success]
+    end
+
+    subgraph "Child User Experience"
+        S --> T[Receive Login Credentials]
+        T --> U[Download Mobile App]
+        U --> V[Login with Credentials]
+        V --> W[View Tasks Dashboard]
+        W --> X[View Parent Info]
+        X --> Y[Interact with Tasks]
+    end
+
+    subgraph "Parent Management"
+        E --> Z[View All Children]
+        Z --> AA{Select Action}
+        AA -->|Edit| AB[Update Child Details]
+        AA -->|Remove| AC[Remove from Family]
+        AA -->|View Tasks| AD[See Child's Tasks]
+        AC --> AE{Confirm Removal?}
+        AE -->|Yes| AF[Soft Delete Relationship]
+        AE -->|No| AG[Cancel]
+    end
+
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C2 fill:#e1f5ff
+    style D2 fill:#e1f5ff
+    style G fill:#fff4e1
+    style J fill:#fff4e1
+    style P fill:#c8e6c9
+    style T fill:#e8f5e9
+    style U fill:#e8f5e9
+    style Z fill:#f3e5f5
+    style AA fill:#f3e5f5

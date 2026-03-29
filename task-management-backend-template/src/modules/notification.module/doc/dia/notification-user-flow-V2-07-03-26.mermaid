@@ -1,0 +1,115 @@
+---
+title: Notification Module - User Flow Diagram V2
+description: Updated user flow matching Figma screenshots (Notification panel, Live Activity, task completion updates)
+date: 07-03-26
+version: V2
+---
+
+flowchart TD
+    Start([User Logs In]) --> Dashboard[Dashboard View]
+    
+    %% Notification Bell Icon
+    Dashboard --> NotificationBell[Notification Bell Icon]
+    NotificationBell --> CheckBadge{Check Unread Badge}
+    
+    %% No Notifications State
+    CheckBadge -->|0 Unread| NoNotifications[No Notifications<br/>"There's no notifications"<br/>Empty state illustration]
+    
+    %% Has Notifications
+    CheckBadge -->|Has Unread| HasNotifications[Notification Panel]
+    HasNotifications --> ShowNotifications[Show Notifications List<br/>Alax tom - Complete math homework<br/>5 min ago]
+    
+    ShowNotifications --> NotificationItem{Notification Item}
+    NotificationItem -->|Click| ViewDetails[View Notification Details<br/>Task completion details]
+    NotificationItem -->|Swipe| MarkAsRead[Mark as Read]
+    
+    ViewDetails --> HasTaskLink{Has Task Link?}
+    HasTaskLink -->|Yes| NavigateToTask[Navigate to Task<br/>View task details]
+    HasTaskLink -->|No| ShowContent[Show Content Only]
+    
+    NavigateToTask --> MarkAsRead
+    ShowContent --> MarkAsRead
+    
+    MarkAsRead --> MoreNotifications{More Notifications?}
+    MoreNotifications -->|Yes| ShowNotifications
+    MoreNotifications -->|No| ViewAllButton[View All Notifications Button]
+    
+    ViewAllButton --> AllNotificationsPage[All Notifications Page]
+    AllNotificationsPage --> FilterNotifications{Filter Notifications}
+    
+    FilterNotifications -->|By Type| FilterByType[Filter by Type<br/>Task, Group, System, Reminder]
+    FilterNotifications -->|By Date| FilterByDate[Filter by Date<br/>Today, Yesterday, Older]
+    FilterNotifications -->|By Status| FilterByStatus[Filter by Status<br/>Read, Unread]
+    
+    FilterByType --> ShowFilteredList[Show Filtered List]
+    FilterByDate --> ShowFilteredList
+    FilterByStatus --> ShowFilteredList
+    
+    ShowFilteredList --> BulkActions{Bulk Actions}
+    BulkActions -->|Mark All Read| MarkAllRead[Mark All as Read]
+    BulkActions -->|Delete Old| DeleteOld[Delete Old Notifications]
+    BulkActions -->|Clear All| ClearAll[Clear All Notifications]
+    
+    MarkAllRead --> Done[Done ✅]
+    DeleteOld --> Done
+    ClearAll --> Done
+    
+    %% Live Activity Feed (From Figma Dashboard)
+    Dashboard --> LiveActivity[Live Activity Section<br/>Real-time updates from family]
+    LiveActivity --> ShowLiveUpdates[Show Live Updates<br/>"Jamie Chen completed Complete math homework<br/>2 minutes ago"]
+    
+    ShowLiveUpdates --> LiveUpdateAction{Live Update Action}
+    LiveUpdateAction -->|Click| ViewTaskDetails[View Task Details]
+    LiveUpdateAction -->|Dismiss| DismissUpdate[Dismiss Update]
+    
+    ViewTaskDetails --> TaskCompleted[Task Completed View<br/>Sub-tasks progress<br/>Member completion status]
+    
+    %% Task Completion Notification Flow
+    Dashboard --> TaskCompletion[Task Completion Event]
+    TaskCompletion --> MemberCompletes[Member Completes Task<br/>e.g., "Jamie Chen completes task"]
+    MemberCompletes --> TriggerNotification[Trigger Notification]
+    
+    TriggerNotification --> CreateNotification[Create Notification Record<br/>Type: task<br/>Priority: normal<br/>Channel: in_app]
+    CreateNotification --> SendToRecipients[Send to Recipients<br/>Primary user<br/>Other members]
+    
+    SendToRecipients --> UpdateBadge[Update Notification Badge<br/>Increment unread count]
+    UpdateBadge --> ShowInPanel[Show in Notification Panel]
+    ShowInPanel --> AddToLiveActivity[Add to Live Activity Feed]
+    
+    %% Notification Settings (From Figma Profile)
+    Dashboard --> ProfileNav[Profile Navigation]
+    ProfileNav --> ProfilePage[Profile Page]
+    ProfilePage --> NotificationStyle[Notification Style Settings]
+    
+    NotificationStyle --> SelectStyle{Select Notification Style}
+    SelectStyle -->|Gentle| GentleStyle[Gentle Style<br/>Soft and non-intrusive]
+    SelectStyle -->|Firm| FirmStyle[Firm Style<br/>Direct and clear]
+    SelectStyle -->|XYZ| XYZStyle[XYZ Style<br/>Custom style]
+    
+    GentleStyle --> SaveStyle[Save Preference]
+    FirmStyle --> SaveStyle
+    XYZStyle --> SaveStyle
+    
+    SaveStyle --> StyleSaved[Style Saved ✅]
+    
+    %% Support Mode Integration (Affects Notification Tone)
+    ProfilePage --> SupportMode[Support Mode Settings]
+    SupportMode --> SelectMode{Select Support Mode}
+    SelectMode -->|Calm| CalmMode[Calm Mode<br/>Gentle guidance with peaceful reminders]
+    SelectMode -->|Encouraging| EncouragingMode[Encouraging Mode<br/>Positive energy with motivational reminders]
+    SelectMode -->|Logical| LogicalMode[Logical Mode<br/>Gentle guidance with peaceful reminders]
+    
+    CalmMode --> SaveMode[Save Mode]
+    EncouragingMode --> SaveMode
+    LogicalMode --> SaveMode
+    
+    SaveMode --> ModeSaved[Mode Saved ✅<br/>Affects notification tone]
+    
+    %% Styling
+    style Start fill:#4CAF50,color:#fff
+    style Done fill:#4CAF50,color:#fff
+    style StyleSaved fill:#4CAF50,color:#fff
+    style ModeSaved fill:#4CAF50,color:#fff
+    style NoNotifications fill:#FF9800,color:#fff
+    style HasNotifications fill:#2196F3,color:#fff
+    style LiveActivity fill:#E91E63,color:#fff

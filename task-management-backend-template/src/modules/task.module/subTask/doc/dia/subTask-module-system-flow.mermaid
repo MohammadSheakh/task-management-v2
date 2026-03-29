@@ -1,0 +1,53 @@
+flowchart TD
+    subgraph "Parent Creates Task with Subtasks"
+        A1[Create Task] --> A2[Add Subtasks Array]
+        A2 --> A3[Save to Task Document]
+        A3 --> A4[Set totalSubtasks]
+        A4 --> A5[Set completedSubtasks = 0]
+    end
+    
+    subgraph "Child Completes Subtask (Embedded)"
+        B1[View Task] --> B2[See Subtask List]
+        B2 --> B3[Mark Subtask Complete]
+        B3 --> B4[Update Task.completedSubtasks]
+        B4 --> B5[Recalculate Progress]
+        B5 --> B6{100% Complete?}
+        B6 -->|Yes| B7[Mark Task Complete]
+        B6 -->|No| B8[Continue Tracking]
+    end
+    
+    subgraph "Individual SubTask Operations"
+        C1[Create SubTask] --> C2[Verify Parent Task]
+        C2 --> C3[Insert SubTask Document]
+        C3 --> C4[Update Parent Task]
+        C4 --> C5[Increment totalSubtasks]
+        
+        D1[Update SubTask] --> D2[Find SubTask]
+        D2 --> D3[Update Fields]
+        D3 --> D4[Save Changes]
+        
+        E1[Delete SubTask] --> E2[Soft Delete]
+        E2 --> E3[Update Parent Task]
+        E3 --> E4[Decrement totalSubtasks]
+    end
+    
+    subgraph "Progress Tracking"
+        F1[Child Updates Progress] --> F2{Update Type?}
+        F2 -->|Toggle Complete| F3[Update isCompleted]
+        F2 -->|Update Details| F4[Update title/duration]
+        F3 --> F5[Set completedAt]
+        F5 --> F6[Update TaskProgress]
+        F6 --> F7[Recalculate Percentage]
+    end
+    
+    subgraph "Cache Management"
+        G1[SubTask Created] --> G2[Invalidate Task Cache]
+        G2 --> G3[Invalidate SubTask List Cache]
+        G3 --> G4[Refresh on Next Read]
+    end
+    
+    A5 --> B1
+    B8 --> F1
+    C5 --> G1
+    E4 --> G1
+    F7 --> G1

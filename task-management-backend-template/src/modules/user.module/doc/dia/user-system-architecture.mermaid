@@ -1,0 +1,143 @@
+flowchart TB
+    subgraph Client["Client Layer"]
+        Flutter[Flutter App]
+        Web[Task Management Website]
+        ProfileScreen[Profile Screen]
+        PrefTimeUI[Preferred Time UI]
+    end
+
+    subgraph LB["Load Balancer"]
+        NGINX[NGINX Reverse Proxy]
+    end
+
+    subgraph AppServer["Application Servers - Stateless"]
+        subgraph UserModule["User Module"]
+            UserRoute[user.route.ts]
+            UserController[user.controller.ts]
+            UserService[user.service.ts]
+            UserModel[user.model.ts]
+            PrefTimeEndpoint[⏰ /user/preferred-time]
+        end
+
+        subgraph ProfileModule["UserProfile Module"]
+            ProfileRoute[userProfile.route.ts]
+            ProfileController[userProfile.controller.ts]
+            ProfileService[userProfile.service.ts]
+            ProfileModel[userProfile.model.ts]
+        end
+
+        subgraph DeviceModule["UserDevices Module"]
+            DeviceRoute[userDevices.route.ts]
+            DeviceController[userDevices.controller.ts]
+            DeviceService[userDevices.service.ts]
+            DeviceModel[userDevices.model.ts]
+        end
+
+        subgraph RoleModule["UserRoleData Module"]
+            RoleRoute[userRoleData.route.ts]
+            RoleController[userRoleData.controller.ts]
+            RoleService[userRoleData.service.ts]
+            RoleModel[userRoleData.model.ts]
+        end
+
+        subgraph OAuthModule["OAuthAccount Module"]
+            OAuthRoute[oauthAccount.route.ts]
+            OAuthController[oauthAccount.controller.ts]
+            OAuthService[oauthAccount.service.ts]
+            OAuthModel[oauthAccount.model.ts]
+        end
+    end
+
+    subgraph Cache["Redis Cache Layer"]
+        UserCache[User Cache<br/>TTL: 15 min]
+        ProfileCache[Profile Cache<br/>TTL: 15 min]
+        SessionCache[Session Cache<br/>TTL: 7 days]
+        RateLimitCache[Rate Limit Counters]
+    end
+
+    subgraph DB["Database Layer"]
+        MongoDB[(MongoDB Atlas)]
+        UserCol[User Collection<br/>+ preferredTime field]
+        ProfileCol[UserProfile Collection]
+        DeviceCol[UserDevices Collection]
+        RoleCol[UserRoleData Collection]
+        OAuthCol[OAuthAccount Collection]
+        TaskCol[(Task Collection)]
+    end
+
+    subgraph Async["Async Processing"]
+        BullMQ[BullMQ Queue]
+        PrefWorker[⏰ Preferred Time Worker]
+    end
+
+    subgraph External["External Services"]
+        Google[Google OAuth]
+        Apple[Apple Sign-In]
+        EmailService[Email Service]
+        FCM[Firebase Cloud Messaging]
+        TaskModule[Task Module]
+    end
+
+    Flutter --> NGINX
+    Web --> NGINX
+    ProfileScreen --> PrefTimeUI
+    PrefTimeUI --> Flutter
+
+    NGINX --> UserRoute
+    NGINX --> ProfileRoute
+    NGINX --> DeviceRoute
+    NGINX --> RoleRoute
+    NGINX --> OAuthRoute
+
+    UserRoute --> UserController
+    UserController --> UserService
+    UserService --> UserCache
+    UserService --> UserModel
+
+    PrefTimeEndpoint --> UserController
+    UserController --> UserService
+    UserService --> UserCol
+
+    ProfileRoute --> ProfileController
+    ProfileController --> ProfileService
+    ProfileService --> ProfileCache
+    ProfileService --> ProfileModel
+
+    DeviceRoute --> DeviceController
+    DeviceController --> DeviceService
+    DeviceService --> DeviceModel
+
+    RoleRoute --> RoleController
+    RoleController --> RoleService
+    RoleService --> RoleModel
+
+    OAuthRoute --> OAuthController
+    OAuthController --> OAuthService
+    OAuthService --> OAuthModel
+
+    UserCache <--> MongoDB
+    ProfileCache <--> MongoDB
+    SessionCache <--> MongoDB
+
+    UserModel --> UserCol
+    ProfileModel --> ProfileCol
+    DeviceModel --> DeviceCol
+    RoleModel --> RoleCol
+    OAuthModel --> OAuthCol
+
+    OAuthService --> Google
+    OAuthService --> Apple
+    UserService --> EmailService
+    DeviceService --> FCM
+
+    %% Preferred Time Flow
+    TaskModule --> BullMQ
+    BullMQ --> PrefWorker
+    PrefWorker --> TaskCol
+    PrefWorker --> UserCol
+    UserCol -.->|preferredTime| UserCache
+
+    style PrefTimeEndpoint fill:#9ff,stroke:#333,stroke-width:2px
+    style PrefWorker fill:#f9f,stroke:#333,stroke-width:2px
+    style UserCol fill:#bbf,stroke:#333,stroke-width:2px
+    style PrefTimeUI fill:#ff9,stroke:#333,stroke-width:2px

@@ -1,0 +1,65 @@
+stateDiagram-v2
+    [*] --> Pending: Start
+
+    state "Active" as Active {
+        [*] --> Created: Child account created
+        Created --> Linked: Relationship established
+        Linked --> Verified: Email verified
+        Verified --> Engaged: Using app actively
+    }
+
+    state "Inactive" as Inactive {
+        [*] --> NotVerified: Email not verified
+        NotVerified --> Expired: 30 days no activity
+        Expired --> [*]: Account deleted
+    }
+
+    state "Removed" as Removed {
+        [*] --> SoftDeleted: Business user removes
+        SoftDeleted --> Restored: Reactivated
+        SoftDeleted --> PermanentlyDeleted: After 90 days
+        Restored --> Active
+        PermanentlyDeleted --> [*]
+    }
+
+    Pending --> Active: Verification complete
+    Pending --> Inactive: No verification
+    Active --> Inactive: 60 days inactivity
+    Active --> Removed: Business user action
+    Removed --> Active: Reactivation
+    Inactive --> Active: Re-verification
+
+    note right of Created
+        Child account created
+        accountCreatorId set
+        Relationship record created
+    end note
+
+    note right of Linked
+        Parent-child relationship
+        established in database
+        Redis cache updated
+    end note
+
+    note right of SoftDeleted
+        Soft delete flag set
+        status = 'removed'
+        isDeleted = true
+        Cache invalidated
+    end note
+
+    note right of Reactivated
+        status = 'active'
+        isDeleted = false
+        Cache refreshed
+    end note
+
+    classDef activeState fill:#c8e6c9,stroke:#2e7d32
+    classDef inactiveState fill:#ffcdd2,stroke:#c62828
+    classDef removedState fill:#ffcc80,stroke:#ef6c00
+    classDef pendingState fill:#e1f5ff,stroke:#0277bd
+
+    class Created,Linked,Verified,Engaged activeState
+    class NotVerified,Expired inactiveState
+    class SoftDeleted,Restored removedState
+    class Pending pendingState

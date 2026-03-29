@@ -1,21 +1,5 @@
 import { Document, Types } from 'mongoose';
-
-/**
- * Task Reminder Trigger Type
- * Defines when the reminder should be triggered
- */
-export type TTaskReminderTrigger = 'before_deadline' | 'at_deadline' | 'after_deadline' | 'custom_time' | 'recurring';
-
-/**
- * Task Reminder Status
- */
-export type TTaskReminderStatus = 'pending' | 'sent' | 'cancelled' | 'failed';
-
-/**
- * Task Reminder Frequency
- * For recurring reminders
- */
-export type TTaskReminderFrequency = 'once' | 'daily' | 'weekly' | 'monthly';
+import { TTaskReminderTrigger, TTaskReminderStatus, TTaskReminderFrequency, TNotificationChannel } from './taskReminder.constant';
 
 /**
  * Task Reminder Interface
@@ -58,7 +42,7 @@ export interface ITaskReminder {
   /**
    * Delivery channels
    */
-  channels: ('in_app' | 'email' | 'push' | 'sms')[];
+  channels: TNotificationChannel[];
 
   /**
    * Reminder status
@@ -108,16 +92,6 @@ export interface ITaskReminderDocument extends ITaskReminder, Document {
   _id: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-
-  /**
-   * Check if reminder is due
-   */
-  isDue(): boolean;
-
-  /**
-   * Check if reminder is recurring
-   */
-  isRecurring(): boolean;
 }
 
 /**

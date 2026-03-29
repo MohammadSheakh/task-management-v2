@@ -1,0 +1,114 @@
+sequenceDiagram
+    participant BU as Business User
+    participant API as API Gateway
+    participant CTRL as Controller
+    participant SVC as Service
+    participant DB as Database
+    participant Redis as Redis Cache
+    participant Sub as Subscription Module
+
+    box "Create Child Account"
+        BU->>API: POST /children-business-users/children
+        API->>CTRL: createChild(req, res)
+        CTRL->>SVC: createChildAccount(businessUserId, childData)
+        
+        SVC->>DB: Find business user
+        DB-->>SVC: businessUser
+        
+        SVC->>Sub: Get active subscription
+        Sub-->>SVC: subscription + plan
+        
+        SVC->>DB: Count existing children
+        DB-->>SVC: currentCount
+        
+        alt Has reached max limit
+            SVC-->>CTRL: Error: Max limit reached
+            CTRL-->>API: 400 Bad Request
+            API-->>BU: Error Response
+        else Under limit
+            SVC->>DB: Check email exists
+            DB-->>SVC: No existing user
+            
+            SVC->>SVC: Hash password
+            
+            SVC->>DB: Create child user<br/>accountCreatorId = businessUserId
+            DB-->>SVC: childUser
+            
+            SVC->>DB: Create relationship
+            DB-->>SVC: relationship
+            
+            SVC->>Redis: Invalidate cache
+            Redis-->>SVC: OK
+            
+            SVC-->>CTRL: { childUser, relationship }
+            CTRL-->>API: 201 Created
+            API-->>BU: Success Response
+        end
+    end
+
+    box "Get My Children"
+        BU->>API: GET /children-business-users/my-children
+        API->>CTRL: getMyChildren(req, res)
+        CTRL->>SVC: getChildrenOfBusinessUser(businessUserId)
+        
+        SVC->>Redis: Get cached children
+        Redis-->>SVC: null (cache miss)
+        
+        SVC->>DB: Aggregate children + user data
+        DB-->>SVC: children[]
+        
+        SVC->>Redis: Cache children list
+        Redis-->>SVC: OK
+        
+        SVC-->>CTRL: children[]
+        CTRL-->>API: 200 OK
+        API-->>BU: Children List
+    end
+
+    box "Remove Child"
+        BU->>API: DELETE /children-business-users/children/:id
+        API->>CTRL: removeChild(req, res)
+        CTRL->>SVC: removeChildFromFamily(businessUserId, childUserId)
+        
+        SVC->>DB: Find relationship
+        DB-->>SVC: relationship
+        
+        alt Relationship not found
+            SVC-->>CTRL: Error 404
+            CTRL-->>API: 404 Not Found
+            API-->>BU: Error Response
+        else Relationship found
+            SVC->>DB: Update relationship<br/>status = removed, isDeleted = true
+            DB-->>SVC: OK
+            
+            SVC->>Redis: Invalidate cache
+            Redis-->>SVC: OK
+            
+            SVC-->>CTRL: Success
+            CTRL-->>API: 200 OK
+            API-->>BU: Success Response
+        end
+    end
+
+    box "Child View Parent"
+        CU as Child User
+        CU->>API: GET /children-business-users/my-parent
+        API->>CTRL: getParentBusinessUser(childUserId)
+        CTRL->>SVC: getParentBusinessUser(childUserId)
+        
+        SVC->>Redis: Get cached parent
+        Redis-->>SVC: null (cache miss)
+        
+        SVC->>DB: Find parent relationship
+        DB-->>SVC: relationship
+        
+        SVC->>DB: Populate parent user
+        DB-->>SVC: parentUser
+        
+        SVC->>Redis: Cache parent info
+        Redis-->>SVC: OK
+        
+        SVC-->>CTRL: parentUser
+        CTRL-->>API: 200 OK
+        API-->>CU: Parent Details
+    end

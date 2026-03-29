@@ -1,0 +1,119 @@
+flowchart TB
+    subgraph Client Layer
+        FLUTTER[Flutter App]
+        WEB[Website Dashboard]
+        ADMIN[Admin Dashboard]
+    end
+
+    subgraph API Gateway
+        ROUTE[Analytics Routes]
+        AUTH[Auth Middleware]
+        RATE[Rate Limiter]
+    end
+
+    subgraph Analytics Module
+        subgraph User Analytics
+            UA_CTRL[UserAnalytics Controller]
+            UA_SVC[UserAnalytics Service]
+        end
+
+        subgraph Task Analytics
+            TA_CTRL[TaskAnalytics Controller]
+            TA_SVC[TaskAnalytics Service]
+        end
+
+        subgraph Group Analytics
+            GA_CTRL[GroupAnalytics Controller]
+            GA_SVC[GroupAnalytics Service]
+        end
+
+        subgraph Admin Analytics
+            AA_CTRL[AdminAnalytics Controller]
+            AA_SVC[AdminAnalytics Service]
+        end
+    end
+
+    subgraph Caching Layer
+        REDIS[(Redis Cache)]
+        CACHE_MGR[Cache Manager]
+    end
+
+    subgraph Data Layer
+        MONGODB[(MongoDB)]
+        TASK_DB[(Task Collection)]
+        USER_DB[(User Collection)]
+        GROUP_DB[(Group Collection)]
+    end
+
+    subgraph Background Jobs
+        BULLMQ[BullMQ Queue]
+        SCHEDULER[Scheduled Jobs]
+    end
+
+    %% Client Requests
+    FLUTTER --> ROUTE
+    WEB --> ROUTE
+    ADMIN --> ROUTE
+
+    %% Route Processing
+    ROUTE --> AUTH
+    AUTH --> RATE
+    RATE --> UA_CTRL
+    RATE --> TA_CTRL
+    RATE --> GA_CTRL
+    RATE --> AA_CTRL
+
+    %% Controller to Service
+    UA_CTRL --> UA_SVC
+    TA_CTRL --> TA_SVC
+    GA_CTRL --> GA_SVC
+    AA_CTRL --> AA_SVC
+
+    %% Service to Cache
+    UA_SVC --> CACHE_MGR
+    TA_SVC --> CACHE_MGR
+    GA_SVC --> CACHE_MGR
+    AA_SVC --> CACHE_MGR
+
+    CACHE_MGR <--> REDIS
+
+    %% Cache Miss Flow
+    CACHE_MGR -->|Miss| UA_SVC
+    CACHE_MGR -->|Miss| TA_SVC
+    CACHE_MGR -->|Miss| GA_SVC
+    CACHE_MGR -->|Miss| AA_SVC
+
+    %% Service to Database
+    UA_SVC --> USER_DB
+    UA_SVC --> TASK_DB
+    TA_SVC --> TASK_DB
+    GA_SVC --> GROUP_DB
+    GA_SVC --> TASK_DB
+    AA_SVC --> USER_DB
+    AA_SVC --> TASK_DB
+    AA_SVC --> GROUP_DB
+
+    %% Database Connections
+    USER_DB --- MONGODB
+    TASK_DB --- MONGODB
+    GROUP_DB --- MONGODB
+
+    %% Background Jobs
+    BULLMQ --> SCHEDULER
+    SCHEDULER --> UA_SVC
+    SCHEDULER --> TA_SVC
+    SCHEDULER --> GA_SVC
+    SCHEDULER --> AA_SVC
+
+    %% Cache Invalidation
+    TASK_DB -.->|Task Updated| CACHE_MGR
+    USER_DB -.->|User Updated| CACHE_MGR
+    GROUP_DB -.->|Group Updated| CACHE_MGR
+
+    %% Styling
+    style FLUTTER fill:#42a5f5,stroke:#1565c0,color:#fff
+    style WEB fill:#42a5f5,stroke:#1565c0,color:#fff
+    style ADMIN fill:#ef5350,stroke:#c62828,color:#fff
+    style REDIS fill:#ff7043,stroke:#d84315,color:#fff
+    style MONGODB fill:#4db33d,stroke:#2e7d32,color:#fff
+    style BULLMQ fill:#ffca28,stroke:#f57f17,color:#000

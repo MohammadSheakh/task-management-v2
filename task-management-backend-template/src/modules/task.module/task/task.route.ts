@@ -9,12 +9,41 @@ import { TRole } from '../../../middlewares/roles';
 import { setQueryOptions } from '../../../middlewares/setQueryOptions';
 import { getLoggedInUserAndSetReferenceToUser } from '../../../middlewares/getLoggedInUserAndSetReferenceToUser';
 import * as validation from './task.validation';
-import { verifyTaskAccess, verifyTaskOwnership, validateTaskTypeConsistency, validateStatusTransition, checkDailyTaskLimit } from './task.middleware';
+import {
+  verifyTaskAccess,
+  verifyTaskOwnership,
+  validateTaskTypeConsistency,
+  validateStatusTransition,
+  checkDailyTaskLimit,
+  checkSecondaryUserPermission,
+} from './task.middleware';
+import { rateLimiter } from '../../../middlewares/rateLimiterRedis';
+import { SubTaskRoute } from '../subTask/subTask.route';
 
 const router = express.Router();
 
-export const optionValidationChecking = <T extends keyof ITask | 'sortBy' | 'page' | 'limit' | 'populate' | 'status' | 'taskType' | 'priority' | 'from' | 'to'>(
-  filters: T[]
+// ─── Rate Limiters ─────────────────────────────────────────────────────
+/**
+ * Rate limiters using centralized rateLimiter with Redis
+ * All rate limits are shared across server instances via Redis
+ */
+const createTaskLimiter = rateLimiter('user'); // 30 req/min
+const taskLimiter = rateLimiter('user'); // 30 req/min
+
+export const optionValidationChecking = <
+  T extends
+    | keyof ITask
+    | 'sortBy'
+    | 'page'
+    | 'limit'
+    | 'populate'
+    | 'status'
+    | 'taskType'
+    | 'priority'
+    | 'from'
+    | 'to',
+>(
+  filters: T[],
 ) => {
   return filters;
 };
@@ -29,40 +58,188 @@ const paginationOptions: Array<'sortBy' | 'page' | 'limit' | 'populate'> = [
 const controller = new TaskController();
 
 /*-─────────────────────────────────
-|  User | 01-01 | Create a new task
-|  @module Task
-|  @figmaIndex 01-01
+|  Business (Parent/Teacher) | Task | dashboard-flow-01.png | Get all children's tasks for dashboard
+|  @desc Get paginated list of all children's tasks with status filtering for parent dashboard
+|  @desc Supports filters: All | Not Started | In Progress | Completed | Personal Task
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed' (default: 'all')
+|  @query taskType - Filter by type: 'children' | 'personal' (default: 'children')
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -startTime)
+└──────────────────────────────────*/
+router
+  .route('/dashboard/children-tasks')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getChildrenTasksForDashboard,
+  );
+
+/*-─────────────────────────────────
+|  Business (Parent/Teacher) | Task | dashboard-flow-01.png | Get all children's tasks with enhanced collaborative progress
+|  @desc V3 ENHANCEMENT: Get paginated list of all children's tasks with INDIVIDUAL CHILD PROGRESS for collaborative tasks
+|  @desc For COLLABORATIVE tasks only: each child in assignedTo array includes their personal progress from TaskProgress collection
+|  @desc Progress includes: status, progressPercentage, startedAt, completedAt, completedSubtaskCount
+|  @desc Supports filters: All | Not Started | In Progress | Completed | Personal Task
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed' (default: 'all')
+|  @query taskType - Filter by type: 'children' | 'personal' (default: 'children')
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -startTime)
+|  @version 3.0.0
+|  @author Senior Engineering Team
+|  @date 2026-03-28
+└──────────────────────────────────*/
+router
+  .route('/dashboard/children-tasks/v3')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getChildrenTasksForDashboardV3,
+  );
+
+/*-─────────────────────────────────
+|  Business (Parent/Teacher) | Task | dashboard-flow-01.png | Get all children's tasks with enhanced subtask handling
+|  @desc V4 ENHANCEMENT: Get paginated list of all children's tasks with ENHANCED SUBTASK HANDLING
+|  @desc Shows subtasks for BOTH collaborative AND singleAssignment tasks
+|  @desc For COLLABORATIVE tasks: includes myCompletion status per subtask (from SubTaskProgress collection)
+|  @desc For singleAssignment tasks: includes global isCompleted status per subtask
+|  @desc Includes all V3 features (child progress tracking for collaborative tasks)
+|  @desc Supports filters: All | Not Started | In Progress | Completed | Personal Task
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @query status - Filter by status: 'all' | 'pending' | 'inProgress' | 'completed' (default: 'all')
+|  @query taskType - Filter by type: 'children' | 'personal' (default: 'children')
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -startTime)
+|  @version 4.0.0
+|  @author Senior Engineering Team
+|  @date 2026-03-28
+└──────────────────────────────────*/
+router
+  .route('/dashboard/children-tasks/v4')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getChildrenTasksForDashboardV4,
+  );
+
+/*-─────────────────────────────────
+|  Business (Parent/Teacher) | Task | task-details-of-a-task.png | Get task details for parent dashboard
+|  @desc Get complete task details optimized for parent dashboard
+|  @desc For COLLABORATIVE: Shows all children with individual progress
+|  @desc For SINGLE_ASSIGNMENT: Shows assigned child with progress
+|  @desc Includes: Task info, assigned children, subtasks, progress, creator/owner info
+|  @auth Business users only (Parent/Teacher)
+|  @rateLimit 100 requests per minute
+|  @param id - Task ID
+|  @version 1.0.0
+|  @author Senior Engineering Team
+|  @date 2026-03-28
+|  @figma teacher-parent-dashboard/dashboard/task-details-of-a-task.png
+|  @figma teacher-parent-dashboard/dashboard/task-details-of-collaborative-tasks.png
+└──────────────────────────────────*/
+router
+  .route('/:id/parent-details')
+  .get(
+    auth(TRole.business),
+    taskLimiter,
+    controller.getTaskDetailsForParent,
+  );
+
+/*-───────────────────────────────── ✔️☑️
+|  Child (Secondary) | Business | Task | edit-update-task-flow.png | Create a new task
 |  @desc Create personal, single assignment, or collaborative task
+|  @auth Business users always allowed
+|  @auth Child users need Secondary User permission
+|  @rateLimit 20 requests per hour (prevents spam)
+|  @permission Only Secondary User children can create tasks
 └──────────────────────────────────*/
 router.route('/').post(
   auth(TRole.commonUser),
+  createTaskLimiter,
+  checkSecondaryUserPermission, // ⬅️ NEW: Check Secondary User status
   validateRequest(validation.createTaskValidationSchema),
   validateTaskTypeConsistency,
   checkDailyTaskLimit,
-  controller.create
+  controller.create,
 );
 
-/*-─────────────────────────────────
-|  User | 01-02 | Get all my tasks with filtering
-|  @module Task
-|  @figmaIndex 01-02
+/*-───────────────────────────────── ✔️🏁☑️
+|  Child | Business | Task | home-flow.png | Get all my tasks with filtering
 |  @desc Get tasks where user is creator, owner, or assigned
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router.route('/').get(
-  auth(TRole.commonUser),
-  validateFiltersForQuery(optionValidationChecking(['status', 'taskType', 'priority', 'from', 'to', ...paginationOptions])),
-  controller.getMyTasks
-);
+router
+  .route('/')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'priority',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getMyTasks,
+  );
 
-/*-─────────────────────────────────
-|  User | 01-03 | Get all my tasks with pagination
-|  @module Task
-|  @figmaIndex 01-03
+/*-─────────────────────────────────✔️
+|  Child | Business | Task | home-flow.png | Get all my tasks with pagination
 |  @desc Paginated list of tasks with advanced filtering
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
 router.route('/paginate').get(
   auth(TRole.commonUser),
-  validateFiltersForQuery(optionValidationChecking(['status', 'taskType', 'priority', 'from', 'to', ...paginationOptions])),
+  taskLimiter,
+  validateFiltersForQuery(
+    optionValidationChecking([
+      'status',
+      'taskType',
+      'priority',
+      'from',
+      'to',
+      ...paginationOptions,
+    ]),
+  ),
   setQueryOptions({
     populate: [
       { path: 'createdById', select: 'name email profileImage' },
@@ -70,117 +247,183 @@ router.route('/paginate').get(
       { path: 'assignedUserIds', select: 'name email profileImage' },
     ],
   }),
-  controller.getMyTasksWithPagination
+  controller.getMyTasksWithPagination,
 );
 
-/*-─────────────────────────────────
-|  User | 01-04 | Get task statistics
-|  @module Task
-|  @figmaIndex 01-04
+/*-───────────────────────────────── ✔️
+|  Child | Business | Task | status-section-flow-01.png | Get task statistics
 |  @desc Get count of tasks by status (pending, inProgress, completed)
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router.route('/statistics').get(
-  auth(TRole.commonUser),
-  controller.getStatistics
-);
+router
+  .route('/statistics')
+  .get(auth(TRole.commonUser), taskLimiter, controller.getStatistics);
 
 /*-─────────────────────────────────
-|  User | 01-05 | Get daily progress
-|  @module Task
-|  @figmaIndex 01-05
+|  Child | Business | Task | home-flow.png | Get daily progress
 |  @desc Get task completion progress for a specific date
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
 └──────────────────────────────────*/
-router.route('/daily-progress').get(
-  auth(TRole.commonUser),
-  controller.getDailyProgress
-);
+// NOTE: Route removed - see line 253 for active definition
 
-/*-─────────────────────────────────
-|  User | 01-06 | Get task details by ID
-|  @module Task
-|  @figmaIndex 01-06
-|  @desc Get single task with populated user details
+/*-───────────────────────────────── ✔️
+|  Child | Business | Task | home-flow.png | Get task details by ID
+|  @desc Get single task with populated user details and subtasks (VIRTUAL POPULATE)
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+|  @access Task creator, owner, or assigned users only
+|  @figma app-user/group-children-user/home-flow.png (Task Details screen)
+|  @response Task details + subtasks array (5 subtasks in screenshot)
 └──────────────────────────────────*/
 router.route('/:id').get(
   auth(TRole.commonUser),
-  verifyTaskAccess,
+  taskLimiter,
+  verifyTaskAccess, // 🔁 need to verify this implementation
   setQueryOptions({
     populate: [
       { path: 'createdById', select: 'name email profileImage' },
       { path: 'ownerUserId', select: 'name email profileImage' },
       { path: 'assignedUserIds', select: 'name email profileImage' },
+      { path: 'subtasks', select: '-__v -isDeleted' }, // ⭐ VIRTUAL POPULATE from SubTask collection
     ],
-    select: '-__v'
+    select: '-__v',
   }),
-  controller.getTaskById
+  controller.getTaskById,
 );
 
 /*-─────────────────────────────────
-|  User | 01-07 | Update task by ID
-|  @module Task
-|  @figmaIndex 01-07
+|  Child | Business | Task | edit-update-task-flow.png | Update task by ID
 |  @desc Update task details (creator/owner only)
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+|  @access Task creator or owner only
 └──────────────────────────────────*/
-router.route('/:id').put(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  validateRequest(validation.updateTaskValidationSchema),
-  validateTaskTypeConsistency,
-  controller.updateById
-);
+router
+  .route('/:id')
+  .put(
+    auth(TRole.commonUser),
+    taskLimiter,
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskValidationSchema),
+    validateTaskTypeConsistency,
+    controller.updateById,
+  );
 
-/*-─────────────────────────────────
-|  User | 01-08 | Update task status
-|  @module Task
-|  @figmaIndex 01-08
+/*-───────────────────────────────── ✔️
+|  Child | Business | Task | edit-update-task-flow.png | Update task status
 |  @desc Update task status with automatic timestamp handling
+|  @auth All authenticated users (child, business)
+|  @access Task creator, owner, or assigned users only
+|  @note For COLLABORATIVE tasks, use /task-progress/:taskId/status instead
+|  @note This endpoint directly updates parent task status (personal & singleAssignment only)
 └──────────────────────────────────*/
-router.route('/:id/status').put(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  validateRequest(validation.updateTaskStatusValidationSchema),
-  validateStatusTransition,
-  controller.updateStatus
-);
+router
+  .route('/:id/status')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskStatusValidationSchema),
+    validateStatusTransition,
+    controller.updateStatus,
+  );
+
+/*-───────────────────────────────── ✔️
+|  Child | Business | Task | edit-update-task-flow.png | Update subtask progress
+|  @desc Update subtask list and auto-calculate completion percentage
+|  @auth All authenticated users (child, business)
+|  @access Task creator or owner only
+└──────────────────────────────────*/
+router
+  .route('/:id/subtasks/progress')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    controller.updateSubtaskProgress,
+  );
 
 /*-─────────────────────────────────
-|  User | 01-09 | Update subtask progress
-|  @module Task
-|  @figmaIndex 01-09
-|  @desc Update subtask list and auto-calculate completion
-└──────────────────────────────────*/
-router.route('/:id/subtasks/progress').put(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  controller.updateSubtaskProgress
-);
-
-/*-─────────────────────────────────
-|  User | 01-10 | Soft delete task by ID
-|  @module Task
-|  @figmaIndex 01-10
+|  Child | Business | Task | edit-update-task-flow.png | Soft delete task by ID
 |  @desc Soft delete a task (creator/owner only)
+|  @auth All authenticated users (child, business)
+|  @access Task creator or owner only
 └──────────────────────────────────*/
-router.route('/:id').delete(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  verifyTaskOwnership,
-  controller.softDeleteById
-);
+router
+  .route('/:id')
+  .delete(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    controller.softDeleteById,
+  );
 
 /*-─────────────────────────────────
-|  User | 01-11 | Permanently delete task by ID
-|  @module Task
-|  @figmaIndex 01-11
+|  Admin | Task | dashboard-section-flow.png | Permanently delete task by ID
 |  @desc Permanently delete a task (admin only)
+|  @auth Admin only
+|  @access System administrators only
 └──────────────────────────────────*/
-router.route('/:id/permanent').delete(
-  auth(TRole.admin),
-  verifyTaskAccess,
-  controller.deleteById
-);
+router
+  .route('/:id/permanent')
+  .delete(auth(TRole.admin), verifyTaskAccess, controller.deleteById);
+
+/*-─────────────────────────────────
+|  SubTask Routes
+|  @module SubTask
+|  @desc Nested routes for subtask CRUD operations
+|  @routes POST /tasks/:id/subtasks - Add subtask
+|  @routes GET /tasks/:id/subtasks - Get all subtasks
+|  @routes GET /tasks/:id/subtasks/:subtaskId - Get single subtask
+|  @routes PUT /tasks/:id/subtasks/:subtaskId - Update subtask
+|  @routes PUT /tasks/:id/subtasks/:subtaskId/toggle-status - Toggle subtask
+|  @routes DELETE /tasks/:id/subtasks/:subtaskId - Delete subtask
+└──────────────────────────────────*/
+router.use('/:id/subtasks', SubTaskRoute);
+
+// ────────────────────────────────────────────────────────────────────────
+// Figma-Aligned Routes: Daily Progress
+// Figma: app-user/group-children-user/home-flow.png
+//        teacher-parent-dashboard/dashboard/dashboard-flow-01.png
+// ────────────────────────────────────────────────────────────────────────
+
+/*-───────────────────────────────── ✔️✔️ 03|03-individual
+|  Child | Business | Task | home-flow.png | Get daily progress (Figma aligned)
+|  @desc Get daily task progress for dashboard display
+|  @auth All authenticated users (child, business)
+└──────────────────────────────────*/
+router
+  .route('/daily-progress')
+  .get(auth(TRole.commonUser), controller.getDailyProgress);
+
+/*-─────────────────────────────────
+|  Child | Business | User | Task | create-task-flow.png | Get preferred time suggestion
+|  @desc Get AI-powered time suggestion for task scheduling based on user's task history
+|  @auth All authenticated users (child, business)
+|  @query assignedUserId - Optional: Get suggestion for assignee (parent creating for child)
+|  @returns Suggested time with confidence level and explanation
+└──────────────────────────────────*/
+router
+  .route('/suggest-preferred-time')
+  .get(auth(TRole.commonUser), controller.getPreferredTimeSuggestion);
+
+// ────────────────────────────────────────────────────────────────────────
+// SubTask Progress Routes (Per-Child Subtask Completion Tracking)
+// NEW: For collaborative tasks, each child has independent subtask progress
+// Figma: app-user/group-children-user/home-flow.png
+//        task-details-with-subTasks.png
+// ────────────────────────────────────────────────────────────────────────
+import { SubTaskProgressRoute } from '../subTaskProgress/subTaskProgress.route';
+
+router.use('/subtask-progress', SubTaskProgressRoute);
+
+// ────────────────────────────────────────────────────────────────────────
+// Parent Dashboard: Children's Tasks
+// Figma: teacher-parent-dashboard/dashboard/dashboard-flow-01.png
+//        teacher-parent-dashboard/dashboard/dashboard-flow-02.png
+// ────────────────────────────────────────────────────────────────────────
 
 export const TaskRoute = router;

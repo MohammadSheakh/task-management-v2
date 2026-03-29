@@ -1,0 +1,190 @@
+graph LR
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - MODULE DEPENDENCIES (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% Core Modules
+    subgraph Core["🔐 Core Modules"]
+        AUTH["auth.module<br/>Authentication & Authorization"]
+        USER["user.module<br/>User Management"]
+        TOKEN["token.module<br/>Token Management"]
+        OTP["otp.module<br/>OTP Service"]
+    end
+
+    %% Task Modules
+    subgraph TaskModules["📋 Task Modules"]
+        TASK["task.module<br/>Task CRUD"]
+        SUBTASK["subTask.module<br/>Subtask Management"]
+        TASKPROG["taskProgress.module<br/>Progress Tracking<br/>(NEW!)"]
+    end
+
+    %% Family Modules
+    subgraph FamilyModules["👨‍👩‍👧‍👦 Family Modules"]
+        CBU["childrenBusinessUser.module<br/>Parent-Child Relationships<br/>(NEW!)"]
+    end
+
+    %% Notification Modules
+    subgraph NotificationModules["🔔 Notification Modules"]
+        NOTIF["notification.module<br/>Notifications"]
+        REMINDER["taskReminder.module<br/>Task Reminders"]
+    end
+
+    %% Analytics Modules
+    subgraph AnalyticsModules["📊 Analytics Modules"]
+        USER_ANALYTICS["userAnalytics.service.ts"]
+        TASK_ANALYTICS["taskAnalytics.service.ts"]
+        GROUP_ANALYTICS["groupAnalytics.service.ts"]
+        ADMIN_ANALYTICS["adminAnalytics.service.ts"]
+        CHART_AGG["chartAggregation.service.ts<br/>(NEW!)"]
+    end
+
+    %% Subscription Modules
+    subgraph SubscriptionModules["💳 Subscription Modules"]
+        SUB_PLAN["subscriptionPlan.module<br/>Plan Management"]
+        USER_SUB["userSubscription.module<br/>User Subscriptions"]
+    end
+
+    %% Payment Modules
+    subgraph PaymentModules["💰 Payment Modules"]
+        PAYMENT["payment.module<br/>Payment Processing"]
+        PAYMENT_TXN["paymentTransaction.module<br/>Transaction Tracking"]
+        WEBHOOK["webhook.module<br/>Stripe Webhooks"]
+    end
+
+    %% Chat Modules
+    subgraph ChatModules["💬 Chat Modules"]
+        CONV["conversation.module<br/>Conversations"]
+        MSG["message.module<br/>Messages"]
+        MSG_PART["conversationParticipents.module<br/>Participants"]
+    end
+
+    %% Supporting Modules
+    subgraph Supporting["⚙️ Supporting Modules"]
+        ATTACHMENTS["attachments.module<br/>File Attachments"]
+        SETTINGS["settings.module<br/>User Settings"]
+    end
+
+    %% Shared Components
+    subgraph Shared["🔧 Shared Components"]
+        GENERIC["generic.module<br/>Generic Controller/Service"]
+        MIDDLEWARE["middleware/<br/>Auth, Roles, Rate Limit"]
+        HELPERS["helpers/<br/>Redis, BullMQ, Socket.IO"]
+    end
+
+    %% External Dependencies
+    subgraph External["🌐 External Dependencies"]
+        MONGODB["MongoDB<br/>Database"]
+        REDIS["Redis<br/>Cache & Socket.IO State"]
+        BULLMQ["BullMQ<br/>Job Queues"]
+        STRIPE["Stripe<br/>Payments"]
+        FCM["Firebase<br/>Push Notifications"]
+        EMAIL["Email Service<br/>SendGrid/SES"]
+    end
+
+    %% Core Dependencies
+    AUTH --> USER
+    USER --> TOKEN
+    USER --> OTP
+    USER --> PROFILE
+
+    %% Task Dependencies
+    TASK --> SUBTASK
+    TASK --> TASKPROG
+    TASKPROG --> NOTIF
+    TASK --> NOTIF
+
+    %% Family Dependencies
+    CBU --> USER
+    CBU --> TASK
+    CBU --> NOTIF
+
+    %% Notification Dependencies
+    NOTIF --> REMINDER
+    REMINDER --> BULLMQ
+    NOTIF --> FCM
+    NOTIF --> EMAIL
+
+    %% Analytics Dependencies
+    USER_ANALYTICS --> USER
+    USER_ANALYTICS --> TASK
+    TASK_ANALYTICS --> TASK
+    TASK_ANALYTICS --> TASKPROG
+    GROUP_ANALYTICS --> CBU
+    GROUP_ANALYTICS --> TASK
+    ADMIN_ANALYTICS --> USER_ANALYTICS
+    ADMIN_ANALYTICS --> TASK_ANALYTICS
+    ADMIN_ANALYTICS --> GROUP_ANALYTICS
+    CHART_AGG --> USER_ANALYTICS
+    CHART_AGG --> TASK_ANALYTICS
+    CHART_AGG --> GROUP_ANALYTICS
+
+    %% Subscription Dependencies
+    SUB_PLAN --> USER_SUB
+    USER_SUB --> USER
+    USER_SUB --> SUB_CRON
+
+    %% Payment Dependencies
+    PAYMENT --> STRIPE
+    PAYMENT --> PAYMENT_TXN
+    PAYMENT_TXN --> USER_SUB
+    WEBHOOK --> PAYMENT
+    WEBHOOK --> PAYMENT_TXN
+
+    %% Chat Dependencies
+    CONV --> MSG
+    CONV --> MSG_PART
+    MSG --> NOTIF
+    MSG_PART --> USER
+
+    %% Supporting Dependencies
+    ATTACHMENTS --> TASK
+    ATTACHMENTS --> MSG
+    SETTINGS --> USER
+
+    %% Shared Component Usage
+    TASK --> GENERIC
+    TASKPROG --> GENERIC
+    CBU --> GENERIC
+    NOTIF --> GENERIC
+    USER --> GENERIC
+
+    TASK --> MIDDLEWARE
+    TASKPROG --> MIDDLEWARE
+    CBU --> MIDDLEWARE
+    NOTIF --> MIDDLEWARE
+
+    TASK --> HELPERS
+    TASKPROG --> HELPERS
+    CBU --> HELPERS
+    NOTIF --> HELPERS
+    ANALYTICS --> HELPERS
+
+    %% External Usage
+    TASK --> MONGODB
+    TASKPROG --> MONGODB
+    CBU --> MONGODB
+    NOTIF --> MONGODB
+    USER --> MONGODB
+
+    TASK --> REDIS
+    TASKPROG --> REDIS
+    NOTIF --> REDIS
+    ANALYTICS --> REDIS
+
+    NOTIF --> BULLMQ
+    REMINDER --> BULLMQ
+    TASKPROG --> BULLMQ
+
+    %% Styling
+    style Core fill:#e3f2fd,stroke:#1565c0,color:#000
+    style TaskModules fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style FamilyModules fill:#fce4ec,stroke:#c2185b,color:#000
+    style NotificationModules fill:#fff3e0,stroke:#e65100,color:#000
+    style AnalyticsModules fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style SubscriptionModules fill:#fff8e1,stroke:#f57f17,color:#000
+    style PaymentModules fill:#e0f7fa,stroke:#006064,color:#000
+    style ChatModules fill:#eceff1,stroke:#37474f,color:#000
+    style Supporting fill:#fff9c4,stroke:#f9a825,color:#000
+    style Shared fill:#ffe0b2,stroke:#e65100,color:#000
+    style External fill:#ffebee,stroke:#c62828,color:#000

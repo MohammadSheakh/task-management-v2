@@ -1,0 +1,39 @@
+erDiagram
+    Task ||--o{ TaskProgress : "tracks progress"
+    User ||--o{ TaskProgress : "has progress"
+    
+    Task {
+        ObjectId _id
+        ObjectId createdById
+        String taskType
+        Array assignedUserIds
+        String title
+        Number totalSubtasks
+        Number completedSubtasks
+        String status
+        Boolean isDeleted
+    }
+    
+    TaskProgress {
+        ObjectId _id
+        ObjectId taskId
+        ObjectId userId
+        String status
+        DateTime startedAt
+        DateTime completedAt
+        Array completedSubtaskIndexes
+        Number progressPercentage
+        String note
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    User {
+        ObjectId _id
+        String name
+        String email
+        String role
+        ObjectId accountCreatorId
+        String subscriptionType
+    }

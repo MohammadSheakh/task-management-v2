@@ -1,0 +1,188 @@
+---
+title: Notification Module - State Machine Diagram
+description: State transitions for Notification and TaskReminder entities
+date: 07-03-26
+---
+
+stateDiagram-v2
+    %% Notification States
+    state Notification {
+        [*] --> Pending: Created
+        Pending --> Queued: Added to Queue
+        Queued --> Sending: Processing
+        Sending --> Delivered: Successfully Sent
+        Sending --> Failed: Delivery Failed
+        Failed --> Retrying: Retry Scheduled
+        Retrying --> Sending: Retry Attempt
+        Retrying --> Failed: Max Retries Reached
+        Delivered --> Read: User Opens
+        Delivered --> Archived: Auto-archive
+        Read --> Archived: After 30 Days
+        Archived --> [*]: Permanent Delete
+        
+        note right of Pending
+            Initial state
+            - Notification created
+            - Awaiting processing
+            - Can be cancelled
+        end note
+        
+        note right of Queued
+            In job queue
+            - Scheduled for delivery
+            - Priority assigned
+            - Channel selected
+        end note
+        
+        note right of Sending
+            Being delivered
+            - External API call
+            - Retry on failure
+            - Track delivery
+        end note
+        
+        note right of Delivered
+            Successfully sent
+            - Awaiting user action
+            - Can be marked read
+            - Auto-archive after 30d
+        end note
+        
+        note right of Failed
+            Delivery failed
+            - Retry scheduled
+            - Max 3 retries
+            - Exponential backoff
+        end note
+        
+        note right of Read
+            User engaged
+            - readAt timestamp set
+            - Analytics tracked
+            - Can be archived
+        end note
+    }
+    
+    %% Task Reminder States
+    state TaskReminder {
+        [*] --> Pending: Created
+        Pending --> Scheduled: Job Queued
+        Scheduled --> Triggered: Time Arrived
+        Triggered --> Sent: Notification Sent
+        Triggered --> Failed: Send Failed
+        Failed --> Retrying: Retry Scheduled
+        Retrying --> Sent: Success
+        Retrying --> Failed: Max Retries
+        
+        Sent --> Completed: One-time Done
+        Sent --> Rescheduled: Recurring
+        Rescheduled --> Scheduled: Next Occurrence
+        
+        Pending --> Cancelled: User Cancels
+        Scheduled --> Cancelled: User Cancels
+        Completed --> [*]: Finished
+        Cancelled --> [*]: Cancelled
+        Failed --> [*]: Permanent Failure
+        
+        note right of Pending
+            Reminder created
+            - Validated
+            - Awaiting scheduling
+            - Can be cancelled
+        end note
+        
+        note right of Scheduled
+            Job scheduled
+            - BullMQ job created
+            - Trigger time set
+            - Can be rescheduled
+        end note
+        
+        note right of Triggered
+            Time to send
+            - Processing
+            - Creating notification
+            - Multi-channel
+        end note
+        
+        note right of Sent
+            Notification sent
+            - User notified
+            - Track if recurring
+            - Update counters
+        end note
+        
+        note right of Rescheduled
+            Recurring reminder
+            - Calculate next occurrence
+            - Create new job
+            - Increment counter
+        end note
+    }
+    
+    %% Notification Priority States
+    state Priority {
+        [*] --> Low: Default
+        Low --> Normal: Escalate
+        Normal --> High: Urgent
+        High --> Urgent: Critical
+        Urgent --> [*]: Sent
+        High --> Normal: De-escalate
+        Normal --> Low: De-escalate
+    }
+    
+    %% Channel States
+    state Channel {
+        [*] --> InApp: Default
+        InApp --> Push: Mobile User
+        Push --> Email: Not Delivered
+        Email --> SMS: Critical
+        SMS --> [*]: All Channels Tried
+        
+        InApp --> Email: Also Send
+        Push --> Email: Also Send
+        Email --> SMS: Also Send
+    }
+    
+    %% Delivery States
+    state Delivery {
+        [*] --> Pending: Created
+        Pending --> Processing: Queue Worker
+        Processing --> Delivered: Success
+        Processing --> Bounced: Invalid Address
+        Processing --> Deferred: Rate Limit
+        Deferred --> Processing: Retry After Delay
+        Bounced --> Failed: Permanent
+        Delivered --> Opened: User Engaged
+        Opened --> Clicked: Link Clicked
+        Clicked --> [*]: Complete
+        Failed --> [*]: End
+    }
+    
+    %% Recurring Frequency States
+    state RecurringState {
+        [*] --> Once: Default
+        Once --> [*]: Complete
+        Once --> Daily: User Selects
+        Daily --> Active: Scheduled
+        Active --> Daily: Next Occurrence
+        Daily --> Weekly: Change Frequency
+        Daily --> Monthly: Change Frequency
+        Weekly --> Active: Scheduled
+        Monthly --> Active: Scheduled
+        Active --> Completed: Max Occurrences
+        Active --> Cancelled: User Cancels
+        Completed --> [*]: Finished
+        Cancelled --> [*]: Cancelled
+    }
+    
+    %% State Transitions Between Entities
+    Notification --> Priority: Has Priority
+    Notification --> Channel: Uses Channels
+    Notification --> Delivery: Delivery Status
+    TaskReminder --> Notification: Creates
+    TaskReminder --> RecurringState: Has Frequency
+    
+    Note "Notification Lifecycle" as N1
+    Note "Reminder Lifecycle" as N2
+    Note "Delivery Flow" as N3

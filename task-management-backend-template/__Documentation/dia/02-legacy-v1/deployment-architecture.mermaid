@@ -1,0 +1,176 @@
+flowchart TB
+    %% ===========================================
+    %% PRODUCTION DEPLOYMENT ARCHITECTURE
+    %% ===========================================
+    
+    subgraph Users["👥 Users"]
+        MOBILE["📱 Mobile Users<br/>(Flutter App)"]
+        WEB["💻 Web Users<br/>(Website)"]
+        ADMIN["👨‍💼 Admin Users<br/>(Admin Dashboard)"]
+    end
+    
+    subgraph CDN["🌐 CDN Layer"]
+        CLOUDFLARE["Cloudflare<br/>(DDoS Protection)"]
+        STATIC["Static Assets<br/>(Images, CSS, JS)"]
+    end
+    
+    subgraph LoadBalancing["⚖️ Load Balancing"]
+        NLB["Network Load Balancer<br/>(AWS NLB)"]
+        ALB["Application Load Balancer<br/>(AWS ALB)"]
+        AUTO_SCALE["Auto Scaling Group<br/>(2-10 instances)"]
+    end
+    
+    subgraph Application["🖥️ Application Layer"]
+        
+        subgraph Pod1["📦 Pod 1"]
+            APP1["Node.js App<br/>Port 5000"]
+            SOCKET1["Socket.IO<br/>Port 6738"]
+        end
+        
+        subgraph Pod2["📦 Pod 2"]
+            APP2["Node.js App<br/>Port 5000"]
+            SOCKET2["Socket.IO<br/>Port 6738"]
+        end
+        
+        subgraph Pod3["📦 Pod 3"]
+            APP3["Node.js App<br/>Port 5000"]
+            SOCKET3["Socket.IO<br/>Port 6738"]
+        end
+        
+        subgraph Workers["👷 Background Workers"]
+            NOTIF_WORKER["Notification Worker"]
+            EMAIL_WORKER["Email Worker"]
+            ANALYTICS_WORKER["Analytics Worker"]
+            CRON["Cron Jobs"]
+        end
+    end
+    
+    subgraph Data["💾 Data Layer"]
+        
+        subgraph MongoDB["🍃 MongoDB Atlas"]
+            MONGO_PRIMARY["Primary Node<br/>(us-east-1)"]
+            MONGO_SECONDARY["Secondary Node<br/>(us-west-2)"]
+            MONGO_ARBITER["Arbiter Node"]
+        end
+        
+        subgraph Redis["🔴 Redis Cluster"]
+            REDIS_PRIMARY["Primary Node<br/>(Cache)"]
+            REDIS_REPLICA["Replica Node<br/>(Failover)"]
+        end
+        
+        subgraph Storage["📁 File Storage"]
+            S3["AWS S3<br/>(File Uploads)"]
+            CLOUDFRONT["CloudFront<br/>(CDN for S3)"]
+        end
+    end
+    
+    subgraph Monitoring["📊 Monitoring & Logging"]
+        CLOUDWATCH["AWS CloudWatch<br/>(Logs & Metrics)"]
+        SENTRY["Sentry<br/>(Error Tracking)"]
+        UPTIME["Uptime Monitoring<br/>(Pingdom)"]
+    end
+    
+    subgraph External["🌐 External Services"]
+        STRIPE["💳 Stripe API<br/>(Payments)"]
+        SENDGRID["📧 SendGrid<br/>(Email)"]
+        FCM["📱 Firebase<br/>(Push Notifications)"]
+        TWILIO["📱 Twilio<br/>(SMS)"]
+    end
+    
+    subgraph Security["🔐 Security"]
+        WAF["Web Application Firewall"]
+        SSL["SSL/TLS<br/>(HTTPS)"]
+        SECRETS["AWS Secrets Manager<br/>(API Keys)"]
+    end
+    
+    %% User to CDN
+    MOBILE --> CLOUDFLARE
+    WEB --> CLOUDFLARE
+    ADMIN --> CLOUDFLARE
+    
+    CLOUDFLARE --> STATIC
+    CLOUDFLARE --> NLB
+    
+    %% Load Balancing
+    NLB --> ALB
+    ALB --> AUTO_SCALE
+    AUTO_SCALE --> APP1
+    AUTO_SCALE --> APP2
+    AUTO_SCALE --> APP3
+    
+    %% Application to Data
+    APP1 --> MongoDB
+    APP2 --> MongoDB
+    APP3 --> MongoDB
+    
+    APP1 --> Redis
+    APP2 --> Redis
+    APP3 --> Redis
+    
+    APP1 --> Storage
+    APP2 --> Storage
+    APP3 --> Storage
+    
+    %% Socket.IO
+    SOCKET1 <--> MOBILE
+    SOCKET2 <--> WEB
+    SOCKET3 <--> ADMIN
+    
+    %% Workers
+    NOTIF_WORKER --> SENDGRID
+    NOTIF_WORKER --> FCM
+    NOTIF_WORKER --> TWILIO
+    
+    EMAIL_WORKER --> SENDGRID
+    
+    ANALYTICS_WORKER --> MongoDB
+    ANALYTICS_WORKER --> Redis
+    
+    CRON --> MongoDB
+    CRON --> Redis
+    
+    %% External Services
+    APP1 --> STRIPE
+    APP2 --> STRIPE
+    APP3 --> STRIPE
+    
+    STRIPE --> ALB
+    
+    %% Monitoring
+    APP1 --> CLOUDWATCH
+    APP2 --> CLOUDWATCH
+    APP3 --> CLOUDWATCH
+    
+    APP1 --> SENTRY
+    APP2 --> SENTRY
+    APP3 --> SENTRY
+    
+    UPTIME --> ALB
+    
+    %% Security
+    CLOUDFLARE --> WAF
+    WAF --> ALB
+    ALB --> SSL
+    SSL --> APP1
+    SSL --> APP2
+    SSL --> APP3
+    
+    SECRETS -.-> APP1
+    SECRETS -.-> APP2
+    SECRETS -.-> APP3
+    
+    %% Styling
+    style Users fill:#e3f2fd,stroke:#1565c0,color:#000
+    style CDN fill:#fff3e0,stroke:#e65100,color:#000
+    style LoadBalancing fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Application fill:#fce4ec,stroke:#c2185b,color:#000
+    style Data fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Monitoring fill:#fff8e1,stroke:#f57f17,color:#000
+    style External fill:#e0f7fa,stroke:#006064,color:#000
+    style Security fill:#ffebee,stroke:#c62828,color:#000
+    
+    style MongoDB fill:#4db33d,color:#fff
+    style Redis fill:#ff7043,color:#fff
+    style S3 fill:#ff9900,color:#fff
+    style CLOUDFLARE fill:#f6821f,color:#fff
+    style STRIPE fill:#6772e5,color:#fff

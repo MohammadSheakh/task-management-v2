@@ -1,0 +1,726 @@
+{
+	"info": {
+		"_postman_id": "03-secondary-user-v3-updated",
+		"name": "03 - Secondary User Role (Student/Child) - UPDATED v3",
+		"description": "Team Member - View & Complete Tasks with Real-Time Updates\n\n## Responsibilities\n- View assigned tasks\n- Complete tasks and update status\n- Track daily progress\n- Create personal tasks\n- Create group tasks (if permission granted)\n- Choose support mode (Calm/Encouraging/Logical)\n- Set notification style (Gentle/Firm/XYZ)\n- **NEW**: Check own permission status (Secondary User or not)\n- **NEW**: Get family members for task assignment\n- **NEW**: Bulk create tasks with subtasks in single request\n- **NEW**: Real-time Socket.IO integration\n- **NEW**: Task progress tracking with parent notifications\n\n## Figma Reference\n- App User (Mobile)\n- Individual User / Group User\n- Home Screen with Tasks\n- Task Status/History\n- Profile with Support Mode\n- Notification Settings\n- **NEW**: add-task-flow-for-permission-account-interface.png\n\n## Socket.IO Integration\n- Auto-join personal room on connect\n- Auto-join family room on connect\n- Join task rooms for real-time updates\n- Parent receives real-time notifications\n\n## Variables\n- BASE_URL: http://localhost:5000/api/v1\n- SECONDARY_USER_TOKEN: Your JWT token\n- TASK_ID: Test task ID\n- CHILD_USER_ID: Child user ID",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"version": "3.0.0"
+	},
+	"variable": [
+		{"key": "BASE_URL", "value": "http://localhost:5000/api/v1", "type": "string"},
+		{"key": "SECONDARY_USER_TOKEN", "value": "", "type": "string"},
+		{"key": "TASK_ID", "value": "", "type": "string"},
+		{"key": "SUBTASK_ID", "value": "", "type": "string"},
+		{"key": "CHILD_USER_ID", "value": "", "type": "string"},
+		{"key": "PARENT_BUSINESS_USER_ID", "value": "", "type": "string"}
+	],
+	"item": [
+		{
+			"name": "00 - Authentication",
+			"item": [
+				{
+					"name": "Register Secondary User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"SECONDARY_USER_EMAIL\", jsonData.data.user.email);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Alex Student\",\n  \"email\": \"alex@example.com\",\n  \"password\": \"StudentPass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/auth/register",
+							"host": ["{{BASE_URL}}"],
+							"path": ["auth", "register"]
+						},
+						"description": "Register as a secondary user (student/child)\n\n**Rate Limit**: 10 per hour"
+					},
+					"response": []
+				},
+				{
+					"name": "Login as Secondary User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"SECONDARY_USER_TOKEN\", jsonData.data.tokens.accessToken);",
+									"    pm.environment.set(\"SECONDARY_USER_ID\", jsonData.data.user._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"alex@example.com\",\n  \"password\": \"StudentPass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/auth/login",
+							"host": ["{{BASE_URL}}"],
+							"path": ["auth", "login"]
+						},
+						"description": "Login and save token to SECONDARY_USER_TOKEN variable\n\n**Rate Limit**: 5 attempts per 15 minutes"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "01 - Permission & Family (NEW)",
+			"item": [
+				{
+					"name": "✅ NEW - Get My Permission Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    const isSecondary = jsonData.data.isSecondaryUser;",
+									"    pm.environment.set(\"IS_SECONDARY_USER\", isSecondary);",
+									"    pm.environment.set(\"PARENT_BUSINESS_USER_ID\", jsonData.data.parentBusinessUserId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/children-business-users/my-permission",
+							"host": ["{{BASE_URL}}"],
+							"path": ["children-business-users", "my-permission"]
+						},
+						"description": "✅ NEW API - Check if logged-in child has Secondary User permission\n\n**Figma**: add-task-flow-for-permission-account-interface.png\n\n**Response**:\n```json\n{\n  \"isSecondaryUser\": true,\n  \"parentBusinessUserId\": \"507f1f77bcf86cd799439011\",\n  \"parentName\": \"John Doe\",\n  \"permissions\": {\n    \"canCreateTasksForOthers\": true,\n    \"canViewTeamTasks\": true,\n    \"canAssignToTeamMembers\": true\n  }\n}\n```\n\n**Use Case**: Before showing task creation UI, check if user can create tasks for others or only personal tasks"
+					},
+					"response": []
+				},
+				{
+					"name": "✅ NEW - Get My Family Members",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    // Save family member IDs for task assignment",
+									"    if (jsonData.data.length > 0) {",
+									"        pm.environment.set(\"FAMILY_MEMBER_1\", jsonData.data[0].childUserId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/children-business-users/my-family-members",
+							"host": ["{{BASE_URL}}"],
+							"path": ["children-business-users", "my-family-members"]
+						},
+						"description": "✅ NEW API - Get other children (siblings) under the same parent\n\n**Figma**: add-task-flow-for-permission-account-interface.png (Assign To dropdown)\n\n**Response**:\n```json\n[\n  {\n    \"_id\": \"507f191e810c19729de860ea\",\n    \"childUserId\": \"507f191e810c19729de860ea\",\n    \"name\": \"Alice Doe\",\n    \"email\": \"alice@example.com\",\n    \"isSecondaryUser\": false,\n    \"roleType\": \"Primary\"\n  },\n  {\n    \"_id\": \"507f191e810c19729de860eb\",\n    \"childUserId\": \"507f191e810c19729de860eb\",\n    \"name\": \"Bob Doe\",\n    \"email\": \"bob@example.com\",\n    \"isSecondaryUser\": true,\n    \"roleType\": \"Secondary\"\n  }\n]\n```\n\n**Use Case**: Populate \"Assign To\" dropdown when creating collaborative or single assignment tasks"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Home & Tasks",
+			"item": [
+				{
+					"name": "01 - Create Personal Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"TASK_ID\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"My Personal Task\",\n  \"description\": \"Task for myself only\",\n  \"taskType\": \"personal\",\n  \"priority\": \"medium\",\n  \"startTime\": \"2026-03-17T10:00:00.000Z\",\n  \"scheduledTime\": \"10:00 AM\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks"]
+						},
+						"description": "Create a personal task for yourself only\n\n**Figma**: personal-task.png\n\n**Validation**:\n- Cannot have assignedUserIds\n- Max 5 personal tasks per day\n- Auto-sets ownerUserId to current user\n\n**Permission**: Must be Secondary User\n**Rate Limit**: 30 requests/hour\n**Daily Limit**: Max 5 personal tasks per day"
+					},
+					"response": []
+				},
+				{
+					"name": "02 - Create Single Assignment Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"TASK_ID\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Math Homework\",\n  \"description\": \"Complete chapter 5 exercises\",\n  \"taskType\": \"singleAssignment\",\n  \"priority\": \"high\",\n  \"startTime\": \"2026-03-17T14:00:00.000Z\",\n  \"scheduledTime\": \"2:00 PM\",\n  \"assignedUserIds\": [\":childUserId\"]\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks"]
+						},
+						"description": "Create a task assigned to exactly ONE person\n\n**Figma**: single-assignment.png\n\n**Validation**:\n- Must have exactly 1 user in assignedUserIds\n- No daily limit\n- Replace :childUserId with actual user ID\n\n**Permission**: Must be Secondary User\n**Rate Limit**: 30 requests/hour"
+					},
+					"response": []
+				},
+				{
+					"name": "03 - Create Collaborative Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"TASK_ID\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Family Room Cleanup\",\n  \"description\": \"Clean the living room together\",\n  \"taskType\": \"collaborative\",\n  \"priority\": \"medium\",\n  \"startTime\": \"2026-03-17T16:00:00.000Z\",\n  \"scheduledTime\": \"4:00 PM\",\n  \"assignedUserIds\": [\n    \":childUserId1\",\n    \":childUserId2\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks"]
+						},
+						"description": "Create a task assigned to MULTIPLE people (family/group task)\n\n**Figma**: collaborative-task.png\n\n**Validation**:\n- Must have 2 or more users in assignedUserIds\n- No daily limit\n- Replace :childUserId1, :childUserId2 with actual user IDs\n- Get user IDs from: GET /children-business-users/my-family-members\n\n**Permission**: Must be Secondary User\n**Rate Limit**: 30 requests/hour\n\n**Real-Time**: All assigned users receive Socket.IO notification"
+					},
+					"response": []
+				},
+				{
+					"name": "✅ UPDATED - Create Task with Bulk Subtasks",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"TASK_ID\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Complete Math Homework\",\n  \"description\": \"Finish exercises 1-10 from chapter 5\",\n  \"taskType\": \"singleAssignment\",\n  \"priority\": \"high\",\n  \"startTime\": \"2026-03-25T08:00:00.000Z\",\n  \"scheduledTime\": \"8:00 AM\",\n  \"assignedUserIds\": [\":childUserId\"],\n  \"subtasks\": [\n    {\n      \"title\": \"Read chapter 5\",\n      \"duration\": 30,\n      \"order\": 1\n    },\n    {\n      \"title\": \"Solve exercises 1-5\",\n      \"duration\": 45,\n      \"order\": 2\n    },\n    {\n      \"title\": \"Solve exercises 6-10\",\n      \"duration\": 45,\n      \"order\": 3\n    },\n    {\n      \"title\": \"Review answers\",\n      \"duration\": 15,\n      \"order\": 4\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks"]
+						},
+						"description": "✅ UPDATED - Create task with subtasks in a SINGLE API call\n\n**Figma**: add-task-flow-for-permission-account-interface.png\n\n**What Changed**:\n- Before: Create task, then add subtasks one-by-one (multiple API calls)\n- After: Create task + all subtasks in one request (bulk creation)\n\n**Subtasks Array**:\n- title (required): Subtask title (max 200 chars)\n- duration (optional): Duration in minutes\n- isCompleted (optional): Default false\n- order (optional): Auto-incremented if not provided\n\n**Benefits**:\n- Single API call instead of N+1\n- Atomic operation (all or nothing)\n- Better performance (bulk insert)\n- Matches Figma UX flow exactly\n\n**Note**: Replace :childUserId with actual user ID from family members API"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Tasks (Home Screen)",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks?page=1&limit=10",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks"],
+							"query": [
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "10"}
+							]
+						},
+						"description": "Get my tasks for home screen\n\n**Figma**: home-flow.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Progress",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/daily-progress?date=2026-03-12",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "daily-progress"],
+							"query": [
+								{"key": "date", "value": "2026-03-12"}
+							]
+						},
+						"description": "Get today's daily progress\n\n**Figma**: home-flow.png (Daily Progress: 1/5)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task Statistics",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/statistics",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "statistics"]
+						},
+						"description": "Get my task statistics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task Details",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "{{TASK_ID}}"]
+						},
+						"description": "Get task details with subtasks\n\n**Figma**: task-details-with-subTasks.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task Status (Start/Complete)",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"inProgress\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/status",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "{{TASK_ID}}", "status"]
+						},
+						"description": "Update task status\n\n**Status Options**:\n- pending\n- inProgress\n- completed\n\n**Real-Time**: Parent receives Socket.IO notification"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated task title\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "{{TASK_ID}}"]
+						},
+						"description": "Update task details\n\n**Figma**: edit-update-task-flow.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Task",
+					"request": {
+						"method": "DELETE",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "{{TASK_ID}}"]
+						},
+						"description": "Soft delete task"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - SubTasks (Individual Operations)",
+			"item": [
+				{
+					"name": "Add Subtask to Existing Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"SUBTASK_ID\", jsonData.data._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Additional subtask\",\n  \"duration\": 20\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/subtasks",
+							"host": ["{{BASE_URL}}"],
+							"path": ["tasks", "{{TASK_ID}}", "subtasks"]
+						},
+						"description": "Add a subtask to an existing task\n\n**Note**: For creating task with subtasks together, use \"Create Task with Bulk Subtasks\" endpoint instead"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Subtasks for Task",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/subtasks/task/{{TASK_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["subtasks", "task", "{{TASK_ID}}"]
+						},
+						"description": "Get all subtasks for a specific task"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Subtask",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated subtask title\",\n  \"duration\": 30\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["subtasks", "{{SUBTASK_ID}}"]
+						},
+						"description": "Update subtask details"
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle Subtask Status",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"isCompleted\": true\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}/toggle-status",
+							"host": ["{{BASE_URL}}"],
+							"path": ["subtasks", "{{SUBTASK_ID}}", "toggle-status"]
+						},
+						"description": "Toggle subtask completion status"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Subtask",
+					"request": {
+						"method": "DELETE",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["subtasks", "{{SUBTASK_ID}}"]
+						},
+						"description": "Delete a subtask"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "04 - Task Progress (Real-Time Parent Notifications)",
+			"item": [
+				{
+					"name": "Get My Task Progress",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/task-progress/{{TASK_ID}}/user/{{CHILD_USER_ID}}",
+							"host": ["{{BASE_URL}}"],
+							"path": ["task-progress", "{{TASK_ID}}", "user", "{{CHILD_USER_ID}}"]
+						},
+						"description": "Get my progress on a specific task"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Progress Status (Start Task)",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{CHILD_USER_ID}}\",\n  \"status\": \"inProgress\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/task-progress/{{TASK_ID}}/status",
+							"host": ["{{BASE_URL}}"],
+							"path": ["task-progress", "{{TASK_ID}}", "status"]
+						},
+						"description": "Start a task (update progress status)\n\n**Real-Time**: Parent receives Socket.IO event\n`task-progress:started`\n\n**Figma**: edit-update-task-flow.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Subtask (Real-Time Update)",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{CHILD_USER_ID}}\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/task-progress/{{TASK_ID}}/subtasks/0/complete",
+							"host": ["{{BASE_URL}}"],
+							"path": ["task-progress", "{{TASK_ID}}", "subtasks", "0", "complete"]
+						},
+						"description": "Complete a specific subtask\n\n**Real-Time**: Parent receives Socket.IO event\n`task-progress:subtask-completed`\nwith progress percentage\n\n**Figma**: task-details-with-subTasks.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My All Tasks Progress",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/task-progress/child/{{CHILD_USER_ID}}/tasks",
+							"host": ["{{BASE_URL}}"],
+							"path": ["task-progress", "child", "{{CHILD_USER_ID}}", "tasks"]
+						},
+						"description": "Get all my tasks with progress"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "05 - Profile & Settings",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/users/profile",
+							"host": ["{{BASE_URL}}"],
+							"path": ["users", "profile"]
+						},
+						"description": "Get my profile with statistics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Support Mode",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/users/support-mode",
+							"host": ["{{BASE_URL}}"],
+							"path": ["users", "support-mode"]
+						},
+						"description": "Get my support mode preference\n\n**Figma**: profile-permission-account-interface.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Support Mode",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"supportMode\": \"encouraging\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/users/support-mode",
+							"host": ["{{BASE_URL}}"],
+							"path": ["users", "support-mode"]
+						},
+						"description": "Update support mode preference\n\n**Options**:\n- calm\n- encouraging\n- logical"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notification Style",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/users/notification-style",
+							"host": ["{{BASE_URL}}"],
+							"path": ["users", "notification-style"]
+						},
+						"description": "Get my notification style preference"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification Style",
+					"request": {
+						"method": "PUT",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notificationStyle\": \"firm\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/users/notification-style",
+							"host": ["{{BASE_URL}}"],
+							"path": ["users", "notification-style"]
+						},
+						"description": "Update notification style preference\n\n**Options**:\n- gentle\n- firm\n- xyz"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "06 - Analytics & Charts",
+			"item": [
+				{
+					"name": "Get My Completion Trend",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/analytics/charts/completion-trend/{{CHILD_USER_ID}}?days=30",
+							"host": ["{{BASE_URL}}"],
+							"path": ["analytics", "charts", "completion-trend", "{{CHILD_USER_ID}}"],
+							"query": [
+								{"key": "days", "value": "30"}
+							]
+						},
+						"description": "Get my task completion trend (line chart)\n\n**Response**: Chart.js-ready data"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Activity Heatmap",
+					"request": {
+						"method": "GET",
+						"auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]},
+						"url": {
+							"raw": "{{BASE_URL}}/analytics/charts/activity-heatmap/{{CHILD_USER_ID}}?days=30",
+							"host": ["{{BASE_URL}}"],
+							"path": ["analytics", "charts", "activity-heatmap", "{{CHILD_USER_ID}}"],
+							"query": [
+								{"key": "days", "value": "30"}
+							]
+						},
+						"description": "Get my activity heatmap (day/hour)\n\n**Response**: Heatmap data"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "07 - Socket.IO Events (Reference)",
+			"item": [
+				{
+					"name": "📡 Socket.IO Connection Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://socket.io/",
+							"protocol": "https",
+							"host": ["socket", "io"],
+							"path": [""]
+						},
+						"description": "Socket.IO Connection Reference\n\n**Connect**:\n```javascript\nconst socket = io('http://localhost:5000', {\n  auth: {\n    token: SECONDARY_USER_TOKEN\n  }\n});\n\nsocket.on('connect', () => {\n  console.log('✅ Connected to Socket.IO');\n  // Auto-joined to personal room: {userId}\n  // Auto-joined to family room: {parentBusinessUserId}\n});\n```\n\n**Join Task Room**:\n```javascript\nsocket.emit('join-task', { taskId: 'task123' }, (response) => {\n  console.log('Joined task room');\n});\n```\n\n**Listen for Events**:\n```javascript\n// Task assigned to you\nsocket.on('task:assigned', (data) => {\n  showNotification(`New task assigned: ${data.taskTitle}`);\n});\n\n// Real-time updates (if you're parent)\nsocket.on('task-progress:started', (data) => {});\nsocket.on('task-progress:subtask-completed', (data) => {});\nsocket.on('task-progress:completed', (data) => {});\nsocket.on('group:activity', (activity) => {});\n```\n\n**Leave Task Room**:\n```javascript\nsocket.emit('leave-task', { taskId: 'task123' });\n```"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

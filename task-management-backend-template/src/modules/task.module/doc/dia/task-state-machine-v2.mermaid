@@ -1,0 +1,163 @@
+stateDiagram-v2
+    %% ===========================================
+    %% TASK MODULE - STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% TASK STATUS STATES
+    state TaskStatus {
+        [*] --> Draft: Task Created
+        Draft --> Pending: Submitted
+        Draft --> Deleted: Deleted
+        Pending --> InProgress: Started
+        Pending --> Completed: Completed (All subtasks)
+        Pending --> Deleted: Deleted
+        InProgress --> Completed: All subtasks done
+        InProgress --> Pending: Reopened
+        InProgress --> Deleted: Deleted
+        Completed --> Pending: Reopened
+        Completed --> Deleted: Deleted
+        Deleted --> [*]
+        
+        note right of Completed
+            Auto-Complete Conditions:
+            - All subtasks completed
+            - OR all children complete (collaborative)
+            - OR manual completion
+        end note
+    }
+
+    %% SUBTASK STATUS STATES
+    state SubtaskStatus {
+        [*] --> Pending: Created
+        Pending --> InProgress: Started
+        Pending --> Completed: Completed
+        InProgress --> Completed: Completed
+        Completed --> Pending: Reopened
+        Completed --> [*]
+        Deleted --> [*]
+    }
+
+    %% TASK PROGRESS STATES (Per Child) ⭐ NEW!
+    state TaskProgress {
+        [*] --> NotStarted: Task Assigned
+        NotStarted --> InProgress: Child Starts
+        InProgress --> Completed: Child Completes
+        NotStarted --> Completed: Direct Complete
+        
+        state SubtaskProgress {
+            [*] --> SubtaskPending
+            SubtaskPending --> SubtaskCompleted: Complete Subtask
+            SubtaskCompleted --> [*]
+        }
+        
+        Completed --> [*]
+        
+        note right of InProgress
+            Progress Tracking:
+            - completedSubtaskIndexes[]
+            - progressPercentage (0-100)
+            - startedAt, completedAt
+        end note
+    }
+
+    %% COLLABORATIVE TASK STATES ⭐ NEW!
+    state CollaborativeTask {
+        [*] --> Created: Parent Creates
+        Created --> ProgressTracking: TaskProgress Created
+        ProgressTracking --> PartialComplete: Some Children Complete
+        PartialComplete --> AllComplete: All Children Complete
+        ProgressTracking --> AllComplete: All Complete at Once
+        AllComplete --> [*]: Task Completed
+        
+        note right of ProgressTracking
+            Each child has independent:
+            - TaskProgress record
+            - Progress percentage
+            - Completion status
+        end note
+    }
+
+    %% REAL-TIME BROADCAST STATES ⭐ NEW!
+    state RealTimeBroadcast {
+        [*] --> TaskEvent: Task Created/Updated/Completed/Deleted
+        TaskEvent --> InvalidateCache: Clear Caches
+        InvalidateCache --> BroadcastFamily: Socket.IO Family Room
+        BroadcastFamily --> FamilyReceives: Family Dashboard Updates
+        FamilyReceives --> [*]: Real-Time Complete
+        
+        note right of BroadcastFamily
+            Events:
+            - task:created
+            - task:updated
+            - task:completed
+            - task:deleted
+            - subtask:completed
+        end note
+    }
+
+    %% CACHE STATES
+    state CacheStates {
+        [*] --> CheckCache: Request
+        CheckCache --> Valid: Cache Hit
+        CheckCache --> Expired: Cache Miss
+        Valid --> Return: Return Data
+        Expired --> QueryDB: Query MongoDB
+        QueryDB --> Store: Store in Redis
+        Store --> Return: Return Data
+        Return --> [*]
+
+        note right of CheckCache
+            Cache TTLs:
+            - Task detail: 5 min
+            - Task list: 2 min
+            - Statistics: 5 min
+            - Daily progress: 2 min
+        end note
+    }
+
+    %% TASK CREATION PERMISSION STATES ⭐ NEW!
+    state TaskCreationPermission {
+        [*] --> CheckUser: Check User Role
+        CheckUser --> BusinessUser: Business User
+        CheckUser --> ChildUser: Child User
+        BusinessUser --> CreateAny: Can Create Any Type
+        ChildUser --> CheckSecondary: Is Secondary User?
+        CheckSecondary --> IsSecondary: Yes
+        CheckSecondary --> NotSecondary: No
+        IsSecondary --> CreateAny: Can Create Family Tasks
+        NotSecondary --> PersonalOnly: Personal Tasks Only
+        CreateAny --> CreateTask: Create Task
+        PersonalOnly --> CreateTask: Create Personal Task
+        CreateTask --> [*]
+        
+        note right of IsSecondary
+            Secondary User:
+            - Can create personal tasks
+            - Can create single assignment
+            - Can create collaborative
+        end note
+    }
+
+    %% Styling
+    state TaskStatus {
+        style Draft fill:#90caf9
+        style Pending fill:#fff9c4
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+        style Deleted fill:#e57373
+    }
+    
+    state SubtaskStatus {
+        style Pending fill:#fff9c4
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+    }
+    
+    style TaskStatus fill:#e3f2fd,stroke:#1565c0
+    style SubtaskStatus fill:#e8f5e9,stroke:#2e7d32
+    style TaskProgress fill:#c8e6c9,stroke:#2e7d32
+    style CollaborativeTask fill:#f3e5f5,stroke:#7b1fa2
+    style RealTimeBroadcast fill:#fff9c4,stroke:#f9a825
+    style CacheStates fill:#ffe0b2,stroke:#e65100
+    style TaskCreationPermission fill:#e0f7fa,stroke:#006064

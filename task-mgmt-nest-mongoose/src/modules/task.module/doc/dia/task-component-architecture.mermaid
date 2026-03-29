@@ -1,0 +1,63 @@
+flowchart LR
+    subgraph Presentation["Presentation Layer"]
+        TC[TaskController]
+        STC[SubTaskController]
+    end
+
+    subgraph Business["Business Logic Layer"]
+        TS[TaskService]
+        STS[SubTaskService]
+    end
+
+    subgraph Data["Data Access Layer"]
+        TaskModel[Task Model]
+        SubTaskModel[SubTask Model]
+    end
+
+    subgraph Infrastructure["Infrastructure Layer"]
+        Redis[Redis Client]
+        Socket[SocketGateway]
+        BullMQ[BullMQ Queue]
+    end
+
+    subgraph Common["Common Modules"]
+        GC[GenericController]
+        GS[GenericService]
+        Auth[AuthGuard]
+        Transform[TransformInterceptor]
+    end
+
+    TC --> GC
+    STC --> GC
+
+    TS --> GS
+    STS --> GS
+
+    TC --> TS
+    STC --> STS
+
+    TS --> TaskModel
+    STS --> SubTaskModel
+
+    TS --> Redis
+    STS --> Redis
+
+    TS --> Socket
+    STS --> Socket
+
+    TS --> BullMQ
+    STS --> BullMQ
+
+    TC --> Auth
+    STC --> Auth
+
+    TC --> Transform
+    STC --> Transform
+
+    TaskModel -.->|Virtual Populate| SubTaskModel
+
+    style Presentation fill:#E3F2FD,stroke:#1976D2
+    style Business fill:#FFF3E0,stroke:#F57C00
+    style Data fill:#E8F5E9,stroke:#388E3C
+    style Infrastructure fill:#F3E5F5,stroke:#7B1FA2
+    style Common fill:#FFEBEE,stroke:#C62828

@@ -1,0 +1,147 @@
+erDiagram
+    %% ===========================================
+    %% NOTIFICATION MODULE - SCHEMA (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% MAIN NOTIFICATION COLLECTION
+    NOTIFICATION {
+        ObjectId _id PK
+        Object title "i18n object"
+        Object subTitle "i18n object"
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String receiverRole "user|admin|business|child"
+        String type "task|reminder|assignment|deadline|activity|permission"
+        String priority "low|normal|high|urgent"
+        String[] channels "in_app|email|push|sms"
+        String status "pending|sent|delivered|read|failed"
+        Boolean isRead
+        DateTime readAt
+        DateTime sentAt
+        String linkFor
+        ObjectId linkId FK
+        Object data "Additional metadata"
+        DateTime scheduledFor
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% TASK REMINDER COLLECTION
+    TASK_REMINDER {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        ObjectId createdByUserId FK
+        DateTime reminderTime
+        String triggerType "before_deadline|at_deadline|after_deadline|custom_time|recurring"
+        String frequency "once|daily|weekly|monthly"
+        Number occurrences "Max 10"
+        Number sentCount
+        Boolean isSent
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% USER COLLECTION (Referenced)
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "business|child|admin"
+        String profileImage
+        Boolean isEmailVerified
+        Boolean isDeleted
+        DateTime createdAt
+    }
+
+    %% TASK COLLECTION (Referenced)
+    TASK {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        DateTime startTime
+        DateTime dueDate
+        Boolean isDeleted
+    }
+
+    %% CHILDREN BUSINESS USER (Referenced)
+    CHILDREN_BUSINESS_USER {
+        ObjectId _id PK
+        ObjectId parentBusinessUserId FK
+        ObjectId childUserId FK
+        Boolean isSecondaryUser
+        String status "active|inactive|removed"
+    }
+
+    %% USER SUBSCRIPTION (Referenced)
+    USER_SUBSCRIPTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        String status "active|cancelled|expired"
+        DateTime currentPeriodEnd
+    }
+
+    %% NOTIFICATION CACHE STRUCTURES (Redis - Virtual)
+    NOTIFICATION_UNREAD_CACHE {
+        String cacheKey "notification:unread:{userId}"
+        ObjectId userId
+        Number unreadCount
+        DateTime lastUpdated
+        Number ttl "60 seconds"
+    }
+
+    NOTIFICATION_LIST_CACHE {
+        String cacheKey "notification:list:{userId}"
+        ObjectId userId
+        Object notifications[]
+        DateTime lastUpdated
+        Number ttl "300 seconds"
+    }
+
+    SOCKET_IO_STATE_CACHE {
+        String cacheKey "socket:notification:{userId}:state"
+        ObjectId userId
+        Boolean isOnline
+        String[] rooms
+        DateTime lastActive
+        Number ttl "60 seconds"
+    }
+
+    %% RELATIONSHIPS
+
+    NOTIFICATION }o--|| USER : "sender"
+    NOTIFICATION }o--|| USER : "receiver"
+    NOTIFICATION }o--|| TASK : "links_to"
+    NOTIFICATION }o--|| CHILDREN_BUSINESS_USER : "activity_from"
+
+    TASK_REMINDER }o--|| TASK : "reminds_about"
+    TASK_REMINDER }o--|| USER : "for_user"
+    TASK_REMINDER }o--|| USER : "created_by"
+
+    USER ||--o{ NOTIFICATION : "sends"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ TASK_REMINDER : "creates"
+
+    TASK ||--o{ NOTIFICATION : "triggers"
+    TASK ||--o{ TASK_REMINDER : "has"
+
+    CHILDREN_BUSINESS_USER ||--o{ NOTIFICATION : "triggers_activity"
+
+    note on NOTIFICATION "Indexes: receiverId+createdAt, receiverId+status, scheduledFor, linkFor+linkId, Text search"
+
+    %% STYLING
+    style NOTIFICATION fill:#ffca28,color:#000
+    style TASK_REMINDER fill:#ffca28,color:#000
+    style USER fill:#42a5f5,color:#fff
+    style TASK fill:#66bb6a,color:#fff
+    style CHILDREN_BUSINESS_USER fill:#ef5350,color:#fff
+    style USER_SUBSCRIPTION fill:#ab47bc,color:#fff
+    style NOTIFICATION_UNREAD_CACHE fill:#bdbdbd,color:#000
+    style NOTIFICATION_LIST_CACHE fill:#bdbdbd,color:#000
+    style SOCKET_IO_STATE_CACHE fill:#fff176,color:#000

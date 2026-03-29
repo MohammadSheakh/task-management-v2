@@ -1,7 +1,7 @@
 //@ts-ignore
 import { model, Schema } from 'mongoose';
+import paginate from '../../../common/plugins/paginate';
 import { ISubTask, ISubTaskModel } from './subTask.interface';
-import paginate from '../../common/plugins/paginate';
 
 /**
  * SubTask Schema
@@ -22,26 +22,11 @@ const subTaskSchema = new Schema<ISubTask>(
       required: [true, 'Creator ID is required'],
     },
 
-    assignedToUserId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-    },
-
     title: {
       type: String,
       required: [true, 'Subtask title is required'],
       trim: true,
       maxlength: [200, 'Title cannot exceed 200 characters'],
-    },
-
-    description: {
-      type: String,
-      trim: true,
-      maxlength: [1000, 'Description cannot exceed 1000 characters'],
-    },
-
-    duration: {
-      type: String,
     },
 
     isCompleted: {
@@ -67,20 +52,56 @@ const subTaskSchema = new Schema<ISubTask>(
 );
 
 // ─── Indexes ─────────────────────────────────────────────────────────
-subTaskSchema.index({ taskId: 1, isCompleted: 1 });
-subTaskSchema.index({ taskId: 1, order: 1 });
-subTaskSchema.index({ assignedToUserId: 1, isCompleted: 1 });
+/**
+ * Compound indexes optimized for common query patterns
+ * Updated: Added isDeleted to all indexes for soft delete filtering
+ * Updated V2: Removed assignedToUserId index (field removed - not needed)
+ */
+subTaskSchema.index({ taskId: 1, isCompleted: 1, isDeleted: 1 });
+subTaskSchema.index({ taskId: 1, order: 1, isDeleted: 1 });
 
 // ─── Plugins ─────────────────────────────────────────────────────────
 subTaskSchema.plugin(paginate);
 
 // ─── Transform ───────────────────────────────────────────────────────
+/**
+ * Transform schema output for API responses
+ * Matches Flutter model structure exactly
+ *
+ * Flutter Model:
+ * ```dart
+ * class SubTask {
+ *   final String title;
+ *   final bool isCompleted;
+ * }
+ * ```
+ */
 subTaskSchema.set('toJSON', {
+  virtuals: true,
   transform: function (doc, ret, options) {
-    ret._subTaskId = ret._id;
+    // Keep only fields that Flutter needs
+    const flutterModel: any = {
+      _subTaskId: ret._id,
+      title: ret.title,
+      isCompleted: ret.isCompleted,
+    };
+
+    // Include completedAt only if subtask is completed (for tracking)
+    if (ret.isCompleted && ret.completedAt) {
+      flutterModel.completedAt = ret.completedAt;
+    }
+
+    // Delete all backend-only fields
     delete ret._id;
     delete ret.__v;
-    return ret;
+    delete ret.taskId;
+    delete ret.createdById;
+    delete ret.isDeleted;
+    delete ret.createdAt;
+    delete ret.updatedAt;
+    delete ret.order;
+
+    return flutterModel;
   },
 });
 

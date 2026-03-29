@@ -1,0 +1,172 @@
+flowchart TB
+    %% ===========================================
+    %% ANALYTICS MODULE - SYSTEM ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Frontend["🖥️ Frontend Layer"]
+        FLUTTER["📱 Flutter App<br/>(Children & Parents)"]
+        TEACHER_WEB["💻 Teacher/Parent Dashboard"]
+        ADMIN_WEB["👨‍💼 Admin Dashboard"]
+    end
+
+    subgraph APIGateway["🔌 API Gateway"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT)"]
+        RATE["Rate Limiter"]
+    end
+
+    subgraph AnalyticsModule["📊 Analytics Module (v2.0)"]
+
+        subgraph UserAnalytics["userAnalytics"]
+            UA_ROUTE["userAnalytics.route.ts"]
+            UA_CTRL["userAnalytics.controller.ts"]
+            UA_SVC["userAnalytics.service.ts"]
+        end
+
+        subgraph TaskAnalytics["taskAnalytics"]
+            TA_ROUTE["taskAnalytics.route.ts"]
+            TA_CTRL["taskAnalytics.controller.ts"]
+            TA_SVC["taskAnalytics.service.ts"]
+        end
+
+        subgraph FamilyAnalytics["groupAnalytics ⭐ UPDATED"]
+            FA_ROUTE["groupAnalytics.route.ts"]
+            FA_CTRL["groupAnalytics.controller.ts"]
+            FA_SVC["groupAnalytics.service.ts"]
+        end
+
+        subgraph ChartAggregation["chartAggregation ⭐ NEW!"]
+            CA_ROUTE["chartAggregation.route.ts"]
+            CA_CTRL["chartAggregation.controller.ts"]
+            CA_SVC["chartAggregation.service.ts"]
+        end
+
+        subgraph AdminAnalytics["adminAnalytics"]
+            AA_ROUTE["adminAnalytics.route.ts"]
+            AA_CTRL["adminAnalytics.controller.ts"]
+            AA_SVC["adminAnalytics.service.ts"]
+        end
+
+        subgraph ScheduledAnalytics["scheduledAnalytics"]
+            SA_SVC["scheduledAnalytics.service.ts"]
+            SA_JOB["scheduledAnalytics.job.ts"]
+        end
+    end
+
+    subgraph DataSources["💾 Data Sources<br/>(Other Modules)"]
+        USER_MOD["user.module<br/>User data"]
+        TASK_MOD["task.module<br/>Task data"]
+        TASKPROG_MOD["taskProgress.module<br/>Progress data ⭐"]
+        CBU_MOD["childrenBusinessUser.module<br/>Family data ⭐"]
+        NOTIF_MOD["notification.module<br/>Activity data"]
+        SUB_MOD["subscription.module<br/>Revenue data"]
+    end
+
+    subgraph Cache["🔴 Redis Cache Layer"]
+        UA_CACHE["User Analytics Cache<br/>TTL: 5-15 min"]
+        FA_CACHE["Family Analytics Cache<br/>TTL: 5-10 min"]
+        CHART_CACHE["Chart Cache ⭐<br/>TTL: 5 min"]
+        SOCKET_CACHE["Socket.IO State ⭐<br/>TTL: 1 min"]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        SOCKET_IO["Socket.IO Server"]
+        REDIS_ADAPTER["Redis Adapter"]
+        FAMILY_ROOMS["Family Rooms"]
+        EVENTS["Events<br/>group:activity<br/>task-progress:*"]
+    end
+
+    subgraph AsyncProcessing["🔄 Async Processing"]
+        BULLMQ["BullMQ"]
+        ANALYTICS_QUEUE["analytics-queue"]
+        WORKER["Analytics Worker"]
+    end
+
+    %% Frontend to API Gateway
+    FLUTTER --> LB
+    TEACHER_WEB --> LB
+    ADMIN_WEB --> LB
+
+    LB --> AUTH
+    AUTH --> RATE
+
+    %% API Gateway to Analytics Module
+    RATE --> UA_ROUTE
+    RATE --> TA_ROUTE
+    RATE --> FA_ROUTE
+    RATE --> CA_ROUTE
+    RATE --> AA_ROUTE
+
+    %% Internal Module Flow
+    UA_ROUTE --> UA_CTRL
+    UA_CTRL --> UA_SVC
+
+    TA_ROUTE --> TA_CTRL
+    TA_CTRL --> TA_SVC
+
+    FA_ROUTE --> FA_CTRL
+    FA_CTRL --> FA_SVC
+
+    CA_ROUTE --> CA_CTRL
+    CA_CTRL --> CA_SVC
+
+    AA_ROUTE --> AA_CTRL
+    AA_CTRL --> AA_SVC
+
+    %% Analytics to Data Sources
+    UA_SVC --> USER_MOD
+    UA_SVC --> TASK_MOD
+    UA_SVC --> TASKPROG_MOD
+
+    TA_SVC --> TASK_MOD
+    TA_SVC --> USER_MOD
+
+    FA_SVC --> CBU_MOD
+    FA_SVC --> TASK_MOD
+    FA_SVC --> TASKPROG_MOD
+
+    CA_SVC --> USER_MOD
+    CA_SVC --> TASK_MOD
+    CA_SVC --> CBU_MOD
+    CA_SVC --> SUB_MOD
+
+    AA_SVC --> USER_MOD
+    AA_SVC --> TASK_MOD
+    AA_SVC --> SUB_MOD
+
+    %% Analytics to Cache
+    UA_SVC -.->|Cache| UA_CACHE
+    FA_SVC -.->|Cache| FA_CACHE
+    CA_SVC -.->|Cache| CHART_CACHE
+
+    %% Real-Time Integration ⭐
+    FA_SVC -.->|Broadcast| SOCKET_IO
+    CA_SVC -.->|Real-time Update| SOCKET_IO
+    SOCKET_IO --> REDIS_ADAPTER
+    REDIS_ADAPTER --> FAMILY_ROOMS
+    REDIS_ADAPTER --> EVENTS
+    SOCKET_IO -.->|State| SOCKET_CACHE
+
+    %% Async Processing
+    SA_SVC --> ANALYTICS_QUEUE
+    ANALYTICS_QUEUE --> WORKER
+    WORKER --> UA_CACHE
+    WORKER --> FA_CACHE
+
+    %% Scheduled Jobs
+    SA_JOB --> SA_SVC
+
+    %% Styling
+    style Frontend fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style AnalyticsModule fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style DataSources fill:#fce4ec,stroke:#c2185b,color:#000
+    style Cache fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style AsyncProcessing fill:#e0f7fa,stroke:#006064,color:#000
+
+    style ChartAggregation fill:#c8e6c9,stroke:#2e7d32
+    style FamilyAnalytics fill:#c8e6c9,stroke:#2e7d32
+    style SOCKET_IO fill:#fff176,color:#000
+    style CHART_CACHE fill:#ffcc80,color:#000

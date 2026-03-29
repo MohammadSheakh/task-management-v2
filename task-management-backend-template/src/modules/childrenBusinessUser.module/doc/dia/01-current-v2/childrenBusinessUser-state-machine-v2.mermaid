@@ -1,0 +1,124 @@
+stateDiagram-v2
+    %% ===========================================
+    %% CHILDREN BUSINESS USER MODULE - STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% FAMILY RELATIONSHIP STATES
+    state FamilyRelationship {
+        [*] --> Pending: Parent Creates Account
+        Pending --> Active: Account Activated
+        Active --> Inactive: Temporarily Inactive
+        Inactive --> Active: Reactivated
+        Active --> Removed: Removed from Family
+        Removed --> [*]
+        
+        note right of Active
+            Active State:
+            - Can view parent info
+            - Can create tasks (if Secondary)
+            - Auto-join family room
+        end note
+    }
+
+    %% SECONDARY USER STATES ⭐ NEW!
+    state SecondaryUser {
+        [*] --> NotSecondary: Default
+        NotSecondary --> Secondary: Parent Grants Permission
+        Secondary --> NotSecondary: Parent Revokes
+        Secondary --> [*]: Removed from Family
+        
+        note right of Secondary
+            Secondary User:
+            - Can create ALL task types
+            - Can create collaborative tasks
+            - Real-time broadcast on change
+        end note
+    }
+
+    %% CHILD ACCOUNT CREATION STATES
+    state ChildAccountCreation {
+        [*] --> CheckSubscription: Verify Subscription
+        CheckSubscription --> CheckLimit: Check Max Children
+        CheckLimit --> CreateAccount: Under Limit
+        CheckLimit --> Denied: Limit Reached
+        CreateAccount --> CreateRelationship: Account Created
+        CreateRelationship --> AutoJoinRoom: Socket.IO ⭐
+        AutoJoinRoom --> [*]: Success
+        Denied --> [*]
+        
+        note right of AutoJoinRoom
+            Auto-Join Family Room:
+            - Based on relationship
+            - Real-time ready
+        end note
+    }
+
+    %% TASK CREATION PERMISSION STATES
+    state TaskCreationPermission {
+        [*] --> CheckTaskType: Check Task Type
+        CheckTaskType --> PersonalTask: Personal Task
+        CheckTaskType --> CheckSecondary: Family Task
+        CheckSecondary --> IsSecondary: Is Secondary User
+        CheckSecondary --> NotSecondary: Not Secondary
+        IsSecondary --> CreateTask: Permission Granted
+        NotSecondary --> Denied: Permission Denied
+        PersonalTask --> CreateTask: Always Allowed
+        CreateTask --> [*]
+        Denied --> [*]
+    }
+
+    %% REAL-TIME BROADCAST STATES ⭐ NEW!
+    state RealTimeBroadcast {
+        [*] --> EventTriggered: Relationship Change
+        EventTriggered --> InvalidateCache: Clear Cache
+        InvalidateCache --> BroadcastFamily: Socket.IO Family Room
+        BroadcastFamily --> ParentReceives: Parent Dashboard Updates
+        ParentReceives --> [*]: Real-Time Complete
+        
+        note right of BroadcastFamily
+            Events:
+            - group:activity
+            - permission_changed
+            - task-progress:*
+        end note
+    }
+
+    %% CACHE STATES
+    state CacheStates {
+        [*] --> CheckCache: Request
+        CheckCache --> Valid: Cache Hit
+        CheckCache --> Expired: Cache Miss
+        Valid --> Return: Return Data
+        Expired --> QueryDB: Query MongoDB
+        QueryDB --> Store: Store in Redis
+        Store --> Return: Return Data
+        Return --> [*]
+
+        note right of CheckCache
+            Cache TTLs:
+            - Family: 10 min
+            - Secondary: 15 min
+            - Socket.IO: 1 min
+        end note
+    }
+
+    %% Styling
+    state FamilyRelationship {
+        style Pending fill:#90caf9
+        style Active fill:#66bb6a
+        style Inactive fill:#ffa726
+        style Removed fill:#ef5350
+    }
+    
+    state SecondaryUser {
+        style NotSecondary fill:#bdbdbd
+        style Secondary fill:#66bb6a
+    }
+    
+    style FamilyRelationship fill:#e3f2fd,stroke:#1565c0
+    style SecondaryUser fill:#e8f5e9,stroke:#2e7d32
+    style ChildAccountCreation fill:#fff3e0,stroke:#e65100
+    style TaskCreationPermission fill:#f3e5f5,stroke:#7b1fa2
+    style RealTimeBroadcast fill:#fff9c4,stroke:#f9a825
+    style CacheStates fill:#ffe0b2,stroke:#e65100

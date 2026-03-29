@@ -1,0 +1,70 @@
+stateDiagram-v2
+    %% Task State Machine V2
+    %% Shows valid status transitions for task lifecycle
+
+    [*] --> pending: Task Created
+
+    state pending {
+        [*] --> AwaitingStart
+        AwaitingStart: Waiting for<br/>user to start
+    }
+
+    state inProgress {
+        [*] --> ActivelyWorking
+        ActivelyWorking: User is<br/>working on task
+    }
+
+    state completed {
+        [*] --> Done
+        Done: Task finished<br/>completedTime set
+    }
+
+    pending --> inProgress: User starts task<br/>PUT /tasks/:id/status
+    inProgress --> completed: User completes task<br/>PUT /tasks/:id/status
+    inProgress --> pending: User pauses/defers task
+
+    completed --> [*]: Task remains completed<br/>Cannot change status
+
+    note right of pending
+        Valid Transitions:
+        → inProgress (start working)
+        → completed (direct complete)
+
+        Business Rules:
+        - Daily task limit check
+        - Secondary User permission required
+        - Cache invalidation on change
+    end note
+
+    note right of inProgress
+        Valid Transitions:
+        → completed (finish task)
+        → pending (pause/defer)
+
+        Business Rules:
+        - startTime recorded
+        - Family members notified
+        - Real-time update via Socket.io
+    end note
+
+    note right of completed
+        Valid Transitions:
+        NONE (terminal state)
+
+        Business Rules:
+        - completedTime set automatically
+        - Triggers preferred time calculation
+        - Family activity recorded
+        - TaskProgress updated
+    end note
+
+    %% State Guards
+    state "Status Transition Guards" as Guards {
+        state "Only creator/owner<br/>can modify" as OwnerCheck
+        state "Valid transition<br/>only" as TransitionCheck
+        state "Not deleted" as DeletedCheck
+    }
+
+    OwnerCheck -right--> pending
+    TransitionCheck -right--> inProgress
+    DeletedCheck -right--> completed

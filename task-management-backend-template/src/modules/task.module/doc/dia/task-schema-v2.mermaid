@@ -1,0 +1,157 @@
+erDiagram
+    %% ===========================================
+    %% TASK MODULE - SCHEMA (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% MAIN TASK COLLECTION
+    TASK {
+        ObjectId _id PK
+        String title
+        String description
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        String priority "low|medium|high"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        DateTime startTime
+        DateTime dueDate
+        DateTime completedTime
+        Number totalSubtasks
+        Number completedSubtasks
+        Number completionPercentage "Auto-calculated"
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% SUBTASK COLLECTION
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId createdById FK
+        ObjectId assignedToUserId FK
+        String title
+        Boolean isCompleted
+        DateTime completedAt
+        Number order
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% TASK PROGRESS COLLECTION ⭐ NEW!
+    TASK_PROGRESS {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK "Child working on task"
+        String status "notStarted|inProgress|completed"
+        DateTime startedAt
+        DateTime completedAt
+        Number[] completedSubtaskIndexes
+        Number progressPercentage "0-100"
+        String note
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% USER COLLECTION (Referenced)
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "business|child|admin"
+        String profileImage
+        Boolean isEmailVerified
+        Boolean isDeleted
+        DateTime createdAt
+    }
+
+    %% CHILDREN BUSINESS USER (Referenced) ⭐ NEW!
+    CHILDREN_BUSINESS_USER {
+        ObjectId _id PK
+        ObjectId parentBusinessUserId FK
+        ObjectId childUserId FK
+        Boolean isSecondaryUser
+        String status "active|inactive|removed"
+    }
+
+    %% NOTIFICATION COLLECTION (Referenced)
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String type "task|activity|reminder|permission"
+        String priority "low|normal|high|urgent"
+        String status "pending|sent|delivered|read"
+        DateTime createdAt
+    }
+
+    %% TASK REMINDER COLLECTION (Referenced)
+    TASK_REMINDER {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        DateTime reminderTime
+        String triggerType "before_deadline|at_deadline|after_deadline"
+        Boolean isSent
+        Boolean isDeleted
+    }
+
+    %% SOCKET.IO STATE (Redis - Virtual) ⭐ NEW!
+    SOCKET_IO_TASK_STATE {
+        String cacheKey "socket:task:{taskId}:subscribers"
+        ObjectId taskId
+        ObjectId[] subscribers
+        DateTime lastUpdated
+        Number ttl "60 seconds"
+    }
+
+    %% RELATIONSHIPS
+
+    TASK ||--o{ SUBTASK : "contains"
+    TASK ||--o{ TASK_PROGRESS : "tracked_by"
+    TASK ||--o{ NOTIFICATION : "triggers"
+    TASK ||--o{ TASK_REMINDER : "has"
+
+    SUBTASK }o--|| TASK : "belongs_to"
+    SUBTASK }o--|| USER : "created_by"
+    SUBTASK }o--|| USER : "assigned_to"
+
+    TASK_PROGRESS }o--|| TASK : "tracks"
+    TASK_PROGRESS }o--|| USER : "child_working"
+
+    USER ||--o{ TASK : "creates"
+    USER ||--o{ TASK : "owns"
+    USER ||--o{ TASK : "assigned_to"
+    USER ||--o{ SUBTASK : "creates"
+    USER ||--o{ SUBTASK : "assigned_to"
+    USER ||--o{ TASK_PROGRESS : "works_on"
+
+    CHILDREN_BUSINESS_USER }o--|| USER : "parent"
+    CHILDREN_BUSINESS_USER }o--|| USER : "child"
+    CHILDREN_BUSINESS_USER ||--o{ TASK : "creates" "Secondary user"
+
+    NOTIFICATION }o--|| USER : "sender"
+    NOTIFICATION }o--|| USER : "receiver"
+    NOTIFICATION }o--|| TASK : "about"
+
+    TASK_REMINDER }o--|| TASK : "reminds_about"
+    TASK_REMINDER }o--|| USER : "for_user"
+
+    note on TASK "Indexes: ownerUserId+status, assignedUserIds, taskType, Text search"
+    note on TASK_PROGRESS "Indexes: taskId+userId (unique), taskId+status, userId+status"
+
+    %% STYLING
+    style TASK fill:#66bb6a,color:#fff
+    style SUBTASK fill:#66bb6a,color:#fff
+    style TASK_PROGRESS fill:#66bb6a,color:#fff
+    style USER fill:#42a5f5,color:#fff
+    style CHILDREN_BUSINESS_USER fill:#ef5350,color:#fff
+    style NOTIFICATION fill:#ffca28,color:#000
+    style TASK_REMINDER fill:#ffca28,color:#000
+    style SOCKET_IO_TASK_STATE fill:#fff176,color:#000

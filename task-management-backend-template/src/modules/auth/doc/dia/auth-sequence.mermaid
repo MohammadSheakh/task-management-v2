@@ -1,0 +1,94 @@
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend
+    participant API as API Gateway
+    participant AuthCtrl as Auth Controller
+    participant AuthSvc as Auth Service
+    participant UserSvc as User Service
+    participant OTPSvc as OTP Service
+    participant TokenSvc as Token Service
+    participant Redis as Redis Cache
+    participant DB as MongoDB
+    participant Email as Email Service
+
+    U->>FE: Enter Email/Password
+    FE->>API: POST /auth/login
+    API->>AuthCtrl: login
+
+    AuthCtrl->>AuthSvc: validateLogin
+
+    AuthSvc->>DB: FindOne user by email
+    DB-->>AuthSvc: User document
+
+    AuthSvc->>AuthSvc: Check account lock
+    AuthSvc->>AuthSvc: Verify password
+
+    alt Invalid Credentials
+        AuthSvc-->>AuthCtrl: Authentication Error
+        AuthSvc->>DB: Increment failed attempts
+        AuthCtrl-->>FE: 401 Unauthorized
+        FE-->>U: Show error
+    else Valid Credentials
+        AuthSvc->>DB: Reset failed attempts
+
+        AuthSvc->>TokenSvc: createAccessToken
+        TokenSvc-->>AuthSvc: JWT Access Token
+
+        AuthSvc->>TokenSvc: createRefreshToken
+        TokenSvc-->>AuthSvc: Refresh Token
+
+        AuthSvc->>Redis: SET session:userId:deviceId
+        Redis-->>AuthSvc: OK TTL=7 days
+
+        AuthSvc->>UserSvc: updateUserLastLogin
+        UserSvc->>DB: FindOneAndUpdate
+        DB-->>UserSvc: Updated user
+
+        AuthSvc-->>AuthCtrl: Return tokens
+        AuthCtrl-->>FE: 200 OK + tokens
+        FE-->>U: Navigate to Dashboard
+    end
+
+Note over U,Ext: Access Protected Route
+
+    U->>FE: Access Protected Route
+    FE->>API: GET /user/profile
+    API->>AuthSvc: authenticate JWT
+
+    alt Valid Token
+        AuthSvc-->>API: Authenticated
+        API->>UserSvc: getUserProfile
+        UserSvc->>Redis: GET user:userId:profile
+        Redis-->>UserSvc: Cache miss
+        UserSvc->>DB: FindOne user
+        DB-->>UserSvc: User data
+        UserSvc->>Redis: SET user:userId:profile TTL=15min
+        Redis-->>UserSvc: OK
+        UserSvc-->>API: User profile
+        API-->>FE: Profile data
+        FE-->>U: Display profile
+    else Invalid/Expired Token
+        AuthSvc-->>API: Token Invalid
+        API-->>FE: 401 Unauthorized
+        FE->>API: POST /auth/refresh-token
+        API->>TokenSvc: verifyRefreshToken
+        TokenSvc->>Redis: GET session:userId
+        Redis-->>TokenSvc: Valid session
+        TokenSvc-->>API: New tokens
+        API-->>FE: New access token
+        FE->>API: GET /user/profile
+    end
+
+Note over U,Ext: Logout
+
+    U->>FE: Logout
+    FE->>API: POST /auth/logout
+    API->>AuthSvc: logout
+    AuthSvc->>Redis: DEL session:userId:*
+    Redis-->>AuthSvc: OK
+    AuthSvc->>TokenSvc: blacklistToken
+    TokenSvc->>Redis: SET blacklisted:tokenId TTL=24h
+    Redis-->>TokenSvc: OK
+    AuthSvc-->>API: Logout success
+    API-->>FE: 200 OK
+    FE-->>U: Navigate to Login

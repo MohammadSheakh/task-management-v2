@@ -1,7 +1,7 @@
 //@ts-ignore
 import { model, Schema, Types, Document } from 'mongoose';
 import { INotification, INotificationDocument, INotificationModel } from './notification.interface';
-import { NOTIFICATION_TYPE, NOTIFICATION_PRIORITY, NOTIFICATION_STATUS, NOTIFICATION_CHANNEL } from './notification.constant';
+import { NotificationType, NotificationPriority, NotificationChannel, NotificationStatus } from './notification.constant';
 import paginate from '../../../common/plugins/paginate';
 
 /**
@@ -69,7 +69,7 @@ const notificationSchema = new Schema<INotificationDocument>(
      */
     type: {
       type: String,
-      enum: Object.values(NOTIFICATION_TYPE),
+      enum: Object.values(NotificationType),
       required: [true, 'Notification type is required'],
       index: true,
     },
@@ -80,9 +80,9 @@ const notificationSchema = new Schema<INotificationDocument>(
      */
     priority: {
       type: String,
-      enum: Object.values(NOTIFICATION_PRIORITY),
+      enum: Object.values(NotificationPriority),
       required: [true, 'Notification priority is required'],
-      default: NOTIFICATION_PRIORITY.NORMAL,
+      default: NotificationPriority.NORMAL,
       index: true,
     },
 
@@ -91,9 +91,9 @@ const notificationSchema = new Schema<INotificationDocument>(
      */
     channels: {
       type: [String],
-      enum: Object.values(NOTIFICATION_CHANNEL),
+      enum: Object.values(NotificationChannel),
       required: [true, 'At least one channel is required'],
-      default: [NOTIFICATION_CHANNEL.IN_APP],
+      default: [NotificationChannel.IN_APP],
     },
 
     // ─── Status & Tracking ─────────────────────────────────────────────
@@ -102,9 +102,9 @@ const notificationSchema = new Schema<INotificationDocument>(
      */
     status: {
       type: String,
-      enum: Object.values(NOTIFICATION_STATUS),
+      enum: Object.values(NotificationStatus),
       required: [true, 'Notification status is required'],
-      default: NOTIFICATION_STATUS.PENDING,
+      default: NotificationStatus.PENDING,
       index: true,
     },
 
@@ -116,7 +116,9 @@ const notificationSchema = new Schema<INotificationDocument>(
     },
 
     /**
-     * Entity ID to link to (task, group, etc.)
+     * Entity ID to link to (task, family/children, etc.)
+     * Note: In childrenBusinessUser architecture, this links to task or other entities
+     * managed by parent/teacher (business user) for their children/students
      */
     linkId: {
       type: Schema.Types.ObjectId,
@@ -227,7 +229,7 @@ notificationSchema.index({ createdAt: -1, isDeleted: 1 });
  */
 notificationSchema.virtual('isUnread').get(function () {
   const doc = this as INotificationDocument;
-  return doc.status !== NOTIFICATION_STATUS.READ && !doc.readAt;
+  return doc.status !== NotificationStatus.READ && !doc.readAt;
 });
 
 /**
@@ -243,7 +245,7 @@ notificationSchema.virtual('isScheduled').get(function () {
  */
 notificationSchema.virtual('isOverdue').get(function () {
   const doc = this as INotificationDocument;
-  return !!doc.scheduledFor && doc.scheduledFor < new Date() && doc.status === NOTIFICATION_STATUS.PENDING;
+  return !!doc.scheduledFor && doc.scheduledFor < new Date() && doc.status === NotificationStatus.PENDING;
 });
 
 // ─── Instance Methods ────────────────────────────────────────────────
@@ -251,23 +253,9 @@ notificationSchema.virtual('isOverdue').get(function () {
  * Mark notification as read
  */
 notificationSchema.methods.markAsRead = async function (): Promise<void> {
-  this.status = NOTIFICATION_STATUS.READ;
+  this.status = NotificationStatus.READ;
   this.readAt = new Date();
   await this.save();
-};
-
-/**
- * Check if notification is unread
- */
-notificationSchema.methods.isUnread = function (): boolean {
-  return this.status !== NOTIFICATION_STATUS.READ && !this.readAt;
-};
-
-/**
- * Check if notification is scheduled
- */
-notificationSchema.methods.isScheduled = function (): boolean {
-  return !!this.scheduledFor && this.scheduledFor > new Date();
 };
 
 // ─── Static Methods ──────────────────────────────────────────────────
@@ -279,7 +267,7 @@ notificationSchema.statics.getUnreadCount = async function (
 ): Promise<number> {
   const count = await this.countDocuments({
     receiverId: userId,
-    status: { $ne: NOTIFICATION_STATUS.READ },
+    status: { $ne: NotificationStatus.READ },
     isDeleted: false,
   });
   return count;
@@ -294,12 +282,12 @@ notificationSchema.statics.markAllAsRead = async function (
   const result = await this.updateMany(
     {
       receiverId: userId,
-      status: { $ne: NOTIFICATION_STATUS.READ },
+      status: { $ne: NotificationStatus.READ },
       isDeleted: false,
     },
     {
       $set: {
-        status: NOTIFICATION_STATUS.READ,
+        status: NotificationStatus.READ,
         readAt: new Date(),
       },
     }
@@ -330,7 +318,7 @@ notificationSchema.statics.getPendingScheduledNotifications = async function (
 ): Promise<INotificationDocument[]> {
   const notifications = await this.find({
     scheduledFor: { $lte: beforeDate },
-    status: NOTIFICATION_STATUS.PENDING,
+    status: NotificationStatus.PENDING,
     isDeleted: false,
   }).populate('receiverId senderId');
 
@@ -359,7 +347,7 @@ notificationSchema.statics.cleanupOldNotifications = async function (
   // Delete old unread notifications
   const unreadResult = await this.deleteMany({
     createdAt: { $lt: unreadCutoff },
-    status: { $ne: NOTIFICATION_STATUS.READ },
+    status: { $ne: NotificationStatus.READ },
     isDeleted: false,
   });
 
@@ -400,6 +388,6 @@ notificationSchema.set('toObject', {
 
 // ─── Export Model ────────────────────────────────────────────────────
 export const Notification = model<INotificationDocument, INotificationModel>(
-  'Notification',
+  'notificationFixed',
   notificationSchema
 );

@@ -1,0 +1,100 @@
+flowchart TD
+    %% ===========================================
+    %% TASK PROGRESS MODULE - USER FLOW (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Parent["👨‍👩‍👧 Parent User Flow"]
+        P1[View Child Progress]
+        P2[Monitor All Children]
+        P3[Receive Real-Time Update]
+        P4[View Progress Statistics]
+    end
+
+    subgraph Child["👶 Child User Flow"]
+        C1[View My Tasks]
+        C2[Update Task Progress]
+        C3[Complete Subtask]
+        C4[Complete Task]
+        C5[View Own Progress]
+    end
+
+    subgraph API["🔌 API Layer"]
+        API1[GET /task-progress/:taskId/children]
+        API2[PUT /task-progress/:taskId/status]
+        API3[PUT /task-progress/:taskId/subtasks/:index/complete]
+        API4[GET /task-progress/child/:childId/tasks]
+    end
+
+    subgraph Cache["🔴 Redis Cache"]
+        CACHE1[Check Progress Cache]
+        CACHE2[Cache Hit?]
+    end
+
+    subgraph Database["💾 MongoDB"]
+        DB1[Update TaskProgress]
+        DB2[Get TaskProgress]
+        DB3[Recalculate Percentage]
+    end
+
+    subgraph RealTime["⚡ Real-Time ⭐ NEW!"]
+        RT1[Socket.IO Broadcast]
+        RT2[Family Room]
+        RT3[Parent Receives]
+        RT4[Dashboard Updates]
+    end
+
+    %% Parent Flow
+    P1 --> API1
+    API1 --> CACHE1
+    CACHE1 --> CACHE2
+    CACHE2 -->|Hit| API1
+    CACHE2 -->|Miss| DB2
+    DB2 --> API1
+    API1 --> P1
+    P1 --> P2
+    P2 --> P3
+    P3 --> RT3
+    RT3 --> RT4
+    RT4 --> P4
+
+    %% Child Flow
+    C1 --> API4
+    API4 --> CACHE1
+    CACHE1 --> CACHE2
+    CACHE2 -->|Hit| API4
+    CACHE2 -->|Miss| DB2
+    DB2 --> API4
+    API4 --> C1
+    C1 --> C2
+    C2 --> API2
+    API2 --> DB1
+    DB1 --> DB3
+    DB3 --> RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    RT3 --> RT4
+    API2 --> C5
+    C5 --> C3
+    C3 --> API3
+    API3 --> DB1
+    DB1 --> DB3
+    DB3 --> RT1
+    API3 --> C5
+    C5 --> C4
+    C4 --> API2
+
+    %% Real-Time Flow ⭐
+    RT1 -->|progress:updated| RT2
+    RT1 -->|progress:completed| RT2
+    RT2 -->|Broadcast| RT3
+    RT3 --> RT4
+    RT4 --> P3
+
+    %% Styling
+    style Parent fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Child fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000

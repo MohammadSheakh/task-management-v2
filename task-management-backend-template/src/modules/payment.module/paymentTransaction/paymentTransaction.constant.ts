@@ -3,6 +3,7 @@ export enum TPaymentGateway {
     stripe = 'stripe',
     paypal = 'paypal',
     sslcommerz = 'sslcommerz',
+    revenuecat = 'revenuecat',  // 🆕 Added RevenueCat
     none = 'none'
 }
 export enum TPaymentStatus {
@@ -21,3 +22,28 @@ export enum PaymentMethod {
     //  CARD = 'Card',
      online = 'online',
 }
+
+/**
+ * Payment Environment Enum
+ * Defines the environment for payment processing (RevenueCat specific)
+ */
+export enum PaymentEnvironment {
+  PRODUCTION = 'production',
+  SANDBOX = 'sandbox',
+}
+
+/**
+ * Payment Platform Enum
+ * Defines the platform where payment was made
+ */
+export enum PaymentPlatform {
+  IOS = 'ios',
+  ANDROID = 'android',
+  WEB = 'web',
+}
+
+/**
+ * Type exports from enums
+ */
+export type TPaymentEnvironment = `${PaymentEnvironment}`;
+export type TPaymentPlatform = `${PaymentPlatform}`;

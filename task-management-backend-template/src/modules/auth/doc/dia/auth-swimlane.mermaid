@@ -1,0 +1,89 @@
+flowchart LR
+    subgraph User["User"]
+        Start([Start])
+        End([End])
+    end
+
+    subgraph Frontend["Frontend"]
+        DisplayAuthUI[Display Auth UI]
+        GetCredentials[Get Credentials]
+        ValidateClient[Client-side Validation]
+        ShowAuthError[Show Auth Error]
+        ShowAuthSuccess[Show Success]
+        StoreTokens[Store Tokens]
+    end
+
+    subgraph Backend["Backend - Auth Module"]
+        RouteHandler[Auth Route Handler]
+        RateLimiter{Rate Limiter}
+        AuthMiddleware[Auth Middleware]
+        AuthController[Auth Controller]
+        AuthService[Auth Service]
+        UserService[User Service]
+        OTPService[OTP Service]
+        TokenService[Token Service]
+    end
+
+    subgraph Security["Security Layer"]
+        CheckLock{Account Locked?}
+        VerifyPassword[Verify Password]
+        HashPassword[Hash Password]
+        CheckAttempts{Failed Attempts}
+        LockAccount[Lock Account]
+    end
+
+    subgraph Cache["Redis Cache"]
+        SessionStore[Session Store]
+        OTPStore[OTP Store]
+        TokenBlacklist[Token Blacklist]
+        RateLimitStore[Rate Limit Counters]
+        LockStore[Lock Store]
+    end
+
+    subgraph Database["Database"]
+        MongoDB[(MongoDB)]
+    end
+
+    subgraph External["External Services"]
+        Google[Google OAuth]
+        Apple[Apple OAuth]
+        Email[Email Service]
+    end
+
+    Start --> DisplayAuthUI
+    DisplayAuthUI --> GetCredentials
+    GetCredentials --> ValidateClient
+    ValidateClient -->|Invalid| ShowAuthError
+    ShowAuthError --> GetCredentials
+    ValidateClient -->|Valid| RateLimiter
+
+    RateLimiter -->|Exceeded| ShowAuthError
+    RateLimiter -->|OK| AuthController
+
+    AuthController --> AuthService
+    AuthService --> CheckLock
+    CheckLock -->|Locked| LockAccount
+    LockAccount --> ShowAuthError
+
+    CheckLock -->|Not Locked| VerifyPassword
+    VerifyPassword -->|Invalid| CheckAttempts
+    CheckAttempts -->|High| LockAccount
+    CheckAttempts -->|Normal| ShowAuthError
+
+    VerifyPassword -->|Valid| UserService
+    UserService --> MongoDB
+
+    UserService --> TokenService
+    TokenService --> SessionStore
+    TokenService --> MongoDB
+
+    AuthService --> OTPService
+    OTPService --> OTPStore
+    OTPService --> Email
+
+    AuthService --> Google
+    AuthService --> Apple
+
+    AuthController --> ShowAuthSuccess
+    ShowAuthSuccess --> StoreTokens
+    StoreTokens --> End

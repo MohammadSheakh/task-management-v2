@@ -1,0 +1,100 @@
+flowchart TD
+    %% ===========================================
+    %% CHILDREN BUSINESS USER MODULE - USER FLOW (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Parent["👨‍👩‍👧 Parent User Flow"]
+        P1[Open Parent Dashboard]
+        P2[Create Child Account]
+        P3[View Children List]
+        P4[Set Secondary User]
+        P5[Manage Child Permissions]
+        P6[Receive Real-Time Update]
+    end
+
+    subgraph Child["👶 Child User Flow"]
+        C1[Open Child App]
+        C2[View Parent Info]
+        C3[Create Personal Task]
+        C4[Create Family Task]
+        C5[Complete Task]
+        C6[Check Secondary Status]
+    end
+
+    subgraph API["🔌 API Layer"]
+        API1[POST /children-business-user/create-child]
+        API2[GET /children-business-user/children]
+        API3[PUT /children-business-user/set-secondary-user]
+        API4[GET /children-business-user/parent]
+        API5[POST /tasks]
+    end
+
+    subgraph Cache["🔴 Redis Cache"]
+        CACHE1[Check Family Cache]
+        CACHE2[Check Secondary Cache]
+        CACHE3[Cache Hit?]
+    end
+
+    subgraph Database["💾 MongoDB"]
+        DB1[Create Child User]
+        DB2[Create Relationship]
+        DB3[Check Subscription Limit]
+        DB4[Update Secondary User]
+    end
+
+    subgraph RealTime["⚡ Real-Time ⭐ NEW!"]
+        RT1[Socket.IO Broadcast]
+        RT2[Family Room]
+        RT3[Parent Receives Update]
+    end
+
+    %% Parent Flow
+    P1 --> API1
+    P1 --> API2
+    P1 --> API3
+    API1 --> CACHE1
+    API2 --> CACHE1
+    API3 --> CACHE2
+    CACHE1 --> CACHE3
+    CACHE2 --> CACHE3
+    CACHE3 -->|Hit| API1
+    CACHE3 -->|Miss| DB1
+    CACHE3 -->|Miss| DB2
+    DB1 --> API1
+    DB2 --> API1
+    API1 --> P2
+    API2 --> P3
+    API3 --> P4
+    P4 --> RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    RT3 --> P6
+
+    %% Child Flow
+    C1 --> API4
+    API4 --> CACHE1
+    CACHE1 --> CACHE3
+    CACHE3 -->|Hit| API4
+    CACHE3 -->|Miss| DB3
+    DB3 --> API4
+    API4 --> C2
+    C2 --> C3
+    C3 --> API5
+    API5 --> C4
+    C4 --> C5
+    C5 --> RT1
+    C2 --> C6
+
+    %% Real-Time Flow ⭐
+    RT1 -->|group:activity| RT2
+    RT2 -->|Broadcast| RT3
+    RT3 --> P6
+
+    %% Styling
+    style Parent fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Child fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000

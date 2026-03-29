@@ -1,0 +1,46 @@
+flowchart TB
+    subgraph Admin Actions
+        A1[Admin Creates Plan] --> A2[Set Price & Features]
+        A2 --> A3[Create Stripe Product]
+        A3 --> A4[Activate Plan]
+        A4 --> A5[Plan Visible to Users]
+    end
+
+    subgraph User Actions
+        U1[User Views Plans] --> U2[Selects Plan]
+        U2 --> U3[Clicks Subscribe]
+        U3 --> U4[Stripe Checkout]
+        U4 --> U5{Payment Success?}
+        U5 -->|Yes| U6[Subscription Created]
+        U5 -->|No| U7[Payment Failed]
+        U6 --> U8[Access Granted]
+    end
+
+    subgraph System Actions
+        S1[Cron Job Daily] --> S2[Check Expiring Trials]
+        S2 --> S3{Trial Ending?}
+        S3 -->|Yes| S4[Charge Payment Method]
+        S4 --> S5{Payment Success?}
+        S5 -->|Yes| S6[Convert to Paid]
+        S5 -->|No| S7[Expire Subscription]
+        S6 --> S8[Continue Access]
+        S7 --> S9[Revoke Access]
+    end
+
+    subgraph Cancellation Flow
+        C1[User Requests Cancel] --> C2[Set cancelAt Date]
+        C2 --> C3[Valid Until Period End]
+        C3 --> C4[Period Ends]
+        C4 --> C5[Subscription Cancelled]
+        C5 --> C6[Access Revoked]
+    end
+
+    A5 --> U1
+    U8 --> S1
+    S8 --> U8
+    S9 --> C1
+
+    style A1 fill:#42a5f5,color:#fff
+    style U1 fill:#66bb6a,color:#fff
+    style S1 fill:#ffca28,color:#000
+    style C1 fill:#ef5350,color:#fff

@@ -1,0 +1,45 @@
+sequenceDiagram
+    participant U as User
+    participant G as Group Owner
+    participant A as Admin
+    participant API as Analytics API
+    participant CACHE as Redis Cache
+    participant DB as MongoDB
+    participant JOB as BullMQ Jobs
+
+    %% User Analytics Flow
+    U->>API: GET /analytics/user/my/overview
+    API->>CACHE: Check cache
+    CACHE-->>API: Miss
+    API->>DB: Aggregate user tasks
+    DB-->>API: Task data
+    API->>API: Calculate streak & score
+    API->>CACHE: Cache results (5m)
+    API-->>U: Analytics data
+
+    %% Group Analytics Flow
+    G->>API: GET /analytics/group/:id/overview
+    API->>CACHE: Check cache
+    CACHE-->>API: Miss
+    API->>DB: Aggregate group data
+    DB-->>API: Group + member data
+    API->>API: Calculate leaderboard
+    API->>CACHE: Cache results (5m)
+    API-->>G: Group analytics
+
+    %% Admin Analytics Flow
+    A->>API: GET /analytics/admin/dashboard
+    API->>CACHE: Check cache
+    CACHE-->>API: Miss
+    API->>DB: Aggregate platform data
+    DB-->>API: Platform metrics
+    API->>API: Calculate growth & revenue
+    API->>CACHE: Cache dashboard (10m)
+    API-->>A: Complete dashboard
+
+    %% Background Job Flow
+    JOB->>DB: Pre-compute daily stats
+    DB-->>JOB: Aggregated data
+    JOB->>CACHE: Update cache
+    CACHE-->>JOB: Cached
+    Note over JOB: Runs at midnight daily

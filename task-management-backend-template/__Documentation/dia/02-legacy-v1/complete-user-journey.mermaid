@@ -1,0 +1,112 @@
+flowchart LR
+    %% ===========================================
+    %% COMPLETE USER JOURNEY - FROM SIGNUP TO TASK COMPLETION
+    %% ===========================================
+    
+    subgraph Onboarding["🎯 Onboarding Phase"]
+        START(["👤 User Signs Up"])
+        VERIFY["📧 Verify Email"]
+        PROFILE["👤 Complete Profile"]
+        SUPPORT["⚙️ Set Support Mode"]
+    end
+    
+    subgraph Subscription["💳 Subscription Phase"]
+        VIEW_PLANS["📋 View Plans"]
+        SELECT_PLAN["💭 Select Plan"]
+        START_TRIAL["🆓 Start Free Trial<br/>(14 Days)"]
+        PAYMENT["💳 Enter Payment"]
+        SUB_ACTIVE["✅ Subscription Active"]
+    end
+    
+    subgraph GroupSetup["👥 Group Setup Phase"]
+        CREATE_GROUP["🏆 Create Group"]
+        INVITE_MEMBERS["📧 Invite Members"]
+        MEMBERS_JOIN["👥 Members Join"]
+        SET_PERMISSIONS["⚙️ Set Permissions"]
+    end
+    
+    subgraph TaskManagement["📋 Task Management Phase"]
+        CREATE_TASK["➕ Create Task"]
+        ASSIGN_TASK["👤 Assign Task"]
+        WORK_ON_TASK["🔨 Work on Task"]
+        COMPLETE_TASK["✅ Complete Task"]
+        VIEW_PROGRESS["📊 View Progress"]
+    end
+    
+    subgraph Collaboration["🤝 Collaboration Phase"]
+        VIEW_ACTIVITY["📰 View Activity Feed"]
+        COMMENT["💬 Comment on Task"]
+        TRACK_MEMBERS["👀 Track Member Progress"]
+        LEADERBOARD["🏆 View Leaderboard"]
+    end
+    
+    subgraph Analytics["📈 Analytics Phase"]
+        VIEW_STATS["📊 View Statistics"]
+        CHECK_STREAK["🔥 Check Streak"]
+        PRODUCTIVITY["📈 Productivity Score"]
+        TRENDS["📉 View Trends"]
+    end
+    
+    subgraph Renewal["🔄 Renewal Phase"]
+        TRIAL_ENDS["⏰ Trial Ends"]
+        AUTO_RENEW["💳 Auto Renewal"]
+        CONTINUE["✅ Continue Using"]
+        CANCEL["❌ Cancel Subscription"]
+    end
+    
+    END_JOURNEY(["🎉 Journey Complete"])
+    
+    %% Flow Connections
+    START --> VERIFY
+    VERIFY --> PROFILE
+    PROFILE --> SUPPORT
+    SUPPORT --> VIEW_PLANS
+    
+    VIEW_PLANS --> SELECT_PLAN
+    SELECT_PLAN --> START_TRIAL
+    START_TRIAL --> PAYMENT
+    PAYMENT --> SUB_ACTIVE
+    
+    SUB_ACTIVE --> CREATE_GROUP
+    CREATE_GROUP --> INVITE_MEMBERS
+    INVITE_MEMBERS --> MEMBERS_JOIN
+    MEMBERS_JOIN --> SET_PERMISSIONS
+    
+    SET_PERMISSIONS --> CREATE_TASK
+    CREATE_TASK --> ASSIGN_TASK
+    ASSIGN_TASK --> WORK_ON_TASK
+    WORK_ON_TASK --> COMPLETE_TASK
+    COMPLETE_TASK --> VIEW_PROGRESS
+    
+    VIEW_PROGRESS --> VIEW_ACTIVITY
+    VIEW_ACTIVITY --> COMMENT
+    COMMENT --> TRACK_MEMBERS
+    TRACK_MEMBERS --> LEADERBOARD
+    
+    LEADERBOARD --> VIEW_STATS
+    VIEW_STATS --> CHECK_STREAK
+    CHECK_STREAK --> PRODUCTIVITY
+    PRODUCTIVITY --> TRENDS
+    
+    TRENDS --> TRIAL_ENDS
+    TRIAL_ENDS --> AUTO_RENEW
+    AUTO_RENEW --> CONTINUE
+    CONTINUE --> CREATE_TASK
+    
+    TRIAL_ENDS --> CANCEL
+    CANCEL --> END_JOURNEY
+    
+    %% Styling
+    style Onboarding fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Subscription fill:#fff3e0,stroke:#e65100,color:#000
+    style GroupSetup fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style TaskManagement fill:#fce4ec,stroke:#c2185b,color:#000
+    style Collaboration fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Analytics fill:#fff8e1,stroke:#f57f17,color:#000
+    style Renewal fill:#e0f7fa,stroke:#006064,color:#000
+    
+    style START fill:#42a5f5,color:#fff
+    style END_JOURNEY fill:#ef5350,color:#fff
+    style SUB_ACTIVE fill:#66bb6a,color:#fff
+    style COMPLETE_TASK fill:#66bb6a,color:#fff
+    style AUTO_RENEW fill:#66bb6a,color:#fff

@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { GenericController } from '../../../_generic-module/generic.controller';
+import { GenericController } from '../../_generic-module/generic.controller';
 import { TaskReminder } from './taskReminder.model';
 import { ITaskReminderDocument } from './taskReminder.interface';
 import { TaskReminderService } from './taskReminder.service';
 import { TRole } from '../../../middlewares/roles';
 import ApiError from '../../../errors/ApiError';
-import { TASK_REMINDER_TRIGGER, TASK_REMINDER_FREQUENCY } from './taskReminder.constant';
-
+import { TaskReminderTrigger, TaskReminderFrequency } from './taskReminder.constant';
+import sendResponse from '../../../shared/sendResponse';
+import { Types } from 'mongoose';
 /**
  * TaskReminder Controller
  * Handles HTTP requests for task reminder operations
@@ -79,7 +80,7 @@ export class TaskReminderController extends GenericController<typeof TaskReminde
       channels,
     });
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.CREATED,
       data: result,
       message: 'Reminder scheduled successfully',
@@ -107,7 +108,7 @@ export class TaskReminderController extends GenericController<typeof TaskReminde
 
     const result = await this.taskReminderService.getRemindersForTask(taskId, options);
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: 'Task reminders retrieved successfully',
@@ -132,7 +133,7 @@ export class TaskReminderController extends GenericController<typeof TaskReminde
 
     const result = await this.taskReminderService.getRemindersForUser(userId, options);
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: 'My reminders retrieved successfully',
@@ -160,7 +161,7 @@ export class TaskReminderController extends GenericController<typeof TaskReminde
       throw new ApiError(StatusCodes.NOT_FOUND, 'Reminder not found');
     }
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: 'Reminder cancelled successfully',
@@ -184,7 +185,7 @@ export class TaskReminderController extends GenericController<typeof TaskReminde
 
     const count = await this.taskReminderService.cancelAllRemindersForTask(taskId, userId);
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: { count },
       message: `${count} reminders cancelled successfully`,
@@ -193,5 +194,3 @@ export class TaskReminderController extends GenericController<typeof TaskReminde
   };
 }
 
-// Import Types for the controller
-import { Types } from 'mongoose';

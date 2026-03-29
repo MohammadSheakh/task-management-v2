@@ -1,0 +1,109 @@
+erDiagram
+    %% ===========================================
+    %% SUBTASK MODULE - SCHEMA (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% MAIN SUBTASK COLLECTION
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK "Parent task"
+        ObjectId createdById FK "Who created"
+        ObjectId assignedToUserId FK "Who it's assigned to"
+        String title
+        Boolean isCompleted
+        DateTime completedAt
+        Number order
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% TASK COLLECTION (Referenced)
+    TASK {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        Number totalSubtasks
+        Number completedSubtasks
+        Number completionPercentage
+        Boolean isDeleted
+    }
+
+    %% USER COLLECTION (Referenced)
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "business|child|admin"
+        String profileImage
+        Boolean isDeleted
+    }
+
+    %% TASK PROGRESS COLLECTION (Referenced) ⭐ NEW!
+    TASK_PROGRESS {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK "Child working on task"
+        String status "notStarted|inProgress|completed"
+        Number[] completedSubtaskIndexes
+        Number progressPercentage "0-100"
+        DateTime completedAt
+        Boolean isDeleted
+    }
+
+    %% NOTIFICATION COLLECTION (Referenced)
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String type "task|subtask|activity"
+        String priority "low|normal|high|urgent"
+        String status "pending|sent|delivered|read"
+        DateTime createdAt
+    }
+
+    %% SOCKET.IO STATE (Redis - Virtual) ⭐ NEW!
+    SOCKET_IO_SUBTASK_STATE {
+        String cacheKey "socket:subtask:{subtaskId}:subscribers"
+        ObjectId subtaskId
+        ObjectId[] subscribers
+        DateTime lastUpdated
+        Number ttl "60 seconds"
+    }
+
+    %% RELATIONSHIPS
+
+    SUBTASK }o--|| TASK : "belongs_to"
+    SUBTASK }o--|| USER : "created_by"
+    SUBTASK }o--|| USER : "assigned_to"
+
+    TASK ||--o{ SUBTASK : "contains"
+    TASK ||--o{ TASK_PROGRESS : "tracked_by"
+
+    USER ||--o{ SUBTASK : "creates"
+    USER ||--o{ SUBTASK : "assigned_to"
+    USER ||--o{ TASK_PROGRESS : "works_on"
+
+    TASK_PROGRESS }o--|| TASK : "tracks"
+    TASK_PROGRESS }o--|| USER : "child_working"
+
+    SUBTASK ||--o{ NOTIFICATION : "triggers"
+    NOTIFICATION }o--|| USER : "sender"
+    NOTIFICATION }o--|| USER : "receiver"
+
+    note on SUBTASK "Indexes: taskId+order, taskId+isCompleted, assignedToUserId+isCompleted\nAuto-Update: totalSubtasks, completedSubtasks, completionPercentage"
+
+    %% STYLING
+    style SUBTASK fill:#66bb6a,color:#fff
+    style TASK fill:#66bb6a,color:#fff
+    style TASK_PROGRESS fill:#66bb6a,color:#fff
+    style USER fill:#42a5f5,color:#fff
+    style NOTIFICATION fill:#ffca28,color:#000
+    style SOCKET_IO_SUBTASK_STATE fill:#fff176,color:#000

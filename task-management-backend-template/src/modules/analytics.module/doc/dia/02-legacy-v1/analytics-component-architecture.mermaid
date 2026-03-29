@@ -1,0 +1,84 @@
+flowchart TB
+    subgraph Analytics Module Components
+        subgraph UserAnalytics["User Analytics Component"]
+            UA_CTRL[UserAnalytics Controller]
+            UA_SVC[UserAnalytics Service]
+            UA_IFACE[UserAnalytics Interfaces]
+            UA_CONST[UserAnalytics Constants]
+        end
+
+        subgraph TaskAnalytics["Task Analytics Component"]
+            TA_CTRL[TaskAnalytics Controller]
+            TA_SVC[TaskAnalytics Service]
+            TA_IFACE[TaskAnalytics Interfaces]
+            TA_CONST[TaskAnalytics Constants]
+        end
+
+        subgraph GroupAnalytics["Group Analytics Component"]
+            GA_CTRL[GroupAnalytics Controller]
+            GA_SVC[GroupAnalytics Service]
+            GA_IFACE[GroupAnalytics Interfaces]
+            GA_CONST[GroupAnalytics Constants]
+        end
+
+        subgraph AdminAnalytics["Admin Analytics Component"]
+            AA_CTRL[AdminAnalytics Controller]
+            AA_SVC[AdminAnalytics Service]
+            AA_IFACE[AdminAnalytics Interfaces]
+            AA_CONST[AdminAnalytics Constants]
+        end
+    end
+
+    subgraph Shared["Shared Components"]
+        ROUTE[Analytics Routes Aggregator]
+        CACHE_MGR[Cache Manager]
+        REDIS[(Redis Cache)]
+    end
+
+    subgraph External["External Dependencies"]
+        TASK_MOD[task.module]
+        GROUP_MOD[group.module]
+        USER_MOD[user.module]
+        NOTIFY_MOD[notification.module]
+        MONGODB[(MongoDB)]
+    end
+
+    %% Internal Flow
+    ROUTE --> UA_CTRL
+    ROUTE --> TA_CTRL
+    ROUTE --> GA_CTRL
+    ROUTE --> AA_CTRL
+
+    UA_CTRL --> UA_SVC
+    TA_CTRL --> TA_SVC
+    GA_CTRL --> GA_SVC
+    AA_CTRL --> AA_SVC
+
+    UA_SVC --> CACHE_MGR
+    TA_SVC --> CACHE_MGR
+    GA_SVC --> CACHE_MGR
+    AA_SVC --> CACHE_MGR
+
+    CACHE_MGR <--> REDIS
+
+    %% External Dependencies
+    UA_SVC --> TASK_MOD
+    UA_SVC --> USER_MOD
+    TA_SVC --> TASK_MOD
+    GA_SVC --> GROUP_MOD
+    GA_SVC --> TASK_MOD
+    AA_SVC --> TASK_MOD
+    AA_SVC --> USER_MOD
+    AA_SVC --> GROUP_MOD
+
+    TASK_MOD --> MONGODB
+    GROUP_MOD --> MONGODB
+    USER_MOD --> MONGODB
+
+    %% Styling
+    style UA_CTRL fill:#42a5f5,color:#fff
+    style TA_CTRL fill:#42a5f5,color:#fff
+    style GA_CTRL fill:#42a5f5,color:#fff
+    style AA_CTRL fill:#ef5350,color:#fff
+    style REDIS fill:#ff7043,color:#fff
+    style MONGODB fill:#4db33d,color:#fff

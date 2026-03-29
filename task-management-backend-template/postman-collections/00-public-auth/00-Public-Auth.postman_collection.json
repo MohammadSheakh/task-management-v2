@@ -1,0 +1,425 @@
+{
+	"info": {
+		"_postman_id": "00-public-auth-collection-v3",
+		"name": "00 - Public & Auth (No Auth Required)",
+		"description": "Public endpoints and authentication endpoints that don't require authentication.\n\n**Authentication Required**: No\n\n**Rate Limits**:\n- Login: 5 attempts / 15 minutes\n- Register: 10 / hour\n- Forgot Password: 3 / hour\n- Verify Email: 5 / hour\n\n**Base URL**: {{baseUrl}}/v1\n\n**Last Updated**: 15-03-26\n**Version**: 3.0 - Added OAuth endpoints (Google, Apple)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "googleIdToken",
+			"value": "",
+			"type": "string",
+			"description": "Google OAuth ID token for testing"
+		},
+		{
+			"key": "appleIdentityToken",
+			"value": "",
+			"type": "string",
+			"description": "Apple Sign In identity token for testing"
+		}
+	],
+	"item": [
+		{
+			"name": "OAuth Authentication",
+			"item": [
+				{
+					"name": "Google Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"accessToken\", jsonData.data.tokens.accessToken);",
+									"    pm.environment.set(\"refreshToken\", jsonData.data.tokens.refreshToken);",
+									"    pm.environment.set(\"userId\", jsonData.data.user._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@gmail.com\",\n  \"name\": \"Google User\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auth/google-login",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auth", "google-login"]
+						},
+						"description": "Login with Google OAuth\n\n**Backend Route**: `POST /auth/google-login`\n\n**Flow**:\n1. User signs in with Google on frontend\n2. Frontend gets Google ID token\n3. Send token to backend\n4. Backend creates/updates user and returns tokens\n\n**Rate Limit**: 5 attempts per 15 minutes"
+					},
+					"response": []
+				},
+				{
+					"name": "Google Login V2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"accessToken\", jsonData.data.tokens.accessToken);",
+									"    pm.environment.set(\"refreshToken\", jsonData.data.tokens.refreshToken);",
+									"    pm.environment.set(\"userId\", jsonData.data.user._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@gmail.com\",\n  \"name\": \"Google User\",\n  \"avatar\": \"https://lh3.googleusercontent.com/...\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auth/google-login/v2",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auth", "google-login", "v2"]
+						},
+						"description": "Enhanced Google login with FCM token support\n\n**Backend Route**: `POST /auth/google-login/v2`\n\n**Rate Limit**: 5 attempts per 15 minutes"
+					},
+					"response": []
+				},
+				{
+					"name": "Google OAuth Callback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"idToken\": \"{{googleIdToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auth/google",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auth", "google"]
+						},
+						"description": "Google OAuth callback endpoint\n\n**Backend Route**: `POST /auth/google`\n\n**Flow**:\n1. Frontend receives Google ID token after OAuth flow\n2. Send idToken to this endpoint\n3. Backend verifies token and authenticates user\n\n**Note**: Client sends idToken for verification"
+					},
+					"response": []
+				},
+				{
+					"name": "Apple Sign In",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"identityToken\": \"{{appleIdentityToken}}\",\n  \"name\": \"Apple User\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/auth/apple",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "auth", "apple"]
+						},
+						"description": "Sign in with Apple\n\n**Backend Route**: `POST /auth/apple`\n\n**Flow**:\n1. User signs in with Apple on frontend\n2. Frontend gets identity token\n3. Send token to backend\n4. Backend verifies and authenticates user\n\n**Note**: Client sends identityToken for verification"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/v1/health",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "health"]
+				},
+				"description": "Check API health status\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"status\": \"healthy\",\n    \"db\": \"connected\",\n    \"redis\": \"connected\",\n    \"queues\": {\n      \"critical\": \"active\",\n      \"standard\": \"active\",\n      \"low\": \"active\"\n    }\n  }\n}\n```\n\n**Note**: Health endpoint may not be implemented yet - verify with backend team"
+			},
+			"response": []
+		},
+		{
+			"name": "Register User",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 201) {",
+							"    var jsonData = pm.response.json();",
+							"    pm.environment.set(\"userEmail\", jsonData.data.user.email);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/register",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "register"]
+				},
+				"description": "Register a new user account\n\n**Body**:\n- name: User's full name\n- email: Valid email address\n- password: Minimum 8 characters\n\n**Rate Limit**: 10 per hour\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"...\",\n      \"name\": \"John Doe\",\n      \"email\": \"john@example.com\",\n      \"role\": \"user\"\n    },\n    \"message\": \"OTP sent to your email\"\n  }\n}\n```"
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    var jsonData = pm.response.json();",
+							"    pm.environment.set(\"accessToken\", jsonData.data.tokens.accessToken);",
+							"    pm.environment.set(\"refreshToken\", jsonData.data.tokens.refreshToken);",
+							"    pm.environment.set(\"userId\", jsonData.data.user._id);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/login",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "login"]
+				},
+				"description": "Login with email and password\n\n**Rate Limit**: 5 attempts per 15 minutes\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"_id\": \"...\",\n      \"name\": \"John Doe\",\n      \"email\": \"john@example.com\"\n    },\n    \"tokens\": {\n      \"accessToken\": \"eyJhbGciOiJIUzI1NiIs...\",\n      \"refreshToken\": \"eyJhbGciOiJIUzI1NiIs...\"\n    }\n  }\n}\n```"
+			},
+			"response": []
+		},
+		{
+			"name": "Verify Email",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"john@example.com\",\n  \"otp\": \"123456\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/verify-email",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "verify-email"]
+				},
+				"description": "Verify email with OTP\n\n**Rate Limit**: 5 per hour"
+			},
+			"response": []
+		},
+		{
+			"name": "Resend OTP",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"john@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/resend-otp",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "resend-otp"]
+				},
+				"description": "Resend verification OTP\n\n**Rate Limit**: 5 per hour"
+			},
+			"response": []
+		},
+		{
+			"name": "Forgot Password",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"john@example.com\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/forgot-password",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "forgot-password"]
+				},
+				"description": "Request password reset OTP\n\n**Rate Limit**: 3 per hour"
+			},
+			"response": []
+		},
+		{
+			"name": "Reset Password",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"john@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewSecurePass123!\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/reset-password",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "reset-password"]
+				},
+				"description": "Reset password with OTP"
+			},
+			"response": []
+		},
+		{
+			"name": "Refresh Token",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/refresh-auth",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "refresh-auth"]
+				},
+				"description": "Refresh access token using refresh token"
+			},
+			"response": []
+		},
+		{
+			"name": "Change Password",
+			"request": {
+				"method": "POST",
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"oldPassword\": \"OldPass123!\",\n  \"newPassword\": \"NewSecurePass456!\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/change-password",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "change-password"]
+				},
+				"description": "Change password (authenticated user)\n\n**Backend Route**: `POST /auth/change-password`\n\n**Authentication**: Required\n\n**Rate Limit**: 100 per minute\n\n**Note**: User must be authenticated with valid access token"
+			},
+			"response": []
+		},
+		{
+			"name": "Logout",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/v1/auth/logout",
+					"host": ["{{baseUrl}}"],
+					"path": ["v1", "auth", "logout"]
+				},
+				"description": "Logout and invalidate refresh token\n\n**Backend Route**: `GET /auth/logout`\n\n**Note**: Uses GET method (not POST) as per backend implementation"
+			},
+			"response": []
+		}
+	]
+}

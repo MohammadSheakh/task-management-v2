@@ -1,0 +1,60 @@
+flowchart TD
+    subgraph "Parent Creates Collaborative Task"
+        A1[Create Task] --> A2[Add assignedUserIds]
+        A2 --> A3[Auto-Create TaskProgress]
+        A3 --> A4[One Record Per Child]
+        A4 --> A5[Set status=notStarted]
+        A5 --> A6[Set progressPercentage=0]
+    end
+    
+    subgraph "Child Updates Progress"
+        B1[View Assigned Task] --> B2{Update Type?}
+        B2 -->|Start Task| B3[PUT /status inProgress]
+        B2 -->|Complete Subtask| B4[PUT /subtasks/:index/complete]
+        B2 -->|Complete Task| B5[PUT /status completed]
+        B3 --> B6[Set startedAt]
+        B4 --> B7[Add to completedSubtaskIndexes]
+        B5 --> B8[Set completedAt]
+        B7 --> B9[Update progressPercentage]
+        B9 --> B10{100% Complete?}
+        B10 -->|Yes| B11[Auto-Set status=completed]
+        B10 -->|No| B12[Continue Tracking]
+        B11 --> B13[Notify Parent]
+    end
+    
+    subgraph "Parent Views Progress"
+        C1[Open Dashboard] --> C2[GET /task/:id/children]
+        C2 --> C3[Get All TaskProgress Records]
+        C3 --> C4[Populate Child Details]
+        C4 --> C5[Calculate Summary Stats]
+        C5 --> C6[Display Per-Child Progress]
+        C6 --> C7[See Completion Rates]
+    end
+    
+    subgraph "System Processing"
+        D1[Create TaskProgress] --> D2[Validate Task Exists]
+        D2 --> D3[Check Not Duplicate]
+        D3 --> D4[Insert Record]
+        D4 --> D5[Cache Result]
+        
+        E1[Update Progress] --> E2[Find Record]
+        E2 --> E3[Update Fields]
+        E3 --> E4[Recalculate Percentage]
+        E4 --> E5[Save to DB]
+        E5 --> E6[Invalidate Cache]
+        E6 --> E7[Send Notification if needed]
+    end
+    
+    subgraph "Cache Management"
+        F1[Read Progress] --> F2{Cache Hit?}
+        F2 -->|Yes| F3[Return Cached]
+        F2 -->|No| F4[Query Database]
+        F4 --> F5[Cache Result]
+        F5 --> F6[Return Data]
+        E6 --> F1
+    end
+    
+    A6 --> B1
+    B13 --> C1
+    D5 --> F1
+    E7 --> C1

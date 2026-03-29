@@ -1,0 +1,38 @@
+flowchart TD
+    Start([User Journey Start]) --> NewUser{New User?}
+
+    NewUser -->|Yes| Register[Register Account]
+    NewUser -->|No| Login[Login]
+
+    Register --> VerifyEmail[Verify Email via OTP]
+    VerifyEmail --> EmailVerified{Email Verified?}
+    EmailVerified -->|No| ResendOTP[Resend OTP]
+    ResendOTP --> VerifyEmail
+    EmailVerified -->|Yes| CreateProfile[Create UserProfile]
+
+    CreateProfile --> SetPreferences[Set Support Mode & Notification Style]
+    SetPreferences --> CompleteRegistration[Registration Complete]
+
+    Login --> AuthSuccess{Auth Success?}
+    AuthSuccess -->|No| ShowError[Show Error Message]
+    ShowError --> Login
+
+    AuthSuccess -->|Yes| GetDashboard[Get Dashboard Data]
+
+    CompleteRegistration --> GetDashboard
+
+    GetDashboard --> ViewTasks[View Tasks]
+    GetDashboard --> ViewGroups[View Groups]
+    GetDashboard --> ViewNotifications[View Notifications]
+
+    ViewTasks --> ManageTasks[Create/Update/Delete Tasks]
+    ViewGroups --> ManageGroups[Join/Create Groups]
+    ViewNotifications --> ManageNotifications[Mark Read/Unread]
+
+    ManageTasks --> UpdateProfile[Update Profile]
+    ManageGroups --> UpdateProfile
+    ManageNotifications --> UpdateProfile
+
+    UpdateProfile --> UpdateDevice[Update Device Info]
+    UpdateDevice --> SyncCalendar[Sync Calendly Integration]
+    SyncCalendar --> End([User Journey End])

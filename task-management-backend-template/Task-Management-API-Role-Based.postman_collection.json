@@ -1,0 +1,192 @@
+{
+  "info": {
+    "_postman_id": "task-management-api-role-based-v1",
+    "name": "Task Management API - Role Based (v1.0.0)",
+    "description": "API collection organized by USER ROLES based on Figma designs\n\n## Roles\n1. **Super Admin** - Platform management\n2. **Primary User** (Teacher/Parent) - Group owner\n3. **Secondary User** (Student/Child) - Team member\n\n## Variables\n- BASE_URL: http://localhost:5000/api/v1\n- ADMIN_TOKEN, PRIMARY_USER_TOKEN, SECONDARY_USER_TOKEN\n- GROUP_ID, TASK_ID, USER_ID",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "BASE_URL", "value": "http://localhost:5000/api/v1", "type": "string"},
+    {"key": "ADMIN_TOKEN", "value": "", "type": "string"},
+    {"key": "PRIMARY_USER_TOKEN", "value": "", "type": "string"},
+    {"key": "SECONDARY_USER_TOKEN", "value": "", "type": "string"},
+    {"key": "GROUP_ID", "value": "", "type": "string"},
+    {"key": "TASK_ID", "value": "", "type": "string"},
+    {"key": "USER_ID", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "00 - Authentication (All Roles)",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "body": {"mode": "raw", "raw": "{\"name\":\"John\",\"email\":\"john@example.com\",\"password\":\"Pass123!\"}"},
+            "url": {"raw": "{{BASE_URL}}/auth/signup", "host": ["{{BASE_URL}}"], "path": ["auth","signup"]}
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "body": {"mode": "raw", "raw": "{\"email\":\"john@example.com\",\"password\":\"Pass123!\"}"},
+            "url": {"raw": "{{BASE_URL}}/auth/login", "host": ["{{BASE_URL}}"], "path": ["auth","login"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Super Admin Role",
+      "description": "Platform management - Users, Subscriptions, Analytics",
+      "item": [
+        {
+          "name": "Dashboard",
+          "item": [
+            {"name": "Get Dashboard Overview", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/admin/dashboard", "host": ["{{BASE_URL}}"], "path": ["admin","dashboard"]}}},
+            {"name": "Get User Statistics", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/admin/statistics", "host": ["{{BASE_URL}}"], "path": ["admin","statistics"]}}},
+            {"name": "Get Monthly Income", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/admin/earnings", "host": ["{{BASE_URL}}"], "path": ["admin","earnings"]}}}
+          ]
+        },
+        {
+          "name": "User Management",
+          "item": [
+            {"name": "Get All Users", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users?page=1&limit=20", "host": ["{{BASE_URL}}"], "path": ["users"], "query": [{"key": "page", "value": "1"}, {"key": "limit", "value": "20"}]}}},
+            {"name": "Create Admin", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"name\":\"Admin\",\"email\":\"admin@example.com\",\"password\":\"Pass123!\",\"role\":\"admin\"}"}, "url": {"raw": "{{BASE_URL}}/users/create-admin", "host": ["{{BASE_URL}}"], "path": ["users","create-admin"]}}},
+            {"name": "Send Admin Invitation", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"email\":\"newadmin@example.com\",\"name\":\"New Admin\",\"role\":\"subAdmin\"}"}, "url": {"raw": "{{BASE_URL}}/users/send-invitation-link-to-admin-email", "host": ["{{BASE_URL}}"], "path": ["users","send-invitation-link-to-admin-email"]}}},
+            {"name": "Remove Sub-Admin", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users/remove-sub-admin/{{USER_ID}}", "host": ["{{BASE_URL}}"], "path": ["users","remove-sub-admin","{{USER_ID}}"]}}},
+            {"name": "Soft Delete User", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users/softDelete/{{USER_ID}}", "host": ["{{BASE_URL}}"], "path": ["users","softDelete","{{USER_ID}}"]}}}
+          ]
+        },
+        {
+          "name": "Subscription Management",
+          "item": [
+            {"name": "Get All Subscriptions", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/subscriptions", "host": ["{{BASE_URL}}"], "path": ["subscriptions"]}}},
+            {"name": "Create Subscription Plan", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"subscriptionName\":\"Group Plan\",\"price\":29.99,\"duration\":\"monthly\"}"}, "url": {"raw": "{{BASE_URL}}/subscriptions", "host": ["{{BASE_URL}}"], "path": ["subscriptions"]}}},
+            {"name": "Delete Subscription", "request": {"method": "DELETE", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/subscriptions/{{SUBSCRIPTION_ID}}", "host": ["{{BASE_URL}}"], "path": ["subscriptions","{{SUBSCRIPTION_ID}}"]}}}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Primary User Role (Teacher/Parent)",
+      "description": "Group owner - Manage team, assign tasks, set permissions\n\nFigma: Teacher/Parent Dashboard, Team Members, Permissions",
+      "item": [
+        {
+          "name": "Dashboard",
+          "item": [
+            {"name": "Get Team Overview", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/my?populate=members", "host": ["{{BASE_URL}}"], "path": ["groups","my"], "query": [{"key": "populate", "value": "members"}]}}},
+            {"name": "Get Group Details", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}"]}}},
+            {"name": "Get Live Activity Feed", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/notifications/my?type=task&limit=10", "host": ["{{BASE_URL}}"], "path": ["notifications","my"], "query": [{"key": "type", "value": "task"}, {"key": "limit", "value": "10"}]}}}
+          ]
+        },
+        {
+          "name": "Task Management",
+          "item": [
+            {"name": "Create Single Assignment Task", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"taskType\":\"singleAssignment\",\"title\":\"Math Homework\",\"groupId\":\"{{GROUP_ID}}\",\"assignedUserIds\":[\"<user-id>\"],\"startTime\":\"2026-03-08T10:30:00.000Z\"}"}, "url": {"raw": "{{BASE_URL}}/tasks", "host": ["{{BASE_URL}}"], "path": ["tasks"]}}},
+            {"name": "Create Collaborative Task", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"taskType\":\"collaborative\",\"title\":\"Group Project\",\"groupId\":\"{{GROUP_ID}}\",\"assignedUserIds\":[\"<user-1>\",\"<user-2>\"],\"startTime\":\"2026-03-08T14:00:00.000Z\"}"}, "url": {"raw": "{{BASE_URL}}/tasks", "host": ["{{BASE_URL}}"], "path": ["tasks"]}}},
+            {"name": "Get Group Tasks", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks?groupId={{GROUP_ID}}", "host": ["{{BASE_URL}}"], "path": ["tasks"], "query": [{"key": "groupId", "value": "{{GROUP_ID}}"}]}}},
+            {"name": "Get Task Monitoring Stats", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks/statistics?groupId={{GROUP_ID}}", "host": ["{{BASE_URL}}"], "path": ["tasks","statistics"], "query": [{"key": "groupId", "value": "{{GROUP_ID}}"}]}}},
+            {"name": "Update Task", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"title\":\"Updated\",\"priority\":\"high\"}"}, "url": {"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}", "host": ["{{BASE_URL}}"], "path": ["tasks","{{TASK_ID}}"]}}},
+            {"name": "Delete Task", "request": {"method": "DELETE", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}", "host": ["{{BASE_URL}}"], "path": ["tasks","{{TASK_ID}}"]}}}
+          ]
+        },
+        {
+          "name": "Team Members",
+          "item": [
+            {"name": "Get All Members", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","members"]}}},
+            {"name": "Get Member Details", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","members","{{USER_ID}}"]}}},
+            {"name": "Get Member's Tasks", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks?assignedUserIds={{USER_ID}}&groupId={{GROUP_ID}}", "host": ["{{BASE_URL}}"], "path": ["tasks"], "query": [{"key": "assignedUserIds", "value": "{{USER_ID}}"}, {"key": "groupId", "value": "{{GROUP_ID}}"}]}}},
+            {"name": "Add Member", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"userId\":\"<user-id>\",\"role\":\"member\"}"}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","members"]}}},
+            {"name": "Update Member Role", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"role\":\"admin\"}"}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}/role", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","members","{{USER_ID}}","role"]}}},
+            {"name": "Remove Member", "request": {"method": "DELETE", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","members","{{USER_ID}}"]}}},
+            {"name": "Get Team Size", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/count", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","count"]}}}
+          ]
+        },
+        {
+          "name": "Permissions (Figma: Settings)",
+          "item": [
+            {"name": "Get Group Permissions", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","permissions"]}}},
+            {"name": "Update Permissions (Bulk)", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"memberPermissions\":[{\"userId\":\"<user-1>\",\"canCreateTasks\":true},{\"userId\":\"<user-2>\",\"canCreateTasks\":false}]}"}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","permissions"]}}},
+            {"name": "Toggle Task Permission", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"memberId\":\"<member-id>\",\"canCreateTasks\":true}"}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions/toggle", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}","permissions","toggle"]}}}
+          ]
+        },
+        {
+          "name": "Group Management",
+          "item": [
+            {"name": "Create Group", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"name\":\"Family Group\",\"description\":\"Manage family tasks\",\"visibility\":\"private\",\"maxMembers\":5}"}, "url": {"raw": "{{BASE_URL}}/groups", "host": ["{{BASE_URL}}"], "path": ["groups"]}}},
+            {"name": "Update Group", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"name\":\"Updated\",\"maxMembers\":10}"}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}"]}}},
+            {"name": "Delete Group", "request": {"method": "DELETE", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/groups/{{GROUP_ID}}", "host": ["{{BASE_URL}}"], "path": ["groups","{{GROUP_ID}}"]}}}
+          ]
+        },
+        {
+          "name": "Profile & Subscription",
+          "item": [
+            {"name": "Get Profile", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users/profile", "host": ["{{BASE_URL}}"], "path": ["users","profile"]}}},
+            {"name": "Get Profile Info", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users/profile-info", "host": ["{{BASE_URL}}"], "path": ["users","profile-info"]}}},
+            {"name": "Get Subscription", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/subscriptions/my", "host": ["{{BASE_URL}}"], "path": ["subscriptions","my"]}}}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Secondary User Role (Student/Child)",
+      "description": "Team member - View/complete tasks, track progress\n\nFigma: App User (Mobile), Home, Task Status, Profile with Support Mode",
+      "item": [
+        {
+          "name": "Home & Tasks",
+          "item": [
+            {"name": "Get My Tasks", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks?page=1&limit=10", "host": ["{{BASE_URL}}"], "path": ["tasks"], "query": [{"key": "page", "value": "1"}, {"key": "limit", "value": "10"}]}}},
+            {"name": "Get Daily Progress", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks/daily-progress?date=2026-03-07", "host": ["{{BASE_URL}}"], "path": ["tasks","daily-progress"], "query": [{"key": "date", "value": "2026-03-07"}]}}},
+            {"name": "Get Task Details", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}", "host": ["{{BASE_URL}}"], "path": ["tasks","{{TASK_ID}}"]}}},
+            {"name": "Start Task", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"status\":\"inProgress\"}"}, "url": {"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/status", "host": ["{{BASE_URL}}"], "path": ["tasks","{{TASK_ID}}","status"]}}},
+            {"name": "Complete Task", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"status\":\"completed\"}"}, "url": {"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/status", "host": ["{{BASE_URL}}"], "path": ["tasks","{{TASK_ID}}","status"]}}},
+            {"name": "Update Subtask Progress", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"subtasks\":[{\"title\":\"Exercise 1-5\",\"isCompleted\":true}]}"}, "url": {"raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/subtasks/progress", "host": ["{{BASE_URL}}"], "path": ["tasks","{{TASK_ID}}","subtasks","progress"]}}}
+          ]
+        },
+        {
+          "name": "Create Task (If Permission)",
+          "item": [
+            {"name": "Create Personal Task", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"taskType\":\"personal\",\"title\":\"Read Book\",\"startTime\":\"2026-03-08T16:00:00.000Z\"}"}, "url": {"raw": "{{BASE_URL}}/tasks", "host": ["{{BASE_URL}}"], "path": ["tasks"]}}},
+            {"name": "Create Group Task (Needs Permission)", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"taskType\":\"singleAssignment\",\"groupId\":\"{{GROUP_ID}}\",\"assignedUserIds\":[\"<user-id>\"],\"startTime\":\"2026-03-08T10:00:00.000Z\"}"}, "url": {"raw": "{{BASE_URL}}/tasks", "host": ["{{BASE_URL}}"], "path": ["tasks"]}}},
+            {"name": "TEST: Create Task WITHOUT Permission (403)", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"taskType\":\"collaborative\",\"groupId\":\"{{GROUP_ID}}\"}"}, "url": {"raw": "{{BASE_URL}}/tasks", "host": ["{{BASE_URL}}"], "path": ["tasks"]}}}
+          ]
+        },
+        {
+          "name": "Task Status & History",
+          "item": [
+            {"name": "Get Pending Tasks", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks?status=pending", "host": ["{{BASE_URL}}"], "path": ["tasks"], "query": [{"key": "status", "value": "pending"}]}}},
+            {"name": "Get In Progress Tasks", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks?status=inProgress", "host": ["{{BASE_URL}}"], "path": ["tasks"], "query": [{"key": "status", "value": "inProgress"}]}}},
+            {"name": "Get Completed Tasks (History)", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks?status=completed&from=2026-01-01", "host": ["{{BASE_URL}}"], "path": ["tasks"], "query": [{"key": "status", "value": "completed"}, {"key": "from", "value": "2026-01-01"}]}}},
+            {"name": "Get Statistics", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/tasks/statistics", "host": ["{{BASE_URL}}"], "path": ["tasks","statistics"]}}}
+          ]
+        },
+        {
+          "name": "Profile & Settings (Figma)",
+          "item": [
+            {"name": "Get Profile", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users/profile", "host": ["{{BASE_URL}}"], "path": ["users","profile"]}}},
+            {"name": "Get Support Mode", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/users/support-mode", "host": ["{{BASE_URL}}"], "path": ["users","support-mode"]}}},
+            {"name": "Update Support Mode", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"supportMode\":\"encouraging\"}"}, "url": {"raw": "{{BASE_URL}}/users/support-mode", "host": ["{{BASE_URL}}"], "path": ["users","support-mode"]}}},
+            {"name": "Update Notification Style", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"notificationStyle\":\"gentle\"}"}, "url": {"raw": "{{BASE_URL}}/users/notification-style", "host": ["{{BASE_URL}}"], "path": ["users","notification-style"]}}}
+          ]
+        },
+        {
+          "name": "Notifications",
+          "item": [
+            {"name": "Get My Notifications", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/notifications/my", "host": ["{{BASE_URL}}"], "path": ["notifications","my"]}}},
+            {"name": "Get Unread Count", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/notifications/unread-count", "host": ["{{BASE_URL}}"], "path": ["notifications","unread-count"]}}},
+            {"name": "Mark as Read", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/notifications/{{NOTIFICATION_ID}}/read", "host": ["{{BASE_URL}}"], "path": ["notifications","{{NOTIFICATION_ID}}","read"]}}},
+            {"name": "Mark All Read", "request": {"method": "POST", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/notifications/read-all", "host": ["{{BASE_URL}}"], "path": ["notifications","read-all"]}}}
+          ]
+        },
+        {
+          "name": "SubTasks",
+          "item": [
+            {"name": "Get Subtasks", "request": {"method": "GET", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "url": {"raw": "{{BASE_URL}}/subtasks/task/{{TASK_ID}}", "host": ["{{BASE_URL}}"], "path": ["subtasks","task","{{TASK_ID}}"]}}},
+            {"name": "Toggle Subtask", "request": {"method": "PUT", "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{SECONDARY_USER_TOKEN}}"}]}, "body": {"mode": "raw", "raw": "{\"isCompleted\":true}"}, "url": {"raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}/toggle-status", "host": ["{{BASE_URL}}"], "path": ["subtasks","{{SUBTASK_ID}}","toggle-status"]}}}
+          ]
+        }
+      ]
+    }
+  ]
+}

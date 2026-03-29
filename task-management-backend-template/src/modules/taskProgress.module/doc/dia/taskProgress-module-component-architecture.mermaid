@@ -1,0 +1,68 @@
+flowchart TB
+    subgraph "Presentation Layer"
+        A1[Parent Dashboard<br/>React Components]
+        A2[Child Mobile App<br/>Flutter Screens]
+    end
+    
+    subgraph "Controller Layer"
+        B1[TaskProgressController<br/>getProgress]
+        B2[TaskProgressController<br/>getAllChildrenProgress]
+        B3[TaskProgressController<br/>updateProgressStatus]
+        B4[TaskProgressController<br/>completeSubtask]
+    end
+    
+    subgraph "Service Layer"
+        C1[TaskProgressService<br/>createOrUpdateProgress]
+        C2[TaskProgressService<br/>updateProgressStatus]
+        C3[TaskProgressService<br/>completeSubtask]
+        C4[TaskProgressService<br/>getAllChildrenProgress]
+    end
+    
+    subgraph "Data Access Layer"
+        D1[GenericService<br/>CRUD Operations]
+        D2[TaskProgress Model<br/>Mongoose Schema]
+        D3[Task Model<br/>Parent task lookup]
+        D4[User Model<br/>Child details]
+    end
+    
+    subgraph "Cache Layer"
+        E1[Redis Client<br/>Cache Operations]
+        E2[Progress Cache<br/>task:userId:progress]
+        E3[Children Cache<br/>task:children:progress]
+        E4[Dashboard Cache<br/>parent:dashboard]
+    end
+    
+    subgraph "Cross-Cutting Concerns"
+        F1[Authentication Middleware]
+        F2[Rate Limiter]
+        F3[Validation Middleware<br/>Zod Schemas]
+        F4[Error Handler]
+        F5[Logger]
+    end
+    
+    subgraph "External Dependencies"
+        G1[Task Module<br/>Task data]
+        G2[User Module<br/>User lookups]
+        G3[Notification Module<br/>Parent alerts]
+        G4[Analytics Module<br/>Performance stats]
+    end
+    
+    A1 & A2 --> B1 & B2 & B3 & B4
+    B1 & B2 & B3 & B4 --> C1 & C2 & C3 & C4
+    C1 & C2 & C3 & C4 --> D1 & D2 & D3 & D4
+    C1 & C2 & C3 & C4 --> E1 & E2 & E3 & E4
+    C1 & C2 & C3 & C4 --> G1 & G2 & G3 & G4
+    F1 & F2 & F3 & F4 & F5 -.-> B1 & B2 & B3 & B4
+    
+    style B1 fill:#e1f5ff
+    style B2 fill:#e1f5ff
+    style B3 fill:#e1f5ff
+    style B4 fill:#e1f5ff
+    style C1 fill:#c8e6c9
+    style C2 fill:#c8e6c9
+    style C3 fill:#c8e6c9
+    style C4 fill:#c8e6c9
+    style D1 fill:#fff4e1
+    style D2 fill:#fff4e1
+    style E1 fill:#f3e5f5
+    style F1 fill:#ffebee

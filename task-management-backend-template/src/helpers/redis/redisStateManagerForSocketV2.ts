@@ -1,4 +1,28 @@
 // src/helpers/redis/RedisStateManager.ts
+// ────────────────────────────────────────────────────────────────────────────────
+// Redis State Manager for Socket.IO
+// ────────────────────────────────────────────────────────────────────────────────
+// Purpose: Manages real-time state for Socket.IO connections using Redis
+// Features:
+//   - Online user tracking
+//   - Room management (chat, tasks, groups)
+//   - User presence and status
+//   - Distributed state across multiple workers
+//
+// Used by:
+//   - Chat module (conversation rooms)
+//   - Task module (task rooms, group activities)
+//   - Notification module (real-time notifications)
+//   - Group module (via childrenBusinessUser)
+//
+// Architecture:
+//   All keys are prefixed with 'chat:' for backward compatibility
+//   New room types use the same underlying Redis data structures
+//
+// @version 2.0.0
+// @author Senior Engineering Team
+// ────────────────────────────────────────────────────────────────────────────────
+
 //@ts-ignore
 import { RedisClientType } from 'redis';
 //@ts-ignore
@@ -15,15 +39,34 @@ interface UserConnectionInfo {
 }
 
 const conversationParticipentsService = new ConversationParticipentsService();
+
+/**
+ * Redis Key Configuration
+ * All keys use consistent naming for easy debugging and maintenance
+ */
 export class RedisStateManager {
   private redis: RedisClientType;
   private readonly KEYS = {
+    // Online user tracking
     ONLINE_USERS: 'chat:online_users',              // Set of online userIds
     USER_SOCKET_MAP: 'chat:user_socket_map:',       // Hash: userId -> connection info
     SOCKET_USER_MAP: 'chat:socket_user_map:',       // Hash: socketId -> userId
+    USER_STATUS: 'chat:user_status:',               // Hash: userId -> status
+
+    // Room management (generic - works for chat, tasks, groups)
     USER_ROOMS: 'chat:user_rooms:',                 // Set: userId's joined rooms
     ROOM_USERS: 'chat:room_users:',                 // Set: room's connected users
-    USER_STATUS: 'chat:user_status:',               // Hash: userId -> status
+
+    // Task-specific rooms (NEW - for task management)
+    TASK_ROOMS: 'task:rooms:',                      // Set: taskId -> connected users
+    USER_TASKS: 'task:user_tasks:',                 // Set: userId -> subscribed tasks
+
+    // Group-specific rooms (NEW - for childrenBusinessUser group activities)
+    GROUP_ROOMS: 'group:rooms:',                    // Set: groupId/businessUserId -> connected users
+    USER_GROUPS: 'group:user_groups:',              // Set: userId -> subscribed groups
+
+    // Activity feed tracking
+    ACTIVITY_FEED: 'activity:feed:',                // List: groupId -> recent activities
   };
 
   constructor(redisClient: RedisClientType) {
@@ -130,8 +173,10 @@ export class RedisStateManager {
       }
     );
 
-    // Remove user from all rooms
+    // Remove user from all rooms (chat, task, group)
     await this.removeUserFromAllRooms(userId);
+    await this.removeUserFromAllTaskRooms(userId);
+    await this.removeUserFromAllGroupRooms(userId);
 
     await pipeline.exec();
 
@@ -238,6 +283,271 @@ export class RedisStateManager {
     await pipeline.exec();
 
     logger.info(`🧹 Removed user ${userId} from ${userRooms.length} rooms`);
+  }
+
+  // =============================================
+  // Task Room Management (NEW)
+  // For real-time task updates and collaboration
+  // =============================================
+
+  /**
+   * Join user to a task room
+   * Used when user wants to receive real-time updates for a specific task
+   *
+   * @param userId - User ID
+   * @param taskId - Task ID
+   */
+  async joinTaskRoom(userId: string, taskId: string): Promise<void> {
+    const pipeline = this.redis.multi();
+
+    // Add task to user's subscribed tasks
+    pipeline.sAdd(`${this.KEYS.USER_TASKS}${userId}`, taskId);
+
+    // Add user to task's connected users
+    pipeline.sAdd(`${this.KEYS.TASK_ROOMS}${taskId}`, userId);
+
+    await pipeline.exec();
+
+    logger.info(`📋 User ${userId} joined task room ${taskId}`);
+  }
+
+  /**
+   * Leave user from a task room
+   * Used when user no longer needs task updates
+   *
+   * @param userId - User ID
+   * @param taskId - Task ID
+   */
+  async leaveTaskRoom(userId: string, taskId: string): Promise<void> {
+    const pipeline = this.redis.multi();
+
+    // Remove task from user's subscribed tasks
+    pipeline.sRem(`${this.KEYS.USER_TASKS}${userId}`, taskId);
+
+    // Remove user from task's connected users
+    pipeline.sRem(`${this.KEYS.TASK_ROOMS}${taskId}`, userId);
+
+    await pipeline.exec();
+
+    logger.info(`📋 User ${userId} left task room ${taskId}`);
+  }
+
+  /**
+   * Get all users subscribed to a task
+   * Used to broadcast task updates
+   *
+   * @param taskId - Task ID
+   * @returns Array of user IDs
+   */
+  async getTaskRoomUsers(taskId: string): Promise<string[]> {
+    return await this.redis.sMembers(`${this.KEYS.TASK_ROOMS}${taskId}`);
+  }
+
+  /**
+   * Check if user is subscribed to a task
+   *
+   * @param userId - User ID
+   * @param taskId - Task ID
+   * @returns true if subscribed
+   */
+  async isUserInTaskRoom(userId: string, taskId: string): Promise<boolean> {
+    return await this.redis.sIsMember(`${this.KEYS.USER_TASKS}${userId}`, taskId);
+  }
+
+  /**
+   * Get all tasks a user is subscribed to
+   *
+   * @param userId - User ID
+   * @returns Array of task IDs
+   */
+  async getUserTaskRooms(userId: string): Promise<string[]> {
+    return await this.redis.sMembers(`${this.KEYS.USER_TASKS}${userId}`);
+  }
+
+  /**
+   * Remove user from all task rooms
+   * Called on user disconnect
+   *
+   * @param userId - User ID
+   */
+  async removeUserFromAllTaskRooms(userId: string): Promise<void> {
+    const userTaskRooms = await this.getUserTaskRooms(userId);
+
+    if (userTaskRooms.length === 0) return;
+
+    const pipeline = this.redis.multi();
+
+    // Remove user from all task rooms
+    for (const taskId of userTaskRooms) {
+      pipeline.sRem(`${this.KEYS.TASK_ROOMS}${taskId}`, userId);
+    }
+
+    // Clear user's task rooms list
+    pipeline.del(`${this.KEYS.USER_TASKS}${userId}`);
+
+    await pipeline.exec();
+
+    logger.info(`🧹 Removed user ${userId} from ${userTaskRooms.length} task rooms`);
+  }
+
+  // =============================================
+  // Group Room Management (NEW)
+  // For real-time group/family activities via childrenBusinessUser
+  // =============================================
+
+  /**
+   * Join user to a group room
+   * Used for family/team group real-time updates
+   * Note: groupId here refers to businessUserId for family groups
+   *
+   * @param userId - User ID
+   * @param groupId - Group ID (businessUserId for family groups)
+   */
+  async joinGroupRoom(userId: string, groupId: string): Promise<void> {
+    const pipeline = this.redis.multi();
+
+    // Add group to user's subscribed groups
+    pipeline.sAdd(`${this.KEYS.USER_GROUPS}${userId}`, groupId);
+
+    // Add user to group's connected users
+    pipeline.sAdd(`${this.KEYS.GROUP_ROOMS}${groupId}`, userId);
+
+    await pipeline.exec();
+
+    logger.info(`👨‍👩‍👧‍👦 User ${userId} joined group room ${groupId}`);
+  }
+
+  /**
+   * Leave user from a group room
+   *
+   * @param userId - User ID
+   * @param groupId - Group ID
+   */
+  async leaveGroupRoom(userId: string, groupId: string): Promise<void> {
+    const pipeline = this.redis.multi();
+
+    // Remove group from user's subscribed groups
+    pipeline.sRem(`${this.KEYS.USER_GROUPS}${userId}`, groupId);
+
+    // Remove user from group's connected users
+    pipeline.sRem(`${this.KEYS.GROUP_ROOMS}${groupId}`, userId);
+
+    await pipeline.exec();
+
+    logger.info(`👨‍👩‍👧‍👦 User ${userId} left group room ${groupId}`);
+  }
+
+  /**
+   * Get all users in a group
+   * Used to broadcast group activities
+   *
+   * @param groupId - Group ID
+   * @returns Array of user IDs
+   */
+  async getGroupRoomUsers(groupId: string): Promise<string[]> {
+    return await this.redis.sMembers(`${this.KEYS.GROUP_ROOMS}${groupId}`);
+  }
+
+  /**
+   * Check if user is in a group room
+   *
+   * @param userId - User ID
+   * @param groupId - Group ID
+   * @returns true if in group
+   */
+  async isUserInGroupRoom(userId: string, groupId: string): Promise<boolean> {
+    return await this.redis.sIsMember(`${this.KEYS.USER_GROUPS}${userId}`, groupId);
+  }
+
+  /**
+   * Get all groups a user is subscribed to
+   *
+   * @param userId - User ID
+   * @returns Array of group IDs
+   */
+  async getUserGroupRooms(userId: string): Promise<string[]> {
+    return await this.redis.sMembers(`${this.KEYS.USER_GROUPS}${userId}`);
+  }
+
+  /**
+   * Remove user from all group rooms
+   * Called on user disconnect
+   *
+   * @param userId - User ID
+   */
+  async removeUserFromAllGroupRooms(userId: string): Promise<void> {
+    const userGroupRooms = await this.getUserGroupRooms(userId);
+
+    if (userGroupRooms.length === 0) return;
+
+    const pipeline = this.redis.multi();
+
+    // Remove user from all group rooms
+    for (const groupId of userGroupRooms) {
+      pipeline.sRem(`${this.KEYS.GROUP_ROOMS}${groupId}`, userId);
+    }
+
+    // Clear user's group rooms list
+    pipeline.del(`${this.KEYS.USER_GROUPS}${userId}`);
+
+    await pipeline.exec();
+
+    logger.info(`🧹 Removed user ${userId} from ${userGroupRooms.length} group rooms`);
+  }
+
+  // =============================================
+  // Activity Feed Management (NEW)
+  // For storing and retrieving recent group activities
+  // =============================================
+
+  /**
+   * Add activity to group's activity feed
+   * Activities are stored as JSON strings in a Redis list
+   *
+   * @param groupId - Group ID
+   * @param activity - Activity data
+   * @param maxActivities - Maximum activities to keep (default: 50)
+   */
+  async addActivityToFeed(groupId: string, activity: any, maxActivities: number = 50): Promise<void> {
+    const activityKey = `${this.KEYS.ACTIVITY_FEED}${groupId}`;
+
+    // Add activity to beginning of list
+    await this.redis.lPush(activityKey, JSON.stringify(activity));
+
+    // Trim list to keep only recent activities
+    await this.redis.lTrim(activityKey, 0, maxActivities - 1);
+
+    // Set TTL to auto-expire old activity feeds (7 days)
+    await this.redis.expire(activityKey, 7 * 24 * 60 * 60);
+
+    logger.info(`📢 Added activity to group ${groupId} feed`);
+  }
+
+  /**
+   * Get recent activities for a group
+   *
+   * @param groupId - Group ID
+   * @param limit - Number of activities to return (default: 10)
+   * @returns Array of activities
+   */
+  async getActivityFeed(groupId: string, limit: number = 10): Promise<any[]> {
+    const activityKey = `${this.KEYS.ACTIVITY_FEED}${groupId}`;
+
+    const activities = await this.redis.lRange(activityKey, 0, limit - 1);
+
+    return activities.map(activity => JSON.parse(activity));
+  }
+
+  /**
+   * Clear activity feed for a group
+   *
+   * @param groupId - Group ID
+   */
+  async clearActivityFeed(groupId: string): Promise<void> {
+    const activityKey = `${this.KEYS.ACTIVITY_FEED}${groupId}`;
+    await this.redis.del(activityKey);
+
+    logger.info(`🧹 Cleared activity feed for group ${groupId}`);
   }
 
   // =============================================

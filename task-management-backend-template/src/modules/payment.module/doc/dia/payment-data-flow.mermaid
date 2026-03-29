@@ -1,0 +1,52 @@
+flowchart TB
+    subgraph Payment Initiation
+        P1[User Selects Plan] --> P2[Create Stripe Checkout Session]
+        P2 --> P3[Redirect to Stripe]
+        P3 --> P4[User Enters Payment Info]
+        P4 --> P5[Stripe Processes Payment]
+    end
+
+    subgraph Webhook Processing
+        W1[Stripe Sends Webhook] --> W2[Verify Signature]
+        W2 --> W3{Event Type?}
+        W3 -->|payment_intent.succeeded| W4[Create Transaction Record]
+        W3 -->|payment_intent.failed| W5[Mark Payment Failed]
+        W4 --> W6[Activate Subscription]
+        W5 --> W7[Notify User]
+    end
+
+    subgraph Transaction Recording
+        T1[Transaction Created] --> T2[Store in MongoDB]
+        T2 --> T3[Link to UserSubscription]
+        T3 --> T4[Update Payment Status]
+        T4 --> T5[Cache Transaction]
+    end
+
+    subgraph Admin Operations
+        A1[Admin Views Dashboard] --> A2[Get Transaction Overview]
+        A2 --> A3[Filter by Status/Date]
+        A3 --> A4[View Earnings Summary]
+        A4 --> A5{Action Needed?}
+        A5 -->|Refund| A6[Process Refund via Stripe]
+        A5 -->|View| A7[View Transaction Details]
+        A6 --> A8[Update Transaction Status]
+    end
+
+    subgraph Reconciliation
+        R1[Daily Reconciliation] --> R2[Compare Stripe vs DB]
+        R2 --> R3{Match?}
+        R3 -->|Yes| R4[Mark Reconciled]
+        R3 -->|No| R5[Flag for Review]
+        R5 --> R6[Manual Investigation]
+    end
+
+    P5 --> W1
+    W6 --> T1
+    T5 --> A1
+    A8 --> R1
+
+    style P1 fill:#42a5f5,color:#fff
+    style W1 fill:#ffca28,color:#000
+    style T1 fill:#66bb6a,color:#fff
+    style A1 fill:#ef5350,color:#fff
+    style R1 fill:#4db33d,color:#fff

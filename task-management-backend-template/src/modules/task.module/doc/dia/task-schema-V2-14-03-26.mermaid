@@ -1,0 +1,85 @@
+erDiagram
+    TASK ||--o{ USER : "creator"
+    TASK ||--o{ USER : "assignee"
+    TASK ||--o{ SUBTASK : "contains"
+    TASK ||--o{ NOTIFICATION : "triggers"
+    TASK ||--o{ TASK_PROGRESS : "tracked by"
+
+    CHILDREN_BUSINESS_USER ||--o{ TASK : "grants permission"
+    CHILDREN_BUSINESS_USER }o--|| USER : "links child to business"
+
+    USER ||--o{ TASK : "tracks start time for preferred time"
+    USER ||--o| TASK : "provides suggestion for scheduledTime"
+
+    TASK {
+        ObjectId _id PK
+        String title
+        String description
+        ObjectId createdById FK "Task creator"
+        ObjectId ownerUserId FK "Task owner (personal tasks)"
+        String taskType "personal|singleAssignment|collaborative"
+        ObjectId[] assignedUserIds FK "Assigned users"
+        String status "pending|inProgress|completed"
+        String priority "low|medium|high"
+        DateTime startTime "When task was actually started"
+        String scheduledTime "When task was scheduled for (suggested)"
+        DateTime completedTime "When completed"
+        DateTime dueDate "Task deadline"
+        Boolean isDeleted "Soft delete"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Update timestamp"
+    }
+
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK "Parent task"
+        String title
+        Boolean isCompleted
+        DateTime completedAt
+        Int order "Display order"
+    }
+
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "commonUser|business|admin"
+        String profileImage
+        String preferredTime "Auto-calculated HH:mm format"
+        Boolean isDeleted
+    }
+
+    CHILDREN_BUSINESS_USER {
+        ObjectId _id PK
+        ObjectId childUserId FK "Reference to child user"
+        ObjectId businessUserId FK "Reference to business/parent user"
+        Boolean isSecondaryUser "Can create/assign tasks for family"
+        String status "active|inactive"
+        Boolean isDeleted
+    }
+
+    NOTIFICATION {
+        ObjectId _id PK
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String title
+        String type "task_assigned|task_completed|task_reminder"
+        String status "unread|read"
+    }
+
+    TASK_PROGRESS {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        String status "pending|inProgress|completed"
+        DateTime startedAt
+        DateTime completedAt
+    }
+
+    %% Indexes
+    %% createdById_1_status_1_isDeleted_1_startTime_-1
+    %% ownerUserId_1_status_1_isDeleted_1_startTime_-1
+    %% assignedUserIds_1_status_1_isDeleted_1
+    %% startTime_1_isDeleted_1
+    %% preferredTime_1_isDeleted_1 (User collection)
+    %% childUserId_1_businessUserId_1 (ChildrenBusinessUser collection)

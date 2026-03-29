@@ -1,0 +1,170 @@
+sequenceDiagram
+    %% ===========================================
+    %% ANALYTICS MODULE - SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant P as Parent
+    participant C as Child
+    participant A as Admin
+    participant FE as Frontend
+    participant API as API Gateway
+    participant CA as chartAggregation
+    participant FA as groupAnalytics
+    participant UA as userAnalytics
+    participant AA as adminAnalytics
+    participant REDIS as Redis Cache
+    participant DB as MongoDB
+    participant SOCKET as Socket.IO
+
+    %% ===========================================
+    %% SCENARIO 1: Parent Views Family Dashboard with Charts
+    %% ===========================================
+    Note over P,DB: Scenario 1: Parent Views Family Dashboard with Charts ⭐ NEW!
+
+    P->>FE: Open Family Dashboard
+    FE->>API: GET /analytics/charts/family-activity/:id?days=7
+    API->>CA: getFamilyActivityChart()
+    CA->>REDIS: Check cache
+    REDIS-->>CA: Cache miss
+    CA->>DB: Aggregate task completions
+    DB-->>CA: Activity data
+    CA->>CA: Format for Chart.js
+    CA->>REDIS: Cache result (5 min)
+    CA-->>API: Chart data
+    API-->>FE: Chart data
+    FE-->>P: Display activity chart
+
+    P->>FE: GET /analytics/charts/child-progress/:id
+    FE->>API: getChildProgressComparisonChart()
+    API->>CA: getChildProgressComparisonChart()
+    CA->>REDIS: Check cache
+    REDIS-->>CA: Cache miss
+    CA->>DB: Aggregate child progress
+    DB-->>CA: Progress data
+    CA->>REDIS: Cache result
+    CA-->>API: Chart data
+    API-->>FE: Chart data
+    FE-->>P: Display progress chart
+
+    %% ===========================================
+    %% SCENARIO 2: Child Completes Task → Real-Time Parent Update
+    %% ===========================================
+    Note over C,DB: Scenario 2: Child Completes Task → Real-Time Parent Update ⭐ NEW!
+
+    C->>FE: Complete Task
+    FE->>API: PUT /task-progress/:id/status
+    API->>TP: updateProgressStatus()
+    TP->>DB: Update TASK_PROGRESS
+    DB-->>TP: Updated
+    TP->>REDIS: Invalidate analytics cache
+    TP->>SOCKET: broadcastGroupActivity()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>P: group:activity event
+    P->>FE: Dashboard updates automatically
+    FE-->>P: Show real-time update
+
+    %% ===========================================
+    %% SCENARIO 3: User Checks Daily Progress
+    %% ===========================================
+    Note over A,DB: Scenario 3: User Checks Daily Progress
+
+    A->>FE: Open App
+    FE->>API: GET /analytics/user/my/daily-progress
+    API->>UA: getDailyProgress()
+    UA->>REDIS: Check cache
+    REDIS-->>UA: Cache hit
+    UA-->>API: Cached data
+    API-->>FE: Progress data
+    FE-->>A: Display progress (3/5)
+
+    %% ===========================================
+    %% SCENARIO 4: Admin Views Platform Analytics
+    %% ===========================================
+    Note over A,DB: Scenario 4: Admin Views Platform Analytics with Charts ⭐ NEW!
+
+    A->>FE: Open Admin Dashboard
+    FE->>API: GET /analytics/admin/dashboard
+    API->>AA: getDashboardOverview()
+    AA->>REDIS: Check cache
+    REDIS-->>AA: Cache miss
+    AA->>DB: Aggregate platform metrics
+    DB-->>AA: Dashboard data
+    AA->>REDIS: Cache result (10 min)
+    AA-->>API: Dashboard data
+    API-->>FE: Dashboard data
+    FE-->>A: Display overview
+
+    A->>FE: GET /analytics/charts/user-growth?days=30
+    FE->>API: getUserGrowthChart()
+    API->>CA: getUserGrowthChart()
+    CA->>REDIS: Check cache
+    REDIS-->>CA: Cache miss
+    CA->>DB: Aggregate user growth
+    DB-->>CA: Growth data
+    CA->>CA: Format for Chart.js
+    CA->>REDIS: Cache result (5 min)
+    CA-->>API: Chart data
+    API-->>FE: Chart data
+    FE-->>A: Display growth chart
+
+    %% ===========================================
+    %% SCENARIO 5: Family Activity Feed (Real-Time)
+    %% ===========================================
+    Note over P,DB: Scenario 5: Family Activity Feed (Real-Time) ⭐ NEW!
+
+    P->>FE: View Activity Feed
+    FE->>API: GET /analytics/family/:id/activity
+    API->>FA: getActivityFeed()
+    FA->>REDIS: Get activity feed
+    REDIS-->>FA: Activity list
+    FA-->>API: Activity data
+    API-->>FE: Activity data
+    FE-->>P: Display feed
+
+    %% Real-time update
+    C->>FE: Complete Subtask
+    FE->>API: PUT /task-progress/:id/subtasks/:index/complete
+    API->>TP: completeSubtask()
+    TP->>DB: Update progress
+    DB-->>TP: Updated
+    TP->>SOCKET: emit('task-progress:subtask-completed')
+    SOCKET->>P: Real-time notification
+    P->>FE: Activity feed updates
+    FE-->>P: Show new activity
+
+    %% ===========================================
+    %% SCENARIO 6: Cache Invalidation on Task Completion
+    %% ===========================================
+    Note over C,DB: Scenario 6: Cache Invalidation on Task Completion
+
+    C->>FE: Complete Task
+    FE->>API: PUT /task-progress/:id/status
+    API->>TP: updateProgressStatus()
+    TP->>DB: Update TASK_PROGRESS
+    DB-->>TP: Completed
+    TP->>REDIS: Del analytics:user:cache
+    TP->>REDIS: Del analytics:family:cache
+    TP->>REDIS: Del analytics:charts:family-activity
+    TP->>SOCKET: broadcastGroupActivity()
+    SOCKET->>P: group:activity event
+    TP-->>API: Success
+    API-->>FE: Task completed
+    FE-->>C: Success + Celebration
+
+    %% Styling
+    rect rgb(227, 242, 253)
+        Note over P: Parent User
+    end
+    
+    rect rgb(232, 245, 233)
+        Note over C: Child User
+    end
+    
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer ⭐
+    end
+    
+    rect rgb(255, 204, 128)
+        Note over CA: Chart Aggregation ⭐ NEW!
+    end

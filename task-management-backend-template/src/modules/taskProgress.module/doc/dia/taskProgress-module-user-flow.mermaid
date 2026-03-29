@@ -1,0 +1,34 @@
+flowchart TD
+    A[Child Opens App] --> B[View Assigned Tasks]
+    B --> C{Select Task}
+    C --> D[View Task Details]
+    D --> E{Progress Status?}
+    
+    E -->|Not Started| F1[Click Start Task]
+    F1 --> F2[Update status: inProgress]
+    F2 --> F3[Set startedAt timestamp]
+    F3 --> F4[See Progress: 0%]
+    
+    E -->|In Progress| G1[View Subtasks]
+    G1 --> G2{Select Subtask}
+    G2 -->|Complete| G3[Mark Subtask Done]
+    G3 --> G4[Add to completedSubtaskIndexes]
+    G4 --> G5[Recalculate Percentage]
+    G5 --> G6{Percentage?}
+    G6 -->|< 100%| G7[See Updated Progress]
+    G6 -->|100%| G8[Auto-Mark Task Complete]
+    G7 --> G1
+    G8 --> G9[Set completedAt]
+    
+    E -->|Completed| H1[View Completion Stats]
+    H1 --> H2[See completedAt Time]
+    H2 --> H3[View Personal Stats]
+    
+    F4 --> I[Parent Views Dashboard]
+    G7 --> I
+    G9 --> I
+    H3 --> I
+    
+    I --> J[See All Children Progress]
+    J --> K[View Completion Rates]
+    K --> L[Monitor Performance]

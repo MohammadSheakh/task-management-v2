@@ -1,0 +1,110 @@
+erDiagram
+    %% ===========================================
+    %% TASK PROGRESS MODULE - SCHEMA (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% MAIN TASK PROGRESS COLLECTION
+    TASK_PROGRESS {
+        ObjectId _id PK
+        ObjectId taskId FK "Task being tracked"
+        ObjectId userId FK "Child working on task"
+        String status "notStarted|inProgress|completed"
+        DateTime startedAt
+        DateTime completedAt
+        Number[] completedSubtaskIndexes "Which subtasks done"
+        Number progressPercentage "0-100"
+        String note
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% TASK COLLECTION (Referenced)
+    TASK {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        Number totalSubtasks
+        Number completedSubtasks
+        Number completionPercentage
+        Boolean isDeleted
+    }
+
+    %% USER COLLECTION (Referenced)
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "business|child|admin"
+        String profileImage
+        Boolean isDeleted
+    }
+
+    %% SUBTASK COLLECTION (Referenced)
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK
+        String title
+        String duration
+        Boolean isCompleted
+        DateTime completedAt
+        Number order
+    }
+
+    %% NOTIFICATION COLLECTION (Referenced)
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String type "task|progress|activity"
+        String priority "low|normal|high|urgent"
+        String status "pending|sent|delivered|read"
+        DateTime createdAt
+    }
+
+    %% SOCKET.IO STATE (Redis - Virtual) ⭐ NEW!
+    SOCKET_IO_PROGRESS_STATE {
+        String cacheKey "socket:progress:{taskId}:{userId}:state"
+        ObjectId taskId
+        ObjectId userId
+        String status
+        Number progressPercentage
+        DateTime lastUpdated
+        Number ttl "60 seconds"
+    }
+
+    %% RELATIONSHIPS
+
+    TASK_PROGRESS }o--|| TASK : "tracks"
+    TASK_PROGRESS }o--|| USER : "child_working"
+    TASK_PROGRESS }o--o{ SUBTASK : "completes"
+
+    TASK ||--o{ TASK_PROGRESS : "tracked_by"
+    TASK ||--o{ SUBTASK : "contains"
+
+    USER ||--o{ TASK_PROGRESS : "works_on"
+    USER ||--o{ NOTIFICATION : "sends"
+    USER ||--o{ NOTIFICATION : "receives"
+
+    SUBTASK }o--|| TASK : "belongs_to"
+
+    TASK_PROGRESS ||--o{ NOTIFICATION : "triggers"
+    NOTIFICATION }o--|| USER : "sender"
+    NOTIFICATION }o--|| USER : "receiver"
+
+    note on TASK_PROGRESS "Indexes: taskId+userId (unique), taskId+status, userId+status"
+
+    %% STYLING
+    style TASK_PROGRESS fill:#66bb6a,color:#fff
+    style TASK fill:#66bb6a,color:#fff
+    style SUBTASK fill:#66bb6a,color:#fff
+    style USER fill:#42a5f5,color:#fff
+    style NOTIFICATION fill:#ffca28,color:#000
+    style SOCKET_IO_PROGRESS_STATE fill:#fff176,color:#000

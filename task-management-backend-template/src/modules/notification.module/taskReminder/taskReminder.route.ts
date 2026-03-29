@@ -70,50 +70,65 @@ const createReminderSchema = z.object({
 
 // ─── Routes ────────────────────────────────────────────────────────────
 
-//-------------------------------------------
-// User | TaskReminder #01 | Create task reminder
-//-------------------------------------------
+/*-─────────────────────────────────
+|  Child | Business | TaskReminder | edit-update-task-flow.png | Create task reminder
+|  @desc User creates a reminder for a task (deadline, custom time)
+|  @auth All authenticated users (child, business)
+|  @rateLimit 10 requests per minute
+└──────────────────────────────────*/
 router.route('/').post(
-  auth(TRole.user),
+  auth(TRole.commonUser),
   createReminderLimiter,
   validateRequest(createReminderSchema),
   controller.createReminder
 );
 
-//-------------------------------------------
-// User | TaskReminder #02 | Get reminders for a task
-//-------------------------------------------
+/*-─────────────────────────────────
+|  Child | Business | TaskReminder | edit-update-task-flow.png | Get reminders for a task
+|  @desc Get all reminders associated with a specific task
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+└──────────────────────────────────*/
 router.route('/task/:id').get(
-  auth(TRole.user),
+  auth(TRole.commonUser),
   reminderLimiter,
   validateFiltersForQuery(optionValidationChecking([...paginationOptions])),
   controller.getRemindersForTask
 );
 
-//-------------------------------------------
-// User | TaskReminder #03 | Get my reminders
-//-------------------------------------------
+/*-─────────────────────────────────
+|  Child | Business | TaskReminder | home-flow.png | Get my reminders
+|  @desc Get all reminders for the authenticated user
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+└──────────────────────────────────*/
 router.route('/my').get(
-  auth(TRole.user),
+  auth(TRole.commonUser),
   reminderLimiter,
   validateFiltersForQuery(optionValidationChecking(['status', 'frequency', ...paginationOptions])),
   controller.getMyReminders
 );
 
-//-------------------------------------------
-// User | TaskReminder #04 | Cancel a reminder
-//-------------------------------------------
+/*-─────────────────────────────────
+|  Child | Business | TaskReminder | edit-update-task-flow.png | Cancel a reminder
+|  @desc Cancel/delete a specific reminder
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+└──────────────────────────────────*/
 router.route('/:id').delete(
-  auth(TRole.user),
+  auth(TRole.commonUser),
   reminderLimiter,
   controller.cancelReminder
 );
 
-//-------------------------------------------
-// User | TaskReminder #05 | Cancel all reminders for a task
-//-------------------------------------------
+/*-─────────────────────────────────
+|  Child | Business | TaskReminder | edit-update-task-flow.png | Cancel all reminders for a task
+|  @desc Remove all reminders associated with a task
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+└──────────────────────────────────*/
 router.route('/task/:id/cancel-all').post(
-  auth(TRole.user),
+  auth(TRole.commonUser),
   reminderLimiter,
   controller.cancelAllReminders
 );

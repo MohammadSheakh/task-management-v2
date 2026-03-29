@@ -1,0 +1,714 @@
+{
+	"info": {
+		"_postman_id": "02-admin-full-v2-charts-analytics",
+		"name": "02 - Admin Full (Admin Role + Charts + Analytics)",
+		"description": "Complete admin collection with all analytics and chart endpoints\n\n**Authentication Required**: Yes (Admin Role)\n**Header**: Authorization: Bearer {{accessToken}}\n\n**Rate Limits**:\n- Admin endpoints: 200 requests / minute\n- Chart endpoints: 30 requests / minute\n- User management: 100 requests / minute\n\n**Base URL**: {{baseUrl}}/v1\n\n**NEW Endpoints**:\n- 10 Chart aggregation endpoints for admin dashboard\n- Enhanced analytics endpoints\n- Real-time Socket.IO info",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "taskId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "businessUserId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01 - User Management",
+			"item": [
+				{
+					"name": "Get All Users (Paginate)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/paginate?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "paginate"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get all users with pagination and statistics\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"statistics\": {\n      \"totalUser\": 1000,\n      \"totalProviders\": 200,\n      \"totalSubAdmin\": 50,\n      \"totalAdmin\": 10\n    },\n    \"docs\": [...],\n    \"totalPages\": 50,\n    \"page\": 1,\n    \"limit\": 20\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Students",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/paginate/for-student?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "paginate", "for-student"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get all students with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Mentors",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/paginate/for-mentor?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "paginate", "for-mentor"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get all mentors with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Send Invitation to Admin",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"newadmin@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/send-invitation-link-to-admin-email",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "send-invitation-link-to-admin-email"]
+						},
+						"description": "Send invitation link to admin email"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Sub-Admin",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/remove-sub-admin/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "remove-sub-admin", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "userId123"
+								}
+							]
+						},
+						"description": "Remove sub-admin by ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Admin Analytics (Dashboard)",
+			"item": [
+				{
+					"name": "Get Admin Dashboard Overview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/admin/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "admin", "dashboard"]
+						},
+						"description": "Get complete admin dashboard overview\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"overview\": {\n      \"totalUsers\": 125847,\n      \"totalGroups\": 18453,\n      \"totalTasks\": 8947562,\n      \"activeUsersToday\": 45621,\n      \"dauMauRatio\": 40.52\n    },\n    \"userGrowth\": {...},\n    \"revenue\": {...},\n    \"taskMetrics\": {...}\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Growth Analytics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/admin/user-growth",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "admin", "user-growth"]
+						},
+						"description": "Get user growth analytics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Revenue Analytics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/admin/revenue",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "admin", "revenue"]
+						},
+						"description": "Get revenue analytics (MRR, ARR, etc.)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task Metrics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/admin/task-metrics",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "admin", "task-metrics"]
+						},
+						"description": "Get task metrics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Engagement Metrics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/admin/engagement",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "admin", "engagement"]
+						},
+						"description": "Get user engagement metrics"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - Chart Aggregation (Admin Dashboard Charts)",
+			"item": [
+				{
+					"name": "User Growth Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/user-growth?days=30",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "user-growth"],
+							"query": [
+								{
+									"key": "days",
+									"value": "30",
+									"description": "Number of days (default: 30)"
+								}
+							]
+						},
+						"description": "Get user growth data for line chart (last N days)\n\n**Figma**: main-admin-dashboard/dashboard-section-flow.png\n\n**Response Format**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"labels\": [\"Jan 01\", \"Jan 02\", ...],\n    \"datasets\": [{\n      \"label\": \"New Users\",\n      \"data\": [5, 8, 12, ...],\n      \"color\": \"#4F46E5\"\n    }]\n  }\n}\n```\n\n**Chart.js Type**: Line Chart"
+					},
+					"response": []
+				},
+				{
+					"name": "Task Status Distribution",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/task-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "task-status"]
+						},
+						"description": "Get task status distribution for pie/donut chart\n\n**Response Format**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total\": 150,\n    \"distribution\": [\n      {\"status\": \"pending\", \"count\": 45, \"percentage\": 30},\n      {\"status\": \"inProgress\", \"count\": 55, \"percentage\": 36.67},\n      {\"status\": \"completed\", \"count\": 50, \"percentage\": 33.33}\n    ]\n  }\n}\n```\n\n**Chart.js Type**: Pie/Doughnut Chart"
+					},
+					"response": []
+				},
+				{
+					"name": "Monthly Income Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/monthly-income?months=12",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "monthly-income"],
+							"query": [
+								{
+									"key": "months",
+									"value": "12"
+								}
+							]
+						},
+						"description": "Get monthly revenue data for bar chart\n\n**Note**: Requires payment/subscription transaction data"
+					},
+					"response": []
+				},
+				{
+					"name": "User Ratio Chart (Individual vs Business)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/user-ratio",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "user-ratio"]
+						},
+						"description": "Get Individual vs Business user ratio for pie chart\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total\": 500,\n    \"distribution\": [\n      {\"status\": \"Individual\", \"count\": 350, \"percentage\": 70},\n      {\"status\": \"Business\", \"count\": 150, \"percentage\": 30}\n    ]\n  }\n}\n```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "04 - Payment & Transactions",
+			"item": [
+				{
+					"name": "Get Payment Transactions (Paginate)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/payment-transactions/paginate?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "payment-transactions", "paginate"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get payment transactions with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Overview (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/payment-transactions/overview/admin",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "payment-transactions", "overview", "admin"]
+						},
+						"description": "Get payment overview for admin dashboard"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/payment-transactions/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "payment-transactions", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "transactionId123"
+								}
+							]
+						},
+						"description": "Get transaction by ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "05 - Subscription Management",
+			"item": [
+				{
+					"name": "Get Subscription Plans (Paginate)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/subscription-plans/paginate?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "subscription-plans", "paginate"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get subscription plans with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Subscription Plan",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"subscriptionName\": \"Business Starter\",\n  \"subscriptionType\": \"business_starter\",\n  \"price\": 29.99,\n  \"billingCycle\": \"monthly\",\n  \"maxChildrenAccount\": 5,\n  \"features\": [\"Task Management\", \"Progress Tracking\", \"Analytics\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/subscription-plans",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "subscription-plans"]
+						},
+						"description": "Create new subscription plan"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Subscription Plan",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"price\": 24.99,\n  \"features\": [\"Updated features list\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/subscription-plans/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "subscription-plans", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "planId123"
+								}
+							]
+						},
+						"description": "Update subscription plan"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Subscription Plan",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/subscription-plans/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "subscription-plans", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "planId123"
+								}
+							]
+						},
+						"description": "Delete subscription plan"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Subscriptions (Paginate)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/user-subscriptions/paginate?page=1&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "user-subscriptions", "paginate"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get user subscriptions with pagination"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -15,12 +15,12 @@ const paymentTransactionSchema = new Schema<IPaymentTransaction>(
     },
 
     /********
-     * 📝 INFO 
+     * 📝 INFO
      * referenceFor and referenceId are also use in
      * WalletTransactionHistory model
-     * 
+     *
      * If you update here please update there also
-     * 
+     *
      * ******** */
     referenceFor: {
       type: String,
@@ -46,9 +46,10 @@ const paymentTransactionSchema = new Schema<IPaymentTransaction>(
     paymentGateway: {
       type: String,
       enum: [
-        TPaymentGateway.stripe, 
+        TPaymentGateway.stripe,
         TPaymentGateway.paypal,
-        TPaymentGateway.sslcommerz, // For Kaj BD
+        TPaymentGateway.sslcommerz,
+        TPaymentGateway.revenuecat,  // 🆕 Added RevenueCat
         TPaymentGateway.none
       ],
       required: [true, `paymentGateway is required .. it can be  ${Object.values(TPaymentGateway).join(
@@ -63,7 +64,7 @@ const paymentTransactionSchema = new Schema<IPaymentTransaction>(
       type: String,
       default: null,
     },
-    
+
     amount: {
       type: Number,
       required: true,
@@ -88,14 +89,31 @@ const paymentTransactionSchema = new Schema<IPaymentTransaction>(
       ],
       default: TPaymentStatus.pending
     },
-    
+
     gatewayResponse: { // from kappes
       //---------------------------------
-      // we need to store full response .. this will help us to debug payment related issue 
+      // we need to store full response .. this will help us to debug payment related issue
       //---------------------------------
       type: Schema.Types.Mixed,
       default: null,
     },
+    
+    // 🆕 RevenueCat Specific Fields
+    revenueCatOrderId: {
+      type: String,
+      default: null,
+    },
+    revenueCatEnvironment: {
+      type: String,
+      enum: ['production', 'sandbox'],
+      default: null,
+    },
+    platform: {
+      type: String,
+      enum: ['ios', 'android', 'web'],
+      default: null,
+    },
+    
     isDeleted: {
       type: Boolean,
       required: [false, 'isDeleted is not required'],

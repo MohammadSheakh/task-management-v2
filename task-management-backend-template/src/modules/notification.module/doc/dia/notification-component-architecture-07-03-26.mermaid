@@ -1,0 +1,165 @@
+---
+title: Notification Module - Component Architecture Diagram
+description: Component breakdown showing modules, interfaces, and dependencies
+date: 07-03-26
+---
+
+flowchart TB
+    subgraph PresentationLayer["Presentation Layer"]
+        WebComponent[Web Components<br/>React/Next.js<br/>- Notification Bell<br/>- Notification List<br/>- Badge Counter]
+        
+        MobileComponent[Mobile Components<br/>Flutter<br/>- Notification Screen<br/>- Push Handler<br/>- Badge Widget]
+        
+        AdminComponent[Admin Components<br/>Dashboard<br/>- Bulk Notification<br/>- Analytics]
+    end
+    
+    subgraph APILayer["API Layer"]
+        NotificationRoutes[Notification Routes<br/>notification.route.ts<br/>- GET /notifications/my<br/>- POST /notifications/:id/read<br/>- DELETE /notifications/:id<br/>- POST /notifications/bulk<br/>- POST /notifications/schedule-reminder]
+        
+        TaskReminderRoutes[Task Reminder Routes<br/>taskReminder.route.ts<br/>- POST /task-reminders<br/>- GET /task-reminders/my<br/>- DELETE /task-reminders/:id<br/>- GET /task-reminders/task/:id]
+    end
+    
+    subgraph ControllerLayer["Controller Layer"]
+        NotificationCtrl[Notification Controller<br/>notification.controller.ts<br/>- getMyNotifications<br/>- getUnreadCount<br/>- markAsRead<br/>- markAllAsRead<br/>- deleteNotification<br/>- sendBulkNotification<br/>- scheduleReminder]
+        
+        TaskReminderCtrl[Task Reminder Controller<br/>taskReminder.controller.ts<br/>- createReminder<br/>- getRemindersForTask<br/>- getMyReminders<br/>- cancelReminder<br/>- cancelAllReminders]
+    end
+    
+    subgraph ServiceLayer["Service Layer"]
+        NotificationSvc[Notification Service<br/>notification.service.ts<br/>- createNotification<br/>- sendNotification<br/>- enqueueWebNotification<br/>- markAsRead<br/>- getUnreadCount<br/>- cleanupOldNotifications]
+        
+        TaskReminderSvc[Task Reminder Service<br/>taskReminder.service.ts<br/>- createReminder<br/>- processReminder<br/>- processRecurringReminder<br/>- cancelReminder<br/>- rescheduleReminder<br/>- calculateNextOccurrence]
+        
+        EmailSvc[Email Service<br/>email.service.ts<br/>- sendEmail<br/>- sendTemplate<br/>- attachFiles<br/>- trackDelivery]
+        
+        PushSvc[Push Service<br/>push.service.ts<br/>- sendPush<br/>- sendToTopic<br/>- trackDelivery<br/>- handleErrors]
+    end
+    
+    subgraph BusinessLogic["Business Logic Layer"]
+        NotificationLogic[Notification Business Logic<br/>- Multi-channel Routing<br/>- Priority Handling<br/>- User Preferences<br/>- Rate Limiting<br/>- Template Selection]
+        
+        ReminderLogic[Reminder Business Logic<br/>- Trigger Conditions<br/>- Recurring Calculations<br/>- Time Zone Handling<br/>- Frequency Validation<br/>- Occurrence Tracking]
+        
+        DeliveryLogic[Delivery Logic<br/>- Channel Selection<br/>- Retry Mechanism<br/>- Exponential Backoff<br/>- Fallback Strategy<br/>- Delivery Tracking]
+        
+        PreferenceLogic[Preference Logic<br/>- User Settings<br/>- Channel Opt-outs<br/>- Quiet Hours<br/>- Frequency Caps]
+    end
+    
+    subgraph DataLayer["Data Layer"]
+        NotificationModel[Notification Model<br/>notification.model.ts<br/>- Schema<br/>- Indexes<br/>- Virtuals<br/>- Static Methods<br/>- Instance Methods]
+        
+        TaskReminderModel[Task Reminder Model<br/>taskReminder.model.ts<br/>- Schema<br/>- Indexes<br/>- Virtuals<br/>- Static Methods<br/>- Instance Methods]
+    end
+    
+    subgraph MiddlewareLayer["Middleware Layer"]
+        AuthMW[Auth Middleware<br/>- JWT Verification<br/>- User Context]
+        
+        ValidationMW[Validation Middleware<br/>- Zod Schemas<br/>- Input Sanitization<br/>- Type Checking]
+        
+        RateLimitMW[Rate Limit Middleware<br/>- Request Throttling<br/>- User-based Limits<br/>- Channel-based Limits]
+        
+        ChannelMW[Channel Middleware<br/>- Channel Validation<br/>- Preference Checks<br/>- Quiet Hours]
+    end
+    
+    subgraph SharedModules["Shared Modules"]
+        GenericCtrl[Generic Controller<br/>generic.controller.ts<br/>- getAll<br/>- getById<br/>- create<br/>- updateById<br/>- deleteById]
+        
+        GenericSvc[Generic Service<br/>generic.service.ts<br/>- CRUD Operations<br/>- Pagination<br/>- Filtering]
+        
+        PaginationSvc[Pagination Service<br/>pagination.service.ts<br/>- aggregationPaginate<br/>- cursorPagination]
+        
+        BullMQHelper[BullMQ Helper<br/>bullmq/queue.ts<br/>- createQueue<br/>- addJob<br/>- processJob<br/>- removeJob]
+    end
+    
+    subgraph ExternalServices["External Services"]
+        SendGrid[Email Provider<br/>SendGrid/AWS SES]
+        FCM[Firebase Cloud Messaging<br/>Android/Web]
+        APNs[Apple Push Notification<br/>iOS]
+        Twilio[SMS Provider<br/>Twilio/AWS SNS]
+        WebSocket[WebSocket Server<br/>Socket.IO<br/>Real-time Updates]
+    end
+    
+    subgraph JobProcessors["BullMQ Job Processors"]
+        EmailProcessor[Email Processor<br/>- Render Template<br/>- Send Email<br/>- Track Delivery]
+        
+        PushProcessor[Push Processor<br/>- Format Payload<br/>- Send to FCM/APNs<br/>- Track Delivery]
+        
+        SMSProcessor[SMS Processor<br/>- Format Message<br/>- Send via Twilio<br/>- Track Delivery]
+        
+        ReminderProcessor[Reminder Processor<br/>- Check Time<br/>- Create Notification<br/>- Handle Recurring]
+        
+        CleanupProcessor[Cleanup Processor<br/>- Archive Old<br/>- Delete Expired<br/>- Clear Cache]
+    end
+    
+    %% Presentation to API
+    WebComponent --> NotificationRoutes
+    WebComponent --> TaskReminderRoutes
+    MobileComponent --> NotificationRoutes
+    MobileComponent --> TaskReminderRoutes
+    AdminComponent --> NotificationRoutes
+    
+    %% API to Controllers
+    NotificationRoutes --> NotificationCtrl
+    TaskReminderRoutes --> TaskReminderCtrl
+    
+    %% Controllers to Services
+    NotificationCtrl --> NotificationSvc
+    TaskReminderCtrl --> TaskReminderSvc
+    
+    %% Controllers to Generic
+    NotificationCtrl -.-> GenericCtrl
+    TaskReminderCtrl -.-> GenericCtrl
+    
+    %% Services to Business Logic
+    NotificationSvc --> NotificationLogic
+    TaskReminderSvc --> ReminderLogic
+    NotificationSvc --> DeliveryLogic
+    TaskReminderSvc --> DeliveryLogic
+    NotificationSvc --> PreferenceLogic
+    
+    %% Business Logic to Models
+    NotificationLogic --> NotificationModel
+    ReminderLogic --> TaskReminderModel
+    
+    %% Middleware Flow
+    NotificationRoutes --> AuthMW
+    TaskReminderRoutes --> AuthMW
+    AuthMW --> ValidationMW
+    ValidationMW --> RateLimitMW
+    RateLimitMW --> ChannelMW
+    
+    %% Services to External
+    NotificationSvc --> BullMQHelper
+    TaskReminderSvc --> BullMQHelper
+    
+    BullMQHelper --> EmailProcessor
+    BullMQHelper --> PushProcessor
+    BullMQHelper --> SMSProcessor
+    BullMQHelper --> ReminderProcessor
+    BullMQHelper --> CleanupProcessor
+    
+    EmailProcessor --> SendGrid
+    PushProcessor --> FCM
+    PushProcessor --> APNs
+    SMSProcessor --> Twilio
+    
+    %% Real-time Updates
+    NotificationLogic -.-> WebSocket
+    WebSocket --> WebComponent
+    WebSocket --> MobileComponent
+    
+    %% Shared Module Usage
+    NotificationSvc -.-> PaginationSvc
+    TaskReminderSvc -.-> PaginationSvc
+    
+    %% Styling
+    style PresentationLayer fill:#E3F2FD
+    style APILayer fill:#E8F5E9
+    style ControllerLayer fill:#FFF3E0
+    style ServiceLayer fill:#F3E5F5
+    style BusinessLogic fill:#E0F7FA
+    style DataLayer fill:#F1F8E9
+    style MiddlewareLayer fill:#FFEBEE
+    style SharedModules fill:#FCE4EC
+    style ExternalServices fill:#F9FBE7
+    style JobProcessors fill:#FFF8E1

@@ -1,12 +1,20 @@
+//@ts-ignore
 import { Request, Response } from 'express';
+//@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-import { GenericController } from '../../../_generic-module/generic.controller';
+//@ts-ignore
+import { Types } from 'mongoose';
+import { GenericController } from '../../_generic-module/generic.controller';
 import { Notification } from './notification.model';
 import { INotificationDocument } from './notification.interface';
 import { NotificationService } from './notification.service';
-import { TRole } from '../../../middlewares/roles';
 import ApiError from '../../../errors/ApiError';
-import { NOTIFICATION_PRIORITY, NOTIFICATION_CHANNEL, NOTIFICATION_TYPE } from './notification.constant';
+import {
+  NotificationPriority,
+  NotificationChannel,
+} from './notification.constant';
+import sendResponse from '../../../shared/sendResponse';
+
 
 /**
  * Notification Controller
@@ -21,7 +29,10 @@ import { NOTIFICATION_PRIORITY, NOTIFICATION_CHANNEL, NOTIFICATION_TYPE } from '
  * @version 1.0.0
  * @author Senior Engineering Team
  */
-export class NotificationController extends GenericController<typeof Notification, INotificationDocument> {
+export class NotificationController extends GenericController<
+  typeof Notification,
+  INotificationDocument
+> {
   notificationService: NotificationService;
 
   constructor() {
@@ -54,9 +65,12 @@ export class NotificationController extends GenericController<typeof Notificatio
       priority: req.query.priority as any,
     };
 
-    const result = await this.notificationService.getUserNotifications(userId, options);
+    const result = await this.notificationService.getUserNotifications(
+      userId,
+      options,
+    );
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: 'Notifications retrieved successfully',
@@ -77,7 +91,7 @@ export class NotificationController extends GenericController<typeof Notificatio
 
     const count = await this.notificationService.getUnreadCount(userId);
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: { count },
       message: 'Unread count retrieved successfully',
@@ -99,13 +113,16 @@ export class NotificationController extends GenericController<typeof Notificatio
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const result = await this.notificationService.markAsRead(notificationId, userId);
+    const result = await this.notificationService.markAsRead(
+      notificationId,
+      userId,
+    );
 
     if (!result) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Notification not found');
     }
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: 'Notification marked as read',
@@ -126,7 +143,7 @@ export class NotificationController extends GenericController<typeof Notificatio
 
     const count = await this.notificationService.markAllAsRead(userId);
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: { count },
       message: `All ${count} notifications marked as read`,
@@ -148,13 +165,16 @@ export class NotificationController extends GenericController<typeof Notificatio
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const result = await this.notificationService.deleteNotification(notificationId, userId);
+    const result = await this.notificationService.deleteNotification(
+      notificationId,
+      userId,
+    );
 
     if (!result) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Notification not found');
     }
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: 'Notification deleted successfully',
@@ -181,7 +201,18 @@ export class NotificationController extends GenericController<typeof Notificatio
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const { userIds, receiverRole, title, subTitle, type, priority, channels, linkFor, linkId, data } = req.body;
+    const {
+      userIds,
+      receiverRole,
+      title,
+      subTitle,
+      type,
+      priority,
+      channels,
+      linkFor,
+      linkId,
+      data,
+    } = req.body;
 
     if (!title) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Title is required');
@@ -192,7 +223,10 @@ export class NotificationController extends GenericController<typeof Notificatio
     }
 
     if (!userIds && !receiverRole) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'UserIds or receiverRole is required');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'UserIds or receiverRole is required',
+      );
     }
 
     const result = await this.notificationService.sendBulkNotification({
@@ -201,14 +235,14 @@ export class NotificationController extends GenericController<typeof Notificatio
       title,
       subTitle,
       type,
-      priority: priority || NOTIFICATION_PRIORITY.NORMAL,
-      channels: channels || [NOTIFICATION_CHANNEL.IN_APP],
+      priority: priority || NotificationPriority.NORMAL,
+      channels: channels || [NotificationChannel.IN_APP],
       linkFor,
       linkId,
       data,
     });
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.CREATED,
       data: result,
       message: `${result.length} notifications sent successfully`,
@@ -232,7 +266,12 @@ export class NotificationController extends GenericController<typeof Notificatio
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const { taskId, reminderTime, reminderType = 'before_deadline', message } = req.body;
+    const {
+      taskId,
+      reminderTime,
+      reminderType = 'before_deadline',
+      message,
+    } = req.body;
 
     if (!taskId) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Task ID is required');
@@ -245,7 +284,10 @@ export class NotificationController extends GenericController<typeof Notificatio
     const scheduledDate = new Date(reminderTime);
 
     if (scheduledDate <= new Date()) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Reminder time must be in the future');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Reminder time must be in the future',
+      );
     }
 
     const result = await this.notificationService.createTaskReminder(
@@ -253,13 +295,51 @@ export class NotificationController extends GenericController<typeof Notificatio
       userId,
       scheduledDate,
       reminderType,
-      message
+      message,
     );
 
-    (res as any).sendResponse({
+    sendResponse(res, {
       code: StatusCodes.CREATED,
       data: result,
       message: 'Reminder scheduled successfully',
+      success: true,
+    });
+  };
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Figma-Aligned Controllers: Live Activity Feed for Children/Family
+  // ────────────────────────────────────────────────────────────────────────
+
+  /** ----------------------------------------------
+   * @role Business (Parent/Teacher)
+   * @Section Dashboard
+   * @module Notification
+   * @figmaIndex dashboard-flow-01.png (Live Activity section)
+   * @desc Get live activity feed for parent/teacher dashboard - shows all children's activities
+   * @query limit - Number of activities to return (default: 10)
+   *----------------------------------------------*/
+  getLiveActivityFeedForParentDashboard = async (
+    req: Request,
+    res: Response,
+  ) => {
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const result =
+      await this.notificationService.getLiveActivityFeedForChildren(
+        businessUserId,
+        limit,
+      );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Live activity feed retrieved successfully for parent dashboard',
       success: true,
     });
   };

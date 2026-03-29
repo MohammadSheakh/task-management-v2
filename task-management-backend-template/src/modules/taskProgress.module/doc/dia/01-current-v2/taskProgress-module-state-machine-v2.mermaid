@@ -1,0 +1,128 @@
+stateDiagram-v2
+    %% ===========================================
+    %% TASK PROGRESS MODULE - STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% TASK PROGRESS STATUS STATES
+    state TaskProgressStatus {
+        [*] --> NotStarted: Task Assigned
+        NotStarted --> InProgress: Child Starts
+        InProgress --> Completed: Child Completes
+        NotStarted --> Completed: Direct Complete
+        Completed --> [*]
+        
+        note right of InProgress
+            Progress Tracking:
+            - completedSubtaskIndexes[]
+            - progressPercentage (0-100)
+            - startedAt, completedAt
+        end note
+    }
+
+    %% SUBTASK COMPLETION STATES ⭐ NEW!
+    state SubtaskCompletion {
+        [*] --> SubtaskPending: Subtask Created
+        SubtaskPending --> SubtaskCompleted: Child Completes
+        SubtaskCompleted --> UpdateProgress: Update progressPercentage
+        UpdateProgress --> CheckAllDone: All subtasks done?
+        CheckAllDone --> MarkTaskComplete: Yes
+        CheckAllDone --> StillInProgress: No
+        MarkTaskComplete --> Broadcast: Broadcast Completion
+        StillInProgress --> Broadcast: Broadcast Progress
+        Broadcast --> [*]
+        
+        note right of UpdateProgress
+            Progress Calculation:
+            progressPercentage = (completedSubtasks / totalSubtasks) * 100
+        end note
+    }
+
+    %% REAL-TIME BROADCAST STATES ⭐ NEW!
+    state RealTimeBroadcast {
+        [*] --> ProgressEvent: Progress Updated/Completed
+        ProgressEvent --> InvalidateCache: Clear Caches
+        InvalidateCache --> BroadcastFamily: Socket.IO Family Room
+        BroadcastFamily --> ParentReceives: Parent Dashboard Updates
+        ParentReceives --> [*]: Real-Time Complete
+        
+        note right of BroadcastFamily
+            Events:
+            - progress:updated
+            - progress:completed
+            - subtask:completed
+            - task:completed
+        end note
+    }
+
+    %% CACHE STATES
+    state CacheStates {
+        [*] --> CheckCache: Request
+        CheckCache --> Valid: Cache Hit
+        CheckCache --> Expired: Cache Miss
+        Valid --> Return: Return Data
+        Expired --> QueryDB: Query MongoDB
+        QueryDB --> Store: Store in Redis
+        Store --> Return: Return Data
+        Return --> [*]
+
+        note right of CheckCache
+            Cache TTLs:
+            - Progress detail: 5 min
+            - Progress list: 2 min
+            - Socket.IO state: 1 min
+        end note
+    }
+
+    %% PROGRESS UPDATE PERMISSION STATES ⭐ NEW!
+    state ProgressUpdatePermission {
+        [*] --> CheckUser: Check User Role
+        CheckUser --> ChildUser: Child User
+        CheckUser --> BusinessUser: Business User
+        ChildUser --> CheckAssigned: Assigned to Task?
+        BusinessUser --> ViewOnly: View Only
+        CheckAssigned --> IsAssigned: Yes
+        CheckAssigned --> NotAssigned: No
+        IsAssigned --> UpdateProgress: Can Update
+        NotAssigned --> Denied: Permission Denied
+        ViewOnly --> ViewProgress: Can View
+        UpdateProgress --> [*]
+        ViewProgress --> [*]
+        Denied --> [*]
+    }
+
+    %% PARENT MONITORING STATES ⭐ NEW!
+    state ParentMonitoring {
+        [*] --> ViewAllChildren: View All Children
+        ViewAllChildren --> SelectChild: Select Child
+        SelectChild --> ViewProgress: View Progress
+        ViewProgress --> ReceiveRealTime: Receive Real-Time Update
+        ReceiveRealTime --> UpdateDashboard: Dashboard Updates
+        UpdateDashboard --> [*]
+        
+        note right of ReceiveRealTime
+            Real-Time Updates:
+            - progress:updated
+            - progress:completed
+            - task:completed
+        end note
+    }
+
+    %% Styling
+    state TaskProgressStatus {
+        style NotStarted fill:#90caf9
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+    }
+    
+    state SubtaskCompletion {
+        style SubtaskPending fill:#fff9c4
+        style SubtaskCompleted fill:#81c784
+    }
+    
+    style TaskProgressStatus fill:#e3f2fd,stroke:#1565c0
+    style SubtaskCompletion fill:#e8f5e9,stroke:#2e7d32
+    style RealTimeBroadcast fill:#fff9c4,stroke:#f9a825
+    style CacheStates fill:#ffe0b2,stroke:#e65100
+    style ProgressUpdatePermission fill:#e0f7fa,stroke:#006064
+    style ParentMonitoring fill:#f3e5f5,stroke:#7b1fa2

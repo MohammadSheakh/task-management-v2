@@ -1,0 +1,85 @@
+flowchart TB
+    subgraph "Client Layer"
+        A[Teacher/Parent Dashboard<br/>React Web App]
+        B[Child Mobile App<br/>Flutter]
+        C[Admin Dashboard<br/>React Web App]
+    end
+
+    subgraph "API Gateway Layer"
+        D[Express.js API Gateway]
+        E[Authentication Middleware]
+        F[Rate Limiter]
+        G[Request Validation]
+    end
+
+    subgraph "Application Layer"
+        H[ChildrenBusinessUser Controller]
+        I[ChildrenBusinessUser Service]
+        J[Generic Controller]
+        K[Generic Service]
+    end
+
+    subgraph "Cache Layer"
+        L[Redis Cache]
+        L1[Children List Cache<br/>5 min TTL]
+        L2[Children Count Cache<br/>3 min TTL]
+        L3[Parent Info Cache<br/>10 min TTL]
+    end
+
+    subgraph "Database Layer"
+        M[MongoDB Cluster]
+        M1[users Collection]
+        M2[childrenbusinessusers Collection]
+        M3[subscriptions Collection]
+    end
+
+    subgraph "External Services"
+        N[Stripe Payment Gateway]
+        O[Email Service]
+        P[Push Notification Service]
+    end
+
+    subgraph "Supporting Modules"
+        Q[Subscription Module]
+        R[User Module]
+        S[Notification Module]
+        T[Analytics Module]
+    end
+
+    A --> D
+    B --> D
+    C --> D
+    
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    
+    H --> I
+    H --> J
+    I --> K
+    
+    I --> L
+    L --> L1 & L2 & L3
+    
+    I --> M
+    M --> M1 & M2 & M3
+    
+    I --> Q
+    I --> R
+    I --> S
+    I --> T
+    
+    Q --> N
+    S --> O & P
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C fill:#e1f5ff
+    style D fill:#fff4e1
+    style H fill:#c8e6c9
+    style I fill:#c8e6c9
+    style L fill:#f3e5f5
+    style M fill:#ffebee
+    style N fill:#e0f7fa
+    style Q fill:#fff9c4

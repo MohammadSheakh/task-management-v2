@@ -1,0 +1,121 @@
+flowchart TB
+    %% ===========================================
+    %% CHILDREN BUSINESS USER MODULE - SYSTEM ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Frontend["🖥️ Frontend Layer"]
+        PARENT_APP["📱 Parent App<br/>(Business User)"]
+        CHILD_APP["📱 Child App<br/>(Student)"]
+        PARENT_WEB["💻 Parent Dashboard"]
+    end
+
+    subgraph APIGateway["🔌 API Gateway"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT)"]
+        RATE["Rate Limiter"]
+    end
+
+    subgraph ChildrenBusinessUserModule["👨‍👩‍👧‍👦 Children Business User Module (v2.0)"]
+
+        subgraph Routes["Routes"]
+            CBU_ROUTE["childrenBusinessUser.route.ts"]
+        end
+
+        subgraph Controllers["Controllers"]
+            CBU_CTRL["childrenBusinessUser.controller.ts"]
+        end
+
+        subgraph Services["Services"]
+            CBU_SVC["childrenBusinessUser.service.ts<br/>with Socket.IO ⭐"]
+        end
+
+        subgraph Models["Models"]
+            CBU_MODEL["childrenBusinessUser.model.ts"]
+        end
+    end
+
+    subgraph RelatedModules["🔗 Related Modules"]
+
+        subgraph UserModule["user.module"]
+            USER_SVC["user.service.ts"]
+            USER_MODEL["user.model.ts"]
+        end
+
+        subgraph SubscriptionModule["subscription.module"]
+            SUB_SVC["userSubscription.service.ts"]
+            PLAN_MODEL["subscriptionPlan.model.ts"]
+        end
+
+        subgraph TaskModule["task.module"]
+            TASK_SVC["task.service.ts"]
+        end
+
+        subgraph NotificationModule["notification.module"]
+            NOTIF_SVC["notification.service.ts"]
+        end
+    end
+
+    subgraph DataLayer["💾 Data Layer"]
+        MONGODB["🍃 MongoDB<br/>(Primary Database)"]
+        REDIS["🔴 Redis<br/>(Cache Layer)"]
+        REDIS_CACHE["Family Cache<br/>10 min TTL"]
+        REDIS_SECONDARY["Secondary User Cache<br/>15 min TTL"]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        SOCKET_IO["Socket.IO Server"]
+        REDIS_ADAPTER["Redis Adapter"]
+        FAMILY_ROOMS["Family Rooms"]
+        EVENTS["Events<br/>group:activity<br/>permission_changed"]
+    end
+
+    %% Frontend to API Gateway
+    PARENT_APP --> LB
+    CHILD_APP --> LB
+    PARENT_WEB --> LB
+
+    LB --> AUTH
+    AUTH --> RATE
+
+    %% API Gateway to Module
+    RATE --> CBU_ROUTE
+
+    %% Internal Module Flow
+    CBU_ROUTE --> CBU_CTRL
+    CBU_CTRL --> CBU_SVC
+    CBU_SVC --> CBU_MODEL
+
+    %% Module to Related Modules
+    CBU_SVC --> USER_SVC
+    CBU_SVC --> SUB_SVC
+    CBU_SVC --> TASK_SVC
+    CBU_SVC --> NOTIF_SVC
+
+    %% Module to Data Layer
+    CBU_MODEL --> MONGODB
+    CBU_SVC -.->|Cache| REDIS_CACHE
+    CBU_SVC -.->|Cache| REDIS_SECONDARY
+
+    %% Real-Time Integration ⭐
+    CBU_SVC -.->|Broadcast| SOCKET_IO
+    SOCKET_IO --> REDIS_ADAPTER
+    REDIS_ADAPTER --> FAMILY_ROOMS
+    REDIS_ADAPTER --> EVENTS
+    SOCKET_IO -.->|State| REDIS_STATE
+
+    %% Related Modules to Data
+    USER_MODEL --> MONGODB
+    SUB_SVC --> MONGODB
+
+    %% Styling
+    style Frontend fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style ChildrenBusinessUserModule fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style RelatedModules fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style DataLayer fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+
+    style CBU_SVC fill:#c8e6c9,stroke:#2e7d32
+    style SOCKET_IO fill:#fff176,color:#000
+    style REDIS_CACHE fill:#ffcc80,color:#000

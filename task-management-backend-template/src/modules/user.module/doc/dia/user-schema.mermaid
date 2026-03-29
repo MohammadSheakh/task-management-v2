@@ -1,0 +1,101 @@
+erDiagram
+    User ||--|| UserProfile : "has"
+    User ||--o{ UserDevices : "owns"
+    User ||--|| UserRoleData : "has role data"
+    User ||--o| Wallet : "owns"
+    User ||--o{ Task : "creates"
+    User ||--o{ Group : "belongs to"
+    User ||--o{ Notification : "receives"
+    User ||--o{ OAuthAccount : "links"
+    User ||--o{ Task : "tracks start time for preferred time"
+    User ||--o| Task : "provides suggestion for scheduledTime"
+
+    User {
+        ObjectId _id PK
+        ObjectId profileId FK
+        String name
+        String email UK
+        String role "child|business|admin"
+        String password
+        Object profileImage
+        Boolean isEmailVerified
+        String phoneNumber
+        String preferredTime "Auto-calculated HH:mm format"
+        Object calendly
+        String authProvider
+        Date lastPasswordChange
+        Boolean isResetPassword
+        Number failedLoginAttempts
+        Date lockUntil
+        ObjectId walletId FK
+        Boolean isDeleted
+        Date deletedAt
+        Date createdAt
+        Date updatedAt
+    }
+
+    UserProfile {
+        ObjectId _id PK
+        Boolean acceptTOC
+        ObjectId userId FK
+        String location
+        Date dob
+        Mixed gender
+        String supportMode "calm|encouraging|logical"
+        String notificationStyle "gentle|firm|xyz"
+        Boolean isDeleted
+    }
+
+    UserDevices {
+        ObjectId _id PK
+        ObjectId userId FK
+        String fcmToken
+        String deviceType
+        String deviceName
+        String ipAddress
+        String userAgent
+        Date lastActive
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    UserRoleData {
+        ObjectId _id PK
+        ObjectId userId FK
+        String adminStatus
+        String providerApprovalStatus
+        Date approvedAt
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    Wallet {
+        ObjectId _id PK
+        ObjectId userId FK
+        Number amount
+        String currency
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    OAuthAccount {
+        ObjectId _id PK
+        ObjectId userId FK
+        String provider
+        String providerId
+        String email
+        String accessToken
+        String refreshToken
+        Date expiresAt
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    %% Indexes
+    %% preferredTime_1_isDeleted_1 (for scheduling queries)
+    %% email_1_isDeleted_1
+    %% role_1_isDeleted_1

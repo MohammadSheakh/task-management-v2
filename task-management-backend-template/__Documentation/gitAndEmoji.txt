@@ -8,6 +8,7 @@
 
 //📈⚙️ OPTIMIZATION: ->  optimization related // PERF:
 // ☑️🟣 Issue Fixed
+// ✔️ reviewed
 // ⚠️ NEED_OPTIMIZATION
 // ⚠️ DEPRECATED: 
 // 🟢    ->  new section
@@ -34,9 +35,11 @@
 // 🤢🤮    -> need to find better way
 // ⚔️💪🏔️ -> problem solving 
 // ⭕      -> not needed this function
-// 🎲📊📈 -> calculation
-// 🔁      -> re check for learning 
+// 🎲 -> calculation
+// 🔁      -> re check for learning
+// 🔂      -> dont understand now .. must re check this code  
 // 🧹♻️   -> move to service 
+// 🧹🪄🎩 -> vibe code clean up
 // FiXED FOR NOW   -> but need to work later here .. 
 // 🚩             -> rework here 
 // 🐛🩹          -> bug fix

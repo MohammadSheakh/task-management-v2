@@ -1,0 +1,36 @@
+flowchart LR
+    START([User Decides to Subscribe]) --> VIEW[View Subscription Plans]
+    VIEW --> SELECT[Select Plan]
+    
+    SELECT --> TRIAL{Start Free Trial?}
+    TRIAL -->|Yes| TRIAL_FLOW[Start 14-Day Trial]
+    TRIAL -->|No| PAY_FLOW[Proceed to Payment]
+    
+    TRIAL_FLOW --> TRIAL_ACTIVE[Trial Active]
+    TRIAL_ACTIVE --> TRIAL_END{Trial Ending?}
+    TRIAL_END -->|Yes| CHARGE[Charge Payment Method]
+    TRIAL_END -->|No| CONTINUE[Continue Using]
+    
+    CHARGE --> PAY_RESULT{Payment Result}
+    PAY_RESULT -->|Success| SUB_ACTIVE[Subscription Active]
+    PAY_RESULT -->|Failed| SUB_EXPIRED[Subscription Expired]
+    
+    PAY_FLOW --> STRIPE[Stripe Checkout]
+    STRIPE --> PAYMENT{Payment Success?}
+    
+    PAYMENT -->|Yes| SUB_ACTIVE
+    PAYMENT -->|No| RETRY[Retry Payment]
+    RETRY --> STRIPE
+    
+    SUB_ACTIVE --> USE[Use Features]
+    USE --> RENEW{Renewal Due?}
+    RENEW -->|Yes| CHARGE
+    RENEW -->|No| CONTINUE
+    
+    SUB_EXPIRED --> NOTIFY[Notify User]
+    NOTIFY --> END([End])
+    
+    style START fill:#42a5f5,color:#fff
+    style END fill:#ef5350,color:#fff
+    style SUB_ACTIVE fill:#66bb6a,color:#fff
+    style SUB_EXPIRED fill:#ff5252,color:#fff

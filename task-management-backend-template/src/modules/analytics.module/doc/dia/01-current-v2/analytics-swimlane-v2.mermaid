@@ -1,0 +1,145 @@
+flowchart TB
+    %% ===========================================
+    %% ANALYTICS MODULE - SWIMLANE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph User["👤 User Layer<br/>(Parent/Child/Admin)"]
+        U1[Parent: View Dashboard]
+        U2[Child: Complete Task]
+        U3[Admin: View Platform]
+    end
+
+    subgraph Frontend["💻 Frontend Layer<br/>(Flutter/Web)"]
+        F1[Dashboard Component]
+        F2[Chart.js Renderer]
+        F3[Socket.IO Client]
+    end
+
+    subgraph API["🔌 API Layer<br/>(Express + Middleware)"]
+        A1[Routes]
+        A2[Authentication]
+        A3[Rate Limiting]
+    end
+
+    subgraph Backend["⚙️ Backend Layer<br/>(Controllers + Services)"]
+        B1[chartAggregation.controller]
+        B2[groupAnalytics.controller]
+        B3[userAnalytics.controller]
+        B4[adminAnalytics.controller]
+        B5[chartAggregation.service]
+        B6[groupAnalytics.service]
+        B7[userAnalytics.service]
+        B8[adminAnalytics.service]
+    end
+
+    subgraph Database["💾 Database Layer<br/>(MongoDB)"]
+        D1[User Collection]
+        D2[Task Collection]
+        D3[childrenBusinessUser ⭐]
+        D4[TaskProgress ⭐]
+        D5[Notification]
+    end
+
+    subgraph Cache["🔴 Cache Layer<br/>(Redis)"]
+        C1[Chart Cache ⭐<br/>5 min TTL]
+        C2[Family Cache<br/>5 min TTL]
+        C3[User Cache<br/>5 min TTL]
+        C4[Admin Cache<br/>10 min TTL]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        R1[Socket.IO Server]
+        R2[Redis Adapter]
+        R3[Family Rooms]
+        R4[Events]
+    end
+
+    subgraph Queue["🔄 Queue Layer<br/>(BullMQ)"]
+        Q1[analytics-queue]
+        Q2[Workers]
+    end
+
+    %% User to Frontend
+    U1 -->|View Charts| F1
+    U2 -->|Complete Task| F1
+    U3 -->|View Analytics| F1
+    F2 -->|Render| F1
+    F3 -->|Connect| R1
+
+    %% Frontend to API
+    F1 -->|HTTP Request| A1
+    A1 -->|Verify JWT| A2
+    A2 -->|Check Rate| A3
+
+    %% API to Backend
+    A3 -->|GET /analytics/charts/*| B1
+    A3 -->|GET /analytics/family/*| B2
+    A3 -->|GET /analytics/user/*| B3
+    A3 -->|GET /analytics/admin/*| B4
+
+    %% Backend Internal
+    B1 --> B5
+    B2 --> B6
+    B3 --> B7
+    B4 --> B8
+
+    %% Backend to Cache
+    B5 -.->|Check| C1
+    B6 -.->|Check| C2
+    B7 -.->|Check| C3
+    B8 -.->|Check| C4
+
+    %% Cache Hit/Miss
+    C1 -->|Hit| B5
+    C2 -->|Hit| B6
+    C3 -->|Hit| B7
+    C4 -->|Hit| B8
+
+    %% Backend to Database
+    B5 -->|Aggregate| D1
+    B5 -->|Aggregate| D2
+    B5 -->|Aggregate| D3
+    B6 --> D3
+    B6 --> D2
+    B6 --> D4
+    B7 --> D1
+    B7 --> D2
+    B7 --> D4
+    B8 --> D1
+    B8 --> D2
+    B8 --> D5
+
+    %% Cache Miss Flow
+    D1 -->|Return Data| B5
+    D2 -->|Return Data| B5
+    D3 -->|Return Data| B5
+    B5 -->|Store| C1
+
+    %% Real-Time Flow ⭐
+    B6 -.->|Broadcast| R1
+    B7 -.->|Broadcast| R1
+    R1 --> R2
+    R2 --> R3
+    R2 --> R4
+    R1 -.->|Push| F3
+
+    %% Queue Flow
+    B8 -->|Add Job| Q1
+    Q2 -->|Process| Q1
+    Q2 -->|Update| C4
+
+    %% Styling
+    style User fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Frontend fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#fff3e0,stroke:#e65100,color:#000
+    style Backend fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style Queue fill:#e0f7fa,stroke:#006064,color:#000
+
+    style B1 fill:#c8e6c9,stroke:#2e7d32
+    style B5 fill:#c8e6c9,stroke:#2e7d32
+    style R1 fill:#fff176,color:#000
+    style C1 fill:#ffcc80,color:#000

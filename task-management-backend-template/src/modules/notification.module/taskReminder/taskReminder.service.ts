@@ -2,14 +2,14 @@ import { StatusCodes } from 'http-status-codes';
 import { Types } from 'mongoose';
 import { TaskReminder } from './taskReminder.model';
 import { ITaskReminder, ITaskReminderDocument } from './taskReminder.interface';
-import { GenericService } from '../../../_generic-module/generic.services';
 import ApiError from '../../../errors/ApiError';
 import { errorLogger, logger } from '../../../shared/logger';
-import { TASK_REMINDER_STATUS, TASK_REMINDER_LIMITS, REMINDER_QUEUE_CONFIG } from './taskReminder.constant';
+import { TaskReminderStatus, TASK_REMINDER_LIMITS, REMINDER_QUEUE_CONFIG } from './taskReminder.constant';
 import { Task } from '../../task.module/task/task.model';
 import { NotificationService } from '../notification/notification.service';
 // Import BullMQ queue
 import { taskRemindersQueue } from '../../../helpers/bullmq/bullmq';
+import { GenericService } from '../../_generic-module/generic.services';
 
 /**
  * TaskReminder Service
@@ -64,7 +64,7 @@ export class TaskReminderService extends GenericService<typeof TaskReminder, ITa
     // Create reminder
     const reminder = await TaskReminder.create({
       ...data,
-      status: TASK_REMINDER_STATUS.PENDING,
+      status: TaskReminderStatus.PENDING,
       sentCount: 0,
     });
 
@@ -171,11 +171,11 @@ export class TaskReminderService extends GenericService<typeof TaskReminder, ITa
       throw new ApiError(StatusCodes.NOT_FOUND, 'Reminder not found');
     }
 
-    if (reminder.status === TASK_REMINDER_STATUS.SENT) {
+    if (reminder.status === TaskReminderStatus.SENT) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Cannot cancel a reminder that has already been sent');
     }
 
-    reminder.status = TASK_REMINDER_STATUS.CANCELLED;
+    reminder.status = TaskReminderStatus.CANCELLED;
     await reminder.save();
 
     // TODO: Remove from BullMQ queue if needed
@@ -206,7 +206,7 @@ export class TaskReminderService extends GenericService<typeof TaskReminder, ITa
     return count;
   }
 
-  /**
+  /**✔️
    * Process a due reminder (called by BullMQ worker)
    *
    * @param reminderId - Reminder ID
@@ -219,7 +219,7 @@ export class TaskReminderService extends GenericService<typeof TaskReminder, ITa
       throw new ApiError(StatusCodes.NOT_FOUND, 'Reminder not found');
     }
 
-    if (reminder.status !== TASK_REMINDER_STATUS.PENDING) {
+    if (reminder.status !== TaskReminderStatus.PENDING) {
       logger.warn(`⚠️ Reminder ${reminderId} already processed (status: ${reminder.status})`);
       return reminder;
     }
@@ -246,7 +246,7 @@ export class TaskReminderService extends GenericService<typeof TaskReminder, ITa
       },
     });
 
-    // Mark as sent (and reschedule if recurring)
+    // Mark as sent (and reschedule if recurring) // 🔂 Need to remove recurring feature .. client dont want that 
     await reminder.markAsSent();
 
     logger.info(`✅ Task reminder processed: ${reminderId}`);

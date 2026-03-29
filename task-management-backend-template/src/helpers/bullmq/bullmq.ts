@@ -1,5 +1,5 @@
 //@ts-ignore
-import { Queue, Worker, QueueScheduler, Job } from "bullmq"; 
+import { Queue, Worker, QueueScheduler, Job } from "bullmq";
 import { errorLogger, logger } from "../../shared/logger";
 import { Notification } from "../../modules/notification/notification.model";
 import { INotification } from "../../modules/notification/notification.interface";
@@ -9,7 +9,7 @@ import { TRole } from "../../middlewares/roles";
 import { Conversation } from "../../modules/chatting.module/conversation/conversation.model";
 import { IConversation } from "../../modules/chatting.module/conversation/conversation.interface";
 import { ConversationParticipents } from "../../modules/chatting.module/conversationParticipents/conversationParticipents.model";
-import { GroupInvitation } from "../../modules/group.module/groupInvitation/groupInvitation.model";
+
 //@ts-ignore
 import mongoose from 'mongoose';
 import { buildTranslatedField } from "../../utils/buildTranslatedField";
@@ -27,7 +27,7 @@ type NotificationJobName = "sendNotification";
 
 interface IScheduleJobForNotification {
   name: string;
-  data : INotification,
+  data: INotification,
   id: string
 }
 
@@ -45,7 +45,7 @@ export const startNotificationWorker = () => {
       try {
 
         // Translate multiple properties dynamically
-        const [titleObj] : [any]  = await Promise.all([
+        const [titleObj]: [any] = await Promise.all([
           buildTranslatedField(data.title as string)
         ]);
 
@@ -64,13 +64,13 @@ export const startNotificationWorker = () => {
         });
 
         logger.info(`✅ Notification created for ${data.receiverRole} :: `, notif);
-        
+
         let eventName;
         let emitted;
 
         // 🎨 GUIDE FOR FRONTEND .. if admin then listen for notification::admin event  
-        if(data.receiverRole == TRole.admin){
-          
+        if (data.receiverRole == TRole.admin) {
+
           eventName = `notification::admin`;
 
           emitted = socketService.emitToRole(
@@ -86,7 +86,7 @@ export const startNotificationWorker = () => {
               linkId: data.linkId,
               referenceFor: data.referenceFor,
               referenceId: data.referenceId,
-            }            
+            }
           );
 
           if (emitted) {
@@ -95,8 +95,8 @@ export const startNotificationWorker = () => {
             logger.info(`📴 ${data.receiverRole} is offline, notification saved in DB only`);
           }
 
-        }else{
-        
+        } else {
+
           const receiverId = data.receiverId.toString(); // Ensure it's a string
           eventName = `notification::${receiverId}`;
 
@@ -144,7 +144,6 @@ export const startNotificationWorker = () => {
   );
 };
 
-
 /*-─────────────────────────────────
 |  Update Conversations Last Message Queue
 └──────────────────────────────────*/
@@ -155,7 +154,7 @@ export const updateConversationsLastMessageQueue = new Queue("updateConversation
 
 interface IScheduleJobForUpdateConversationsLastMessage {
   name: string;
-  data : IConversation, // conversation update er jonno different ekta interface create kore .. sheta use korte hobe .. 
+  data: IConversation, // conversation update er jonno different ekta interface create kore .. sheta use korte hobe .. 
   id: string
 }
 
@@ -177,7 +176,7 @@ export const startUpdateConversationsLastMessageWorker = () => {
         });
 
         logger.info(`✅ Conversation updated for ${data.conversationId} :: `, updatedConversation);
-        
+
       } catch (err: any) {
         console.log("⭕ error block hit  of notification worker", err)
         errorLogger.error(
@@ -195,61 +194,6 @@ export const startUpdateConversationsLastMessageWorker = () => {
   //@ts-ignore
   worker.on("failed", (job, err) =>
     errorLogger.error(`❌ Notification job ${job?.id} (${job?.name}) failed`, err)
-  );
-};
-
-
-/*-─────────────────────────────────
-|  Group Invitation Queue
-└──────────────────────────────────*/
-
-export const groupInvitationQueue = new Queue(
-  'group-invitations-queue',
-  { connection: redisPubClient.options }
-);
-
-interface IGroupInvitationJobData {
-  invitationId: string;
-  email?: string;
-  groupName: string;
-  invitedBy: string;
-  token: string;
-  expiresAt: Date;
-  message?: string;
-}
-
-export const startGroupInvitationWorker = () => {
-  const worker = new Worker<IGroupInvitationJobData>(
-    'group-invitations-queue',
-    async (job) => {
-      const { invitationId, email, groupName, invitedBy, token, expiresAt, message } = job.data;
-
-      logger.info(`Processing group invitation job ${job.id} for ${email || invitationId}`);
-
-      try {
-        // TODO: Implement email sending logic here
-        // This would integrate with your existing email service
-        // Example: await sendEmail({ to: email, template: 'group-invitation', data: { ... } });
-
-        logger.info(`✅ Group invitation email sent to ${email} for group ${groupName}`);
-
-        // You can also send push notifications here if needed
-        // await sendPushNotification({ userId: invitedBy, ... });
-
-      } catch (err: any) {
-        errorLogger.error(`❌ Group invitation job ${job.id} failed:`, err);
-        throw err;
-      }
-    },
-    { connection: redisPubClient.options }
-  );
-
-  worker.on('completed', (job) =>
-    logger.info(`✅ Group invitation job ${job.id} completed`)
-  );
-
-  worker.on('failed', (job, err) =>
-    errorLogger.error(`❌ Group invitation job ${job?.id} failed`, err)
   );
 };
 
@@ -282,7 +226,7 @@ export const startTaskRemindersWorker = () => {
 
       try {
         // Import service here to avoid circular dependency
-        const { TaskReminderService } = await import('../modules/notification.module/taskReminder/taskReminder.service');
+        const { TaskReminderService } = await import('../../modules/notification.module/taskReminder/taskReminder.service');
         const taskReminderService = new TaskReminderService();
 
         // Process the reminder (sends notification and marks as sent)
@@ -332,7 +276,7 @@ export interface INotifyParticipantsJobData {
 export const startNotifyParticipantsWorker = () => {
   const worker = new Worker<INotifyParticipantsJobData>(
     'notify-participants-queue-suplify',
-    async (job:Job) => {
+    async (job: Job) => {
       const { conversationId, messageId, messageText, senderId, senderProfile, participantIds } = job.data;
 
       logger.info(`Notifying ${participantIds.length} participants for conversation ${conversationId}`);
@@ -373,18 +317,18 @@ export const startNotifyParticipantsWorker = () => {
 
             // Update unread count
             const updatedParticipant = await ConversationParticipents.findOneAndUpdate(
-              { 
+              {
                 userId: new mongoose.Types.ObjectId(participantId),
                 conversationId: new mongoose.Types.ObjectId(conversationId)
               },
-              { 
+              {
                 $set: { isThisConversationUnseen: 1 },
                 // $inc: { unreadCount: 1 }  // ⭕ this is risky ..
                 /**
                  * ❌ Why this is dangerous -
                  *  see details chatting.module -> unread-count-issue.md
                  * You are mutating unread count blindly, without knowing whether the message was already read or processed.
-                 **/ 
+                 **/
               },
               { new: true }
             );
@@ -402,15 +346,15 @@ export const startNotifyParticipantsWorker = () => {
               unreadConversationCount
             });
 
-            
-          }else{
+
+          } else {
             // If offline → skip (or add push notification later)
 
             if (participantId === senderId) continue;  // 🆕🆕🆕
 
             // Update unread count
             const updatedParticipant = await ConversationParticipents.findOneAndUpdate(
-              { 
+              {
                 userId: new mongoose.Types.ObjectId(participantId),
                 conversationId: new mongoose.Types.ObjectId(conversationId)
               },
@@ -421,7 +365,7 @@ export const startNotifyParticipantsWorker = () => {
                  * ❌ Why this is dangerous -
                  *  see details chatting.module -> unread-count-issue.md
                  * You are mutating unread count blindly, without knowing whether the message was already read or processed.
-                 **/ 
+                 **/
               },
               { new: true }
             );
@@ -439,7 +383,7 @@ export const startNotifyParticipantsWorker = () => {
               unreadConversationCount
             });
           }
-          
+
         } catch (err) {
           errorLogger.error(`Failed to notify participant ${participantId}:`, err);
           // Don't throw → continue with others
@@ -448,14 +392,75 @@ export const startNotifyParticipantsWorker = () => {
 
       return { notified: participantIds.filter(id => id !== senderId) };
     },
+
     { connection: redisPubClient.options }
   );
 
-  worker.on('completed', (job:Job, result:any) =>
-    logger.info(`✅ Notify job ${job.id} completed. Notified ${result?.notified?.length || 0} users.`)
+  worker.on('completed', (job) =>
+    logger.info(`✅ Chat notification job ${job.id} completed`)
+  );
+  worker.on('failed', (job, err) =>
+    errorLogger.error(`❌ Chat notification job ${job?.id} failed`, err)
+  );
+};
+
+/*-─────────────────────────────────
+|  Preferred Time Calculation Queue
+| // 🔗➡️ task.controller.ts -> updateStatus
+└──────────────────────────────────*/
+export const preferredTimeQueue = new Queue('preferredTimeQueue', {
+  connection: redisPubClient.options,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000,
+    },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 500 },
+  },
+});
+
+interface IPreferredTimeJob {
+  userId: string;
+}
+
+export const startPreferredTimeWorker = () => {
+  const worker = new Worker(
+    'preferredTimeQueue',
+    async (job: IPreferredTimeJob) => {
+      const { userId } = job;
+      logger.info(`⏰ Processing preferred time calculation for user ${userId}`);
+
+      try {
+        // Import TaskService dynamically to avoid circular dependency
+        const { TaskService } = await import('../../modules/task.module/task/task.service');
+        const taskService = new TaskService();
+
+        const preferredTime = await taskService.calculateAndUpdatePreferredTime(
+          new mongoose.Types.ObjectId(userId)
+        );
+
+        if (preferredTime) {
+          logger.info(`✅ Preferred time updated for user ${userId}: ${preferredTime}`);
+        } else {
+          logger.info(`⚠️ Insufficient data for preferred time calculation (user: ${userId})`);
+        }
+
+        return { success: true, preferredTime };
+
+      } catch (error) {
+        errorLogger.error(`❌ Preferred time calculation failed for user ${userId}:`, error);
+        throw error;
+      }
+    },
+    { connection: redisPubClient.options }
   );
 
-  worker.on('failed', (job:Job, err:any) =>
-    errorLogger.error(`❌ Notify job ${job.id} failed`, err)
+  worker.on('completed', (job) =>
+    logger.info(`✅ Preferred time job ${job.id} completed`)
+  );
+  worker.on('failed', (job, err) =>
+    errorLogger.error(`❌ Preferred time job ${job?.id} failed`, err)
   );
 };

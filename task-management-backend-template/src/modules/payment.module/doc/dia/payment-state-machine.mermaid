@@ -1,0 +1,36 @@
+stateDiagram-v2
+    [*] --> Pending: Payment Initiated
+    
+    Pending --> Processing: Stripe Processing
+    Processing --> Completed: Payment Succeeded
+    Processing --> Failed: Payment Failed
+    
+    Completed --> Refunded: Admin Refunds
+    Completed --> ChargedBack: Dispute
+    
+    Failed --> Pending: User Retries
+    Failed --> Cancelled: User Cancels
+    
+    Refunded --> [*]: Transaction Complete
+    ChargedBack --> [*]: Dispute Resolved
+    Cancelled --> [*]: End
+    
+    note right of Pending
+        Pending: Payment initiated, awaiting processing
+    end note
+    
+    note right of Processing
+        Processing: Stripe processing payment
+    end note
+    
+    note right of Completed
+        Completed: Payment successful, subscription active
+    end note
+    
+    note right of Failed
+        Failed: Payment failed, retry available
+    end note
+    
+    note right of Refunded
+        Refunded: Money returned to user
+    end note

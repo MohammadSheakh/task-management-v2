@@ -1,0 +1,67 @@
+flowchart LR
+    subgraph User["User"]
+        Start([Start])
+        End([End])
+    end
+
+    subgraph Frontend["Frontend"]
+        DisplayUI[Display UI]
+        GetInput[Get User Input]
+        ValidateInput[Validate Input]
+        ShowError[Show Error]
+        ShowSuccess[Show Success]
+    end
+
+    subgraph Backend["Backend - User Module"]
+        RouteHandler[Route Handler]
+        Middleware[Auth & Validation Middleware]
+        Controller[User Controller]
+        Service[User Service]
+        CacheCheck{Cache Check}
+        CacheGet[Get from Cache]
+        CacheSet[Set in Cache]
+        CacheDel[Delete from Cache]
+        DBQuery[Database Query]
+        Transform[Transform Data]
+    end
+
+    subgraph Database["Database"]
+        MongoDB[(MongoDB)]
+    end
+
+    subgraph External["External Services"]
+        Email[Email Service]
+        FCM[FCM Push Notification]
+    end
+
+    Start --> DisplayUI
+    DisplayUI --> GetInput
+    GetInput --> ValidateInput
+    ValidateInput -->|Invalid| ShowError
+    ShowError --> GetInput
+    ValidateInput -->|Valid| RouteHandler
+
+    RouteHandler --> Middleware
+    Middleware -->|Auth Failed| ShowError
+    Middleware -->|Auth Success| Controller
+
+    Controller --> Service
+    Service --> CacheCheck
+
+    CacheCheck -->|Hit| CacheGet
+    CacheGet --> Transform
+    Transform --> ShowSuccess
+
+    CacheCheck -->|Miss| DBQuery
+    DBQuery --> MongoDB
+    MongoDB --> DBQuery
+    DBQuery --> CacheSet
+    CacheSet --> Transform
+
+    Service -->|Write Operation| CacheDel
+    CacheDel --> DBQuery
+
+    Service -->|Email Required| Email
+    Service -->|Push Notification| FCM
+
+    ShowSuccess --> End

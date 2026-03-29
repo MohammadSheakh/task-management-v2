@@ -1,0 +1,171 @@
+sequenceDiagram
+    %% ===========================================
+    %% TASK MODULE - SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant U as User
+    participant FE as Frontend
+    participant API as API Gateway
+    participant TASK as task.service
+    participant SUBTASK as subtask.service
+    participant TP as taskProgress.service
+    participant REDIS as Redis Cache
+    participant DB as MongoDB
+    participant SOCKET as Socket.IO
+
+    %% ===========================================
+    %% SCENARIO 1: Create Personal Task
+    %% ===========================================
+    Note over U,DB: Scenario 1: Create Personal Task
+
+    U->>FE: Create Task
+    FE->>API: POST /tasks/
+    API->>TASK: createTask()
+    TASK->>DB: Create TASK
+    DB-->>TASK: taskId
+    TASK->>REDIS: Invalidate caches
+    TASK-->>API: Task created
+    API-->>FE: Success
+    FE-->>U: Task created
+
+    %% ===========================================
+    %% SCENARIO 2: Create Collaborative Task → Real-Time Broadcasting ⭐ NEW!
+    %% ===========================================
+    Note over U,DB: Scenario 2: Create Collaborative Task → Real-Time Broadcasting ⭐ NEW!
+
+    U->>FE: Create Collaborative Task
+    FE->>API: POST /tasks/
+    API->>TASK: createTask()
+    TASK->>DB: Create TASK
+    DB-->>TASK: taskId
+    TASK->>TP: bulkCreateForTask()
+    TP->>DB: Create TASK_PROGRESS (for each child)
+    DB-->>TP: progressIds[]
+    TP-->>TASK: Done
+    TASK->>SOCKET: broadcastGroupActivity()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>Children: Real-time notification
+    Children->>FE: Dashboard updates
+    TASK->>REDIS: Invalidate caches
+    TASK-->>API: Task created
+    API-->>FE: Success
+    FE-->>U: Task created + children notified
+
+    %% ===========================================
+    %% SCENARIO 3: Child Completes Task → Real-Time Parent Update ⭐ NEW!
+    %% ===========================================
+    Note over U,DB: Scenario 3: Child Completes Task → Real-Time Parent Update ⭐ NEW!
+
+    U->>FE: Complete Task
+    FE->>API: PUT /tasks/:id/status
+    API->>TASK: updateTaskStatus()
+    TASK->>DB: Update TASK status
+    DB-->>TASK: Updated
+    TASK->>REDIS: Invalidate caches
+    TASK->>SOCKET: broadcastGroupActivity()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>Parent: group:activity event
+    Parent->>FE: Dashboard updates automatically
+    FE-->>Parent: Show real-time update
+    TASK-->>API: Success
+    API-->>FE: Task completed
+    FE-->>U: Success + Celebration
+
+    %% ===========================================
+    %% SCENARIO 4: Create Subtask
+    %% ===========================================
+    Note over U,DB: Scenario 4: Create Subtask
+
+    U->>FE: Add Subtask
+    FE->>API: POST /subtasks/
+    API->>SUBTASK: createSubtask()
+    SUBTASK->>DB: Create SUBTASK
+    DB-->>SUBTASK: subtaskId
+    SUBTASK->>DB: Update TASK totalSubtasks
+    DB-->>SUBTASK: Updated
+    SUBTASK->>SOCKET: broadcastSubtaskUpdate()
+    SOCKET->>SOCKET: Emit to task room
+    SUBTASK->>REDIS: Invalidate caches
+    SUBTASK-->>API: Subtask created
+    API-->>FE: Success
+    FE-->>U: Subtask added
+
+    %% ===========================================
+    %% SCENARIO 5: Toggle Subtask Status → Real-Time Update ⭐ NEW!
+    %% ===========================================
+    Note over U,DB: Scenario 5: Toggle Subtask Status → Real-Time Update ⭐ NEW!
+
+    U->>FE: Toggle Subtask
+    FE->>API: PUT /subtasks/:id/toggle-status
+    API->>SUBTASK: toggleSubtaskStatus()
+    SUBTASK->>DB: Update SUBTASK isCompleted
+    DB-->>SUBTASK: Updated
+    SUBTASK->>DB: Update TASK completedSubtasks
+    DB-->>SUBTASK: Updated
+    SUBTASK->>SOCKET: broadcastSubtaskUpdate()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>Parent: Real-time update
+    Parent->>FE: Progress bar updates
+    SUBTASK->>REDIS: Invalidate caches
+    SUBTASK-->>API: Success
+    API-->>FE: Subtask toggled
+    FE-->>U: Success
+
+    %% ===========================================
+    %% SCENARIO 6: Get Task Statistics (Cached)
+    %% ===========================================
+    Note over U,DB: Scenario 6: Get Task Statistics (Cached)
+
+    U->>FE: View Statistics
+    FE->>API: GET /tasks/statistics
+    API->>TASK: getTaskStatistics()
+    TASK->>REDIS: Check cache
+    REDIS-->>TASK: Cache hit
+    TASK-->>API: Cached data
+    API-->>FE: Statistics
+    FE-->>U: Display statistics
+
+    %% ===========================================
+    %% SCENARIO 7: Get Daily Progress
+    %% ===========================================
+    Note over U,DB: Scenario 7: Get Daily Progress
+
+    U->>FE: View Daily Progress
+    FE->>API: GET /tasks/daily-progress
+    API->>TASK: getDailyProgress()
+    TASK->>REDIS: Check cache
+    REDIS-->>TASK: Cache miss
+    TASK->>DB: Aggregate daily tasks
+    DB-->>TASK: Progress data
+    TASK->>REDIS: Cache result (2 min)
+    TASK-->>API: Progress data
+    API-->>FE: Daily progress
+    FE-->>U: Display progress (3/5)
+
+    %% ===========================================
+    %% SCENARIO 8: Delete Task
+    %% ===========================================
+    Note over U,DB: Scenario 8: Delete Task
+
+    U->>FE: Delete Task
+    FE->>API: DELETE /tasks/:id
+    API->>TASK: deleteTask()
+    TASK->>DB: Soft delete TASK
+    DB-->>TASK: Deleted
+    TASK->>REDIS: Invalidate all caches
+    TASK->>SOCKET: broadcastTaskDelete()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>Family: Task deleted notification
+    TASK-->>API: Success
+    API-->>FE: Task deleted
+    FE-->>U: Success
+
+    %% Styling
+    rect rgb(227, 242, 253)
+        Note over U: User (Parent/Child)
+    end
+    
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer ⭐
+    end

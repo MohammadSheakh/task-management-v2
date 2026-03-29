@@ -1,0 +1,86 @@
+flowchart TB
+    subgraph Frontend
+        USER[User/Teacher]
+        ADMIN[Admin]
+    end
+
+    subgraph API Gateway
+        ROUTE[Payment Routes]
+        AUTH[Auth Middleware]
+    end
+
+    subgraph Payment Module
+        subgraph Payment
+            PAY_CTRL[Payment Controller]
+            PAY_SVC[Payment Service]
+            GATEWAYS[Payment Gateways]
+            STRIPE[Stripe Gateway]
+        end
+
+        subgraph PaymentTransaction
+            PT_CTRL[PaymentTransaction Controller]
+            PT_SVC[PaymentTransaction Service]
+            PT_MODEL[PaymentTransaction Model]
+        end
+
+        subgraph StripeWebhook
+            WH_CTRL[Webhook Controller]
+            WH_SVC[Webhook Service]
+        end
+    end
+
+    subgraph Subscription Module
+        SUB_SVC[UserSubscription Service]
+        SUB_MODEL[UserSubscription Model]
+    end
+
+    subgraph External
+        STRIPE_API[Stripe API]
+        MONGODB[(MongoDB)]
+        REDIS[(Redis Cache)]
+    end
+
+    %% Payment Flow
+    USER -->|Purchase Subscription| ROUTE
+    ROUTE -->|POST /purchase/:id| AUTH
+    AUTH --> PAY_CTRL
+    PAY_CTRL --> PAY_SVC
+    PAY_SVC --> STRIPE
+    STRIPE -->|Create Checkout Session| STRIPE_API
+    STRIPE_API -->|Return URL| STRIPE
+    STRIPE -->|Return URL| PAY_SVC
+    PAY_SVC --> USER
+
+    %% Webhook Flow
+    STRIPE_API -->|payment_intent.succeeded| WH_CTRL
+    WH_CTRL --> WH_SVC
+    WH_SVC -->|Verify Signature| STRIPE
+    WH_SVC -->|Create Transaction| PT_MODEL
+    PT_MODEL --> MONGODB
+    WH_SVC -->|Activate Subscription| SUB_SVC
+    SUB_SVC --> SUB_MODEL
+
+    %% Admin Flow
+    ADMIN -->|View Transactions| ROUTE
+    ROUTE -->|GET /paginate| AUTH
+    AUTH --> PT_CTRL
+    PT_CTRL --> PT_SVC
+    PT_SVC --> PT_MODEL
+    PT_MODEL --> MONGODB
+    PT_MODEL -->|Cache results| REDIS
+
+    %% Refund Flow
+    ADMIN -->|Process Refund| ROUTE
+    ROUTE -->|POST /refund/:id| AUTH
+    AUTH --> PT_CTRL
+    PT_CTRL --> PT_SVC
+    PT_SVC -->|Create Refund| STRIPE
+    STRIPE --> STRIPE_API
+    STRIPE_API -->|Success| PT_MODEL
+
+    %% Styling
+    style USER fill:#42a5f5,color:#fff
+    style ADMIN fill:#ef5350,color:#fff
+    style STRIPE_API fill:#ffca28,color:#000
+    style MONGODB fill:#4db33d,color:#fff
+    style REDIS fill:#ff7043,color:#fff

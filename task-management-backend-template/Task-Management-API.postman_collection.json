@@ -1,0 +1,1649 @@
+{
+  "info": {
+    "_postman_id": "task-management-api-v1",
+    "name": "Task Management API - v1.0.0",
+    "description": "Complete API collection for Task Management System\n\n## Features\n- Task Management (Personal, Single Assignment, Collaborative)\n- Group/Team Management\n- Notifications & Task Reminders\n- User Management with Support Mode\n- Permission-based Access Control\n\n## Base URL\nReplace `{{BASE_URL}}` with your actual backend URL (e.g., http://localhost:5000/api/v1)\n\n## Authentication\nMost endpoints require JWT token. Add token to `Authorization` header:\n```\nAuthorization: Bearer <your-jwt-token>\n```\n\n## Roles\n- **admin**: System administrator\n- **user**: Regular user (can be Primary or Secondary in groups)\n\n## Support Modes\n- **calm**: Gentle guidance with peaceful reminders\n- **encouraging**: Positive energy with motivational reminders\n- **logical**: Fact-based, logical communication\n\n## Notification Styles\n- **gentle**: Soft and non-intrusive (default)\n- **firm**: Direct and clear\n- **xyz**: Custom style",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "ADMIN_TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "USER_TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "USER_ID",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "GROUP_ID",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "TASK_ID",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"role\": \"user\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/signup",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<verification-token>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/verify-email",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "verify-email"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/forgot-password",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "forgot-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - User Management",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile Info",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile-info",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile-info"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile Info",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe Updated\",\n  \"phoneNumber\": \"+1234567890\",\n  \"location\": \"New York\",\n  \"dob\": \"1990-01-01\",\n  \"gender\": \"Male\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile-info",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile-info"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profileImage",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile-picture",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile-picture"]
+            }
+          }
+        },
+        {
+          "name": "Get Support Mode",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/users/support-mode",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "support-mode"]
+            }
+          }
+        },
+        {
+          "name": "Update Support Mode",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supportMode\": \"encouraging\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/users/support-mode",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "support-mode"]
+            }
+          }
+        },
+        {
+          "name": "Update Notification Style",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notificationStyle\": \"firm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/users/notification-style",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "notification-style"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ADMIN_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/users?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Task Management",
+      "item": [
+        {
+          "name": "Create Personal Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"personal\",\n  \"title\": \"Complete Math Homework\",\n  \"description\": \"Finish exercises 1-10 from chapter 5\",\n  \"startTime\": \"2026-03-08T10:30:00.000Z\",\n  \"scheduledTime\": \"10:30 AM\",\n  \"priority\": \"high\",\n  \"subtasks\": [\n    {\n      \"title\": \"Exercise 1-5\",\n      \"duration\": \"30 min\"\n    },\n    {\n      \"title\": \"Exercise 6-10\",\n      \"duration\": \"30 min\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"]
+            }
+          }
+        },
+        {
+          "name": "Create Single Assignment Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"singleAssignment\",\n  \"title\": \"Team Presentation\",\n  \"description\": \"Prepare slides for client meeting\",\n  \"groupId\": \"{{GROUP_ID}}\",\n  \"assignedUserIds\": [\"<user-id-1>\"],\n  \"startTime\": \"2026-03-08T14:00:00.000Z\",\n  \"scheduledTime\": \"2:00 PM\",\n  \"priority\": \"medium\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"]
+            }
+          }
+        },
+        {
+          "name": "Create Collaborative Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"collaborative\",\n  \"title\": \"Group Project\",\n  \"description\": \"Complete group assignment\",\n  \"groupId\": \"{{GROUP_ID}}\",\n  \"assignedUserIds\": [\"<user-id-1>\", \"<user-id-2>\"],\n  \"startTime\": \"2026-03-08T16:00:00.000Z\",\n  \"scheduledTime\": \"4:00 PM\",\n  \"priority\": \"high\",\n  \"subtasks\": [\n    {\n      \"title\": \"Research\",\n      \"duration\": \"1 hour\"\n    },\n    {\n      \"title\": \"Write Report\",\n      \"duration\": \"2 hours\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"]
+            }
+          }
+        },
+        {
+          "name": "Get My Tasks",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/tasks?status=pending&page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by status: pending, inProgress, completed"
+                },
+                {
+                  "key": "taskType",
+                  "value": "",
+                  "description": "Filter by type: personal, singleAssignment, collaborative"
+                },
+                {
+                  "key": "priority",
+                  "value": "",
+                  "description": "Filter by priority: low, medium, high"
+                },
+                {
+                  "key": "from",
+                  "value": "",
+                  "description": "Date range from (YYYY-MM-DD)"
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "description": "Date range to (YYYY-MM-DD)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Task by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Task Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/statistics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Get Daily Progress",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/daily-progress?date=2026-03-07",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "daily-progress"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-03-07"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Task Title\",\n  \"description\": \"Updated description\",\n  \"priority\": \"high\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Task Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"inProgress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/status",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Update Subtask Progress",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subtasks\": [\n    {\n      \"title\": \"Exercise 1-5\",\n      \"isCompleted\": true,\n      \"duration\": \"30 min\"\n    },\n    {\n      \"title\": \"Exercise 6-10\",\n      \"isCompleted\": false,\n      \"duration\": \"30 min\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/subtasks/progress",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}", "subtasks", "progress"]
+            }
+          }
+        },
+        {
+          "name": "Delete Task (Soft)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - SubTask Management",
+      "item": [
+        {
+          "name": "Create Subtask",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskId\": \"{{TASK_ID}}\",\n  \"title\": \"New Subtask\",\n  \"description\": \"Subtask description\",\n  \"duration\": \"30 min\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subtasks",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subtasks"]
+            }
+          }
+        },
+        {
+          "name": "Get Subtasks by Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/subtasks/task/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subtasks", "task", "{{TASK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Subtask by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subtasks", "{{SUBTASK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Subtask",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Subtask\",\n  \"description\": \"Updated description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subtasks", "{{SUBTASK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Subtask Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isCompleted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}/toggle-status",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subtasks", "{{SUBTASK_ID}}", "toggle-status"]
+            }
+          }
+        },
+        {
+          "name": "Delete Subtask",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{BASE_URL}}/subtasks/{{SUBTASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subtasks", "{{SUBTASK_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Group Management",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Family Group\",\n  \"description\": \"Manage family tasks\",\n  \"visibility\": \"private\",\n  \"maxMembers\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups"]
+            }
+          }
+        },
+        {
+          "name": "Get My Groups",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/my?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "my"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Group by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Group",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Group Name\",\n  \"description\": \"Updated description\",\n  \"maxMembers\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Group",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Group Statistics",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/statistics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Search Groups",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/search?query=family",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "family"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Group Members",
+      "item": [
+        {
+          "name": "Get Group Members",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members?page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filter: active, inactive, blocked"
+                },
+                {
+                  "key": "role",
+                  "value": "",
+                  "description": "Filter: owner, admin, member"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Member by ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members", "{{USER_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Add Member to Group",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"<user-id>\",\n  \"role\": \"member\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members"]
+            }
+          }
+        },
+        {
+          "name": "Update Member Role",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}/role",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members", "{{USER_ID}}", "role"]
+            }
+          }
+        },
+        {
+          "name": "Remove Member",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members", "{{USER_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Leave Group",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/leave",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "leave"]
+            }
+          }
+        },
+        {
+          "name": "Get Member Count",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/count",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "count"]
+            }
+          }
+        },
+        {
+          "name": "Check Membership",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/check/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "check", "{{USER_ID}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Group Permissions",
+      "item": [
+        {
+          "name": "Get Group Permissions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "permissions"]
+            }
+          }
+        },
+        {
+          "name": "Update Group Permissions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberPermissions\": [\n    {\n      \"userId\": \"<user-id-1>\",\n      \"canCreateTasks\": true,\n      \"canInviteMembers\": false\n    },\n    {\n      \"userId\": \"<user-id-2>\",\n      \"canCreateTasks\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "permissions"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Task Creation Permission",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"<member-id>\",\n  \"canCreateTasks\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions/toggle",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "permissions", "toggle"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/my?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "my"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filter: pending, sent, read"
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "description": "Filter: task, group, system, reminder"
+                },
+                {
+                  "key": "priority",
+                  "value": "",
+                  "description": "Filter: low, normal, high, urgent"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/unread-count",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "unread-count"]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/{{NOTIFICATION_ID}}/read",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "{{NOTIFICATION_ID}}", "read"]
+            }
+          }
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/read-all",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "read-all"]
+            }
+          }
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/{{NOTIFICATION_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "{{NOTIFICATION_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Schedule Reminder",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskId\": \"{{TASK_ID}}\",\n  \"reminderTime\": \"2026-03-08T09:00:00.000Z\",\n  \"reminderType\": \"before_deadline\",\n  \"message\": \"Don't forget to complete your task!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/schedule-reminder",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "schedule-reminder"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Task Reminders",
+      "item": [
+        {
+          "name": "Create Task Reminder",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskId\": \"{{TASK_ID}}\",\n  \"reminderTime\": \"2026-03-08T09:00:00.000Z\",\n  \"triggerType\": \"before_deadline\",\n  \"frequency\": \"once\",\n  \"customMessage\": \"Time to start your task!\",\n  \"channels\": [\"in_app\", \"push\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/task-reminders",
+              "host": ["{{BASE_URL}}"],
+              "path": ["task-reminders"]
+            }
+          }
+        },
+        {
+          "name": "Get Reminders for Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/task-reminders/task/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["task-reminders", "task", "{{TASK_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Get My Reminders",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/task-reminders/my?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["task-reminders", "my"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filter: pending, sent, cancelled"
+                },
+                {
+                  "key": "frequency",
+                  "value": "",
+                  "description": "Filter: once, daily, weekly, monthly"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Reminder",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "url": {
+              "raw": "{{BASE_URL}}/task-reminders/{{REMINDER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["task-reminders", "{{REMINDER_ID}}"]
+            }
+          }
+        },
+        {
+          "name": "Cancel All Reminders for Task",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{USER_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{BASE_URL}}/task-reminders/task/{{TASK_ID}}/cancel-all",
+              "host": ["{{BASE_URL}}"],
+              "path": ["task-reminders", "task", "{{TASK_ID}}", "cancel-all"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

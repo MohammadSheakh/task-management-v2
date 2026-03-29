@@ -1,0 +1,77 @@
+stateDiagram-v2
+    [*] --> NotStarted: Task assigned to child
+    
+    NotStarted --> InProgress: Child starts task
+    NotStarted --> Completed: Direct completion (rare)
+    
+    InProgress --> NotStarted: Reset progress
+    InProgress --> Completed: All subtasks done
+    
+    Completed --> InProgress: Reopen task
+    Completed --> [*]: Task archived
+    
+    state "Progress Tracking" as Tracking {
+        NotStarted --> Progress0: 0% complete
+        InProgress --> ProgressPartial: 1-99% complete
+        Completed --> Progress100: 100% complete
+        
+        ProgressPartial --> ProgressPartial: Complete subtask
+        ProgressPartial --> Progress100: Final subtask
+    }
+    
+    state "Subtask Completion" as Subtasks {
+        [*] --> SubtaskPending: Subtask not started
+        SubtaskPending --> SubtaskInProgress: Working on it
+        SubtaskInProgress --> SubtaskCompleted: Marked complete
+        SubtaskCompleted --> [*]: Done
+    }
+    
+    note right of NotStarted
+        status = "notStarted"
+        progressPercentage = 0
+        startedAt = null
+        completedSubtaskIndexes = []
+    end note
+    
+    note right of InProgress
+        status = "inProgress"
+        0 < progressPercentage < 100
+        startedAt = timestamp
+        completedSubtaskIndexes = [0, 1, ...]
+    end note
+    
+    note right of Completed
+        status = "completed"
+        progressPercentage = 100
+        completedAt = timestamp
+        All subtasks completed
+    end note
+    
+    note right of Progress0
+        No subtasks completed
+        Visible in child's list
+        Can start anytime
+    end note
+    
+    note right of ProgressPartial
+        Some subtasks completed
+        Progress updating
+        Parent can see activity
+    end note
+    
+    note right of Progress100
+        All subtasks done
+        Task auto-completed
+        Parent notified
+    end note
+    
+    classDef notStartedState fill:#ffcdd2,stroke:#c62828
+    classDef inProgressState fill:#fff9c4,stroke:#f9a825
+    classDef completedState fill:#c8e6c9,stroke:#2e7d32
+    classDef progressState fill:#e1f5ff,stroke:#0277bd
+    
+    class NotStarted notStartedState
+    class InProgress inProgressState
+    class Completed completedState
+    class Progress0,ProgressPartial,Progress100 progressState
+    class SubtaskPending,SubtaskInProgress,SubtaskCompleted progressState

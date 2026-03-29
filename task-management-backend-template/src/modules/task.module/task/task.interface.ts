@@ -1,6 +1,27 @@
-import { Model, Types } from 'mongoose';
+import { Model, Types, Document } from 'mongoose';
 import { PaginateOptions, PaginateResult } from '../../../types/paginate';
-import { TTaskStatus, TTaskType, TTaskPriority } from './task.constant';
+import { TaskStatus, TaskType, TaskPriority } from './task.constant';
+
+/**
+ * SubTask Interface (SEPARATE COLLECTION)
+ * Subtasks are now stored in a separate SubTask collection
+ * and virtually populated when retrieving tasks
+ * 
+ * Matches Flutter model:
+ * ```dart
+ * class SubTask {
+ *   final String title;
+ *   final bool isCompleted;
+ * }
+ * ```
+ */
+export interface ISubTask {
+  _id?: Types.ObjectId;
+  title: string;
+  isCompleted: boolean;
+  completedAt?: Date;
+  order: number;
+}
 
 /**
  * Task Interface
@@ -17,13 +38,10 @@ export interface ITask {
   ownerUserId?: Types.ObjectId;
 
   /** Type of task: personal, single assignment, or collaborative */
-  taskType: TTaskType;
+  taskType: `${TaskType}`;
 
   /** Users assigned to this task (for collaborative/single assignment) */
   assignedUserIds?: Types.ObjectId[];
-
-  /** Group ID if this is a group/collaborative task */
-  groupId?: Types.ObjectId;
 
   // ─── Task Details ──────────────────────────────────────────────────
   /** Title of the task (required) */
@@ -36,11 +54,11 @@ export interface ITask {
   scheduledTime?: string;
 
   /** Priority level of the task */
-  priority?: TTaskPriority;
+  priority?: `${TaskPriority}`;
 
   // ─── Task Progress ─────────────────────────────────────────────────
   /** Current status of the task */
-  status: TTaskStatus;
+  status: `${TaskStatus}`;
 
   /** Total number of subtasks */
   totalSubtasks?: number;
@@ -48,11 +66,20 @@ export interface ITask {
   /** Number of completed subtasks */
   completedSubtasks?: number;
 
+  /** 
+   * Subtasks list (VIRTUALLY POPULATED from SubTask collection)
+   * Not stored in Task document - populated via MongoDB virtual populate
+   */
+  subtasks?: ISubTask[];
+
   // ─── Timestamps ────────────────────────────────────────────────────
   /** When the task was created */
   createdAt?: Date;
 
-  /** When the task is scheduled to start */
+  /** When the task is scheduled to start (parent sets this) */
+  scheduledTime?: string;
+
+  /** When the task was actually started by user (used for preferred time calculation) */
   startTime: Date;
 
   /** When the task was actually completed */
@@ -68,6 +95,11 @@ export interface ITask {
   /** Last update timestamp */
   updatedAt?: Date;
 }
+
+/**
+ * Task Document Interface
+ */
+export interface ITaskDocument extends ITask, Document {}
 
 /**
  * Task Model Interface

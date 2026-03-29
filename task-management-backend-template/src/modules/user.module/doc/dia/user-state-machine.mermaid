@@ -1,0 +1,47 @@
+stateDiagram-v2
+    [*] --> Unregistered: Start
+
+    Unregistered --> Registering: Start Registration
+    Registering --> EmailPending: Submit Registration
+    EmailPending --> EmailPending: Resend OTP
+    EmailPending --> EmailVerified: Verify Email OTP
+    EmailVerified --> ProfileIncomplete: Email Verified
+    ProfileIncomplete --> ProfileComplete: Complete Profile
+    ProfileComplete --> Active: Activate Account
+
+    Active --> TaskCreating: Create Task
+    Active --> GroupJoining: Join Group
+    Active --> ProfileUpdating: Update Profile
+    Active --> DeviceUpdating: Update Device Info
+
+    TaskCreating --> Active: Task Created
+    GroupJoining --> Active: Joined Group
+    ProfileUpdating --> Active: Profile Updated
+    DeviceUpdating --> Active: Device Updated
+
+    Active --> Inactive: Deactivate Account
+    Inactive --> Active: Reactivate Account
+
+    Active --> SoftDeleted: Request Delete
+    SoftDeleted --> Active: Cancel Deletion
+    SoftDeleted --> HardDeleted: TTL Expired
+    HardDeleted --> [*]: Permanently Deleted
+
+    Active --> Locked: Failed Login Attempts
+    Locked --> Active: Unlock After Cooldown
+    Locked --> Active: Admin Unlock
+
+    state Active {
+        [*] --> NormalState
+        NormalState --> NormalState: Normal Operations
+    }
+
+    state EmailPending {
+        [*] --> WaitingOTP
+        WaitingOTP --> WaitingOTP: Wait for OTP
+    }
+
+    state SoftDeleted {
+        [*] --> GracePeriod
+        GracePeriod --> GracePeriod: 30 Days Grace
+    }

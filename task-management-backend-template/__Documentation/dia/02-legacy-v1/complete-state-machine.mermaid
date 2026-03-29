@@ -1,0 +1,194 @@
+stateDiagram-v2
+    %% ===========================================
+    %% COMPLETE STATE MACHINE - ALL MAJOR STATES
+    %% ===========================================
+    
+    state "👤 User States" as UserStates {
+        [*] --> Unverified
+        Unverified --> Verified: Verify Email
+        Verified --> Active: Complete Profile
+        Active --> Suspended: Admin Action
+        Suspended --> Active: Admin Reactivate
+        Active --> Deleted: Soft Delete
+        Deleted --> [*]
+    }
+    
+    state "📋 Task States" as TaskStates {
+        [*] --> Draft
+        Draft --> Pending: Create Task
+        Pending --> InProgress: Start Task
+        Pending --> Completed: Direct Complete
+        InProgress --> Completed: Complete Task
+        InProgress --> Pending: Reopen Task
+        Completed --> Pending: Reopen Task
+        Completed --> [*]
+        Pending --> Deleted: Delete Task
+        InProgress --> Deleted: Delete Task
+        Deleted --> [*]
+    }
+    
+    state "👥 Group States" as GroupStates {
+        [*] --> Creating
+        Creating --> Active: Create Group
+        Active --> Inactive: Deactivate
+        Inactive --> Active: Reactivate
+        Active --> Suspended: Violation
+        Suspended --> Active: Appeal Approved
+        Active --> Deleted: Owner Delete
+        Deleted --> [*]
+    }
+    
+    state "👥 Member States" as MemberStates {
+        [*] --> Invited
+        Invited --> Accepted: Accept Invitation
+        Invited --> Declined: Decline Invitation
+        Invited --> Expired: Invitation Expires
+        Accepted --> Active: Join Group
+        Active --> Left: Leave Group
+        Active --> Removed: Owner Remove
+        Left --> [*]
+        Removed --> [*]
+    }
+    
+    state "💳 Subscription States" as SubStates {
+        [*] --> None
+        None --> Trial: Start Free Trial
+        Trial --> Active: Trial Ends
+        Trial --> Cancelled: Cancel During Trial
+        Active --> Renewed: Auto Renewal
+        Active --> Cancelled: Cancel Subscription
+        Cancelled --> Expired: Period Ends
+        Expired --> None: Resubscribe
+        Renewed --> Active: Payment Success
+        Renewed --> Expired: Payment Failed
+        Cancelled --> [*]
+        Expired --> [*]
+    }
+    
+    state "💰 Payment States" as PaymentStates {
+        [*] --> Pending
+        Pending --> Processing: Initiate Payment
+        Processing --> Completed: Payment Success
+        Processing --> Failed: Payment Declined
+        Failed --> Pending: Retry Payment
+        Completed --> Refunded: Admin Refund
+        Completed --> [*]
+        Failed --> [*]
+        Refunded --> [*]
+    }
+    
+    state "🔔 Notification States" as NotifStates {
+        [*] --> Pending
+        Pending --> Sent: Send Notification
+        Sent --> Delivered: Delivery Confirmed
+        Delivered --> Read: User Reads
+        Delivered --> Expired: TTL Expires
+        Read --> [*]
+        Expired --> [*]
+        Sent --> Failed: Delivery Failed
+        Failed --> [*]
+    }
+    
+    note right of UserStates
+        User Lifecycle:
+        - Signup → Verify → Active
+        - Can be suspended by admin
+        - Soft delete preserves data
+    end note
+    
+    note right of TaskStates
+        Task Lifecycle:
+        - Draft → Pending → In Progress → Completed
+        - Can be reopened from Completed
+        - Soft delete for audit trail
+    end note
+    
+    note right of GroupStates
+        Group Lifecycle:
+        - Create → Active → (Inactive|Suspended)
+        - Owner can delete
+        - Admin can suspend
+    end note
+    
+    note right of MemberStates
+        Member Lifecycle:
+        - Invited → Accepted → Active
+        - Can leave or be removed
+        - Invitation expires after 7 days
+    end note
+    
+    note right of SubStates
+        Subscription Lifecycle:
+        - None → Trial → Active → Renewed
+        - Can cancel anytime
+        - Auto-renewal on period end
+    end note
+    
+    note right of PaymentStates
+        Payment Lifecycle:
+        - Pending → Processing → Completed
+        - Failed payments can retry
+        - Admin can refund
+    end note
+    
+    note right of NotifStates
+        Notification Lifecycle:
+        - Pending → Sent → Delivered → Read
+        - TTL for expiration
+        - Failed delivery tracking
+    end note
+    
+    %% Cross-state transitions
+    UserStates --> TaskStates: User creates task
+    UserStates --> GroupStates: User creates group
+    UserStates --> SubStates: User subscribes
+    UserStates --> PaymentStates: User makes payment
+    
+    TaskStates --> NotifStates: Task completion triggers notification
+    GroupStates --> MemberStates: Group creation invites members
+    MemberStates --> TaskStates: Member creates task
+    SubStates --> PaymentStates: Subscription triggers payment
+    PaymentStates --> SubStates: Payment success activates subscription
+    PaymentStates --> NotifStates: Payment triggers notification
+    
+    %% Styling
+    state UserStates {
+        [*] : Start
+        Deleted : End
+    }
+    
+    state TaskStates {
+        [*] : Start
+        Deleted : End
+    }
+    
+    state GroupStates {
+        [*] : Start
+        Deleted : End
+    }
+    
+    state MemberStates {
+        [*] : Invited
+        Left : End
+        Removed : End
+    }
+    
+    state SubStates {
+        [*] : None
+        Cancelled : End
+        Expired : End
+    }
+    
+    state PaymentStates {
+        [*] : Pending
+        Completed : Success
+        Failed : End
+        Refunded : End
+    }
+    
+    state NotifStates {
+        [*] : Pending
+        Read : End
+        Expired : End
+        Failed : End
+    }

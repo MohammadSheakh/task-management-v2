@@ -1,0 +1,142 @@
+---
+title: Task Module - Updated Schema Diagram
+description: ERD matching current task.module implementation with separate Task and SubTask collections
+date: 07-03-26
+---
+
+erDiagram
+    TASK ||--o{ SUBTASK : "has subtasks (embedded + separate collection)"
+    TASK ||--o| USER : "created by"
+    TASK ||--o| USER : "owned by"
+    TASK ||--o{ USER : "assigned to (multiple)"
+    TASK ||--o| GROUP : "belongs to group"
+    TASK ||--o{ TASK_REMINDER : "has reminders"
+    TASK ||--o{ NOTIFICATION : "triggers notifications"
+    TASK ||--o{ ATTACHMENT : "has attachments"
+
+    TASK {
+        ObjectId _id PK
+        ObjectId createdById FK "Task creator (required)"
+        ObjectId ownerUserId FK "Task owner (for group tasks)"
+        String taskType "personal|singleAssignment|collaborative"
+        ObjectId[] assignedUserIds FK "Multiple assignees"
+        ObjectId groupId FK "Reference to group"
+        String title "max 200 chars"
+        String description "max 2000 chars"
+        String scheduledTime "e.g., '10:30 AM'"
+        String priority "low|medium|high (default: medium)"
+        String status "pending|inProgress|completed (default: pending)"
+        Int totalSubtasks "Cached count"
+        Int completedSubtasks "Cached count"
+        SubTask[] subtasks "Embedded subtasks"
+        DateTime startTime "Task start"
+        DateTime completedTime "When completed"
+        DateTime dueDate "Task deadline"
+        Boolean isDeleted "Soft delete"
+        DateTime createdAt
+        DateTime updatedAt
+        
+        %% Virtuals (not in DB)
+        String time "VIRTUAL: scheduledTime or formatted startTime"
+        ObjectId assignedBy "VIRTUAL: Alias for createdById"
+        Int completionPercentage "VIRTUAL: (completedSubtasks/totalSubtasks)*100"
+        Boolean isOverdue "VIRTUAL: !completed && dueDate < now"
+    }
+
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK "Parent task (required)"
+        ObjectId createdById FK "Subtask creator"
+        ObjectId assignedToUserId FK "Assigned user"
+        String title "max 200 chars"
+        String description "max 1000 chars"
+        String duration "e.g., '30 min'"
+        Boolean isCompleted "default: false"
+        DateTime completedAt "When completed"
+        Int order "Display order (default: 0)"
+        Boolean isDeleted "Soft delete"
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String profileImage
+        String role
+    }
+
+    GROUP {
+        ObjectId _id PK
+        String name
+        String description
+        ObjectId ownerUserId FK
+        String visibility "private|public"
+        String status "active|archived"
+        Int maxMembers
+        Int currentMemberCount
+    }
+
+    TASK_REMINDER {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        ObjectId createdByUserId FK
+        DateTime reminderTime
+        String triggerType "before_deadline|at_deadline|after_deadline|custom_time|recurring"
+        String status "pending|sent|cancelled"
+        String frequency "once|daily|weekly|monthly"
+        Int sentCount
+        Int maxOccurrences
+    }
+
+    NOTIFICATION {
+        ObjectId _id PK
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String receiverRole
+        Mixed title "String or i18n object"
+        Mixed subTitle "String or i18n object"
+        String type "task|group|system|reminder|mention|assignment|deadline"
+        String priority "low|normal|high|urgent"
+        String[] channels "in_app|email|push|sms"
+        String status "pending|sent|read"
+        DateTime scheduledFor
+        DateTime readAt
+        DateTime deliveredAt
+    }
+
+    ATTACHMENT {
+        ObjectId _id PK
+        String attachmentType "image|video|document|audio|other"
+        String attachment "URL to file"
+        String fileName "Original filename"
+        Int fileSize "Bytes"
+        String mimeType "MIME type"
+        Boolean isDeleted
+    }
+
+    %% ─── Indexes ─────────────────────────────────────────────────────
+    %% TASK Indexes:
+    %% - createdById_1_status_1_isDeleted_1_startTime_-1
+    %% - ownerUserId_1_status_1_isDeleted_1_startTime_-1
+    %% - assignedUserIds_1_status_1_isDeleted_1
+    %% - groupId_1_status_1_isDeleted_1
+    %% - startTime_1_isDeleted_1
+    %% - dueDate_1_isDeleted_1
+    %% - text: title, description, tags
+    
+    %% SUBTASK Indexes:
+    %% - taskId_1_isCompleted_1_isDeleted_1
+    %% - taskId_1_order_1_isDeleted_1
+    %% - assignedToUserId_1_isCompleted_1_isDeleted_1
+
+    %% ─── Notes ───────────────────────────────────────────────────────
+    note for TASK "Task has dual storage:\n1. Embedded subtasks (subtasks[])\n2. Separate SubTask collection\n\nVirtual fields:\n- time: scheduledTime or formatted startTime\n- assignedBy: alias for createdById"
+    
+    note for SUBTASK "Separate collection for:\n- Individual CRUD operations\n- Assignment tracking\n- Progress tracking\n\nAlso embedded in TASK for:\n- Quick access\n- Reduced queries"
+    
+    note for TASK.taskType "personal: For yourself\nsingleAssignment: Assign to one person\ncollaborative: Assign to multiple"
+    
+    note for TASK.status "Simple 3-state flow:\npending → inProgress → completed\n\nNo 'UnderReview' state\nin current implementation"

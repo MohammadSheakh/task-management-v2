@@ -1,0 +1,100 @@
+graph LR
+    %% Task Module Data Flow V2
+    %% Shows data transformation from request to response
+
+    subgraph "Client Request"
+        REQ["HTTP Request<br/>{title, taskType,<br/>assignedUserIds, startTime}"]
+    end
+
+    subgraph "Validation Layer"
+        ZOD["Zod Validation<br/>Type Check<br/>Required Fields<br/>Format Validation"]
+        PERM["Permission Check<br/>Secondary User?<br/>ChildrenBusinessUser"]
+        LIMIT["Daily Limit Check<br/>Max 5 personal tasks/day"]
+    end
+
+    subgraph "Controller Layer"
+        CTRL["TaskController<br/>Extract userId<br/>Format Data<br/>Handle Response"]
+    end
+
+    subgraph "Service Layer - Write Path"
+        SVC["TaskService<br/>Business Logic"]
+        CACHE_INV["Cache Invalidation<br/>Delete: task:list:*<br/>task:statistics:*"]
+        ACTIVITY["Family Activity<br/>Record for assigned users<br/>via ChildrenBusinessUser"]
+    end
+
+    subgraph "Database Layer - Write"
+        PRE_SAVE["Pre-save Hook<br/>Calculate totalSubtasks<br/>Calculate completedSubtasks"]
+        MONGO_WRITE["MongoDB Insert<br/>Task Collection<br/>Indexes Applied"]
+    end
+
+    subgraph "Real-time Layer"
+        SOCKET_EMIT["Socket.io Emit<br/>task:created event<br/>To family members"]
+    end
+
+    subgraph "Cache Layer - Read Path"
+        CACHE_CHECK{"Cache Hit?"}
+        CACHE_GET["Redis GET<br/>task:user:userId:list<br/>TTL: 120s"]
+        CACHE_SET["Redis SETEX<br/>Store serialized tasks<br/>TTL: 120s"]
+    end
+
+    subgraph "Database Layer - Read"
+        MONGO_READ["MongoDB Find<br/>Query: {ownerUserId,<br/>status, isDeleted}<br/>Indexes Used"]
+        LEAN[".lean() Applied<br/>Memory Optimization<br/>2-3x Reduction"]
+        TRANSFORM["toJSON Transform<br/>Add _taskId<br/>Add time alias<br/>Add assignedBy"]
+    end
+
+    subgraph "Async Queue"
+        QUEUE["BullMQ Job<br/>preferredTimeQueue<br/>Job: calculatePreferredTime"]
+        CALC["Preferred Time Calc<br/>Analyze last 10 tasks<br/>Average start time"]
+        UPDATE_USER["Update User Model<br/>Set preferredTime field<br/>HH:mm format"]
+    end
+
+    subgraph "Response"
+        RESP["HTTP Response<br/>{success, data,<br/>message, pagination}"]
+    end
+
+    REQ --> ZOD
+    ZOD --> PERM
+    PERM --> LIMIT
+    LIMIT --> CTRL
+
+    CTRL --> SVC
+    SVC --> PRE_SAVE
+    PRE_SAVE --> MONGO_WRITE
+    MONGO_WRITE --> CACHE_INV
+    CACHE_INV --> ACTIVITY
+    ACTIVITY --> SOCKET_EMIT
+
+    SOCKET_EMIT --> CACHE_CHECK
+    CACHE_CHECK -->|Miss| MONGO_READ
+    MONGO_READ --> LEAN
+    LEAN --> TRANSFORM
+    TRANSFORM --> CACHE_SET
+    CACHE_SET --> RESP
+
+    CACHE_CHECK -->|Hit| CACHE_GET
+    CACHE_GET --> RESP
+
+    MONGO_WRITE -.->|Trigger| QUEUE
+    QUEUE --> CALC
+    CALC --> UPDATE_USER
+
+    classDef client fill:#e1f5ff,stroke:#0066cc
+    classDef validation fill:#fff4e1,stroke:#cc6600
+    classDef controller fill:#e8f5e9,stroke:#2e7d32
+    classDef service fill:#fce4ec,stroke:#c2185b
+    classDef db fill:#f3e5f5,stroke:#7b1fa2
+    classDef realtime fill:#ffebee,stroke:#c62828
+    classDef cache fill:#fff8e1,stroke:#ff8f00
+    classDef queue fill:#e0f7fa,stroke:#00838f
+    classDef response fill:#f1f8e9,stroke:#558b2f
+
+    class REQ client
+    class ZOD,PERM,LIMIT validation
+    class CTRL controller
+    class SVC,CACHE_INV,ACTIVITY service
+    class PRE_SAVE,MONGO_WRITE,MONGO_READ,LEAN,TRANSFORM,UPDATE_USER db
+    class SOCKET_EMIT realtime
+    class CACHE_CHECK,CACHE_GET,CACHE_SET cache
+    class QUEUE,CALC queue
+    class RESP response

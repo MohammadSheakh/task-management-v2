@@ -1,0 +1,83 @@
+erDiagram
+    %% Payment Entity
+    PAYMENT {
+        ObjectId _id PK
+        ObjectId userId FK
+        String referenceFor "UserSubscription"
+        ObjectId referenceId FK
+        String paymentGateway "stripe"
+        String transactionId
+        String paymentIntent
+        Number amount
+        String currency
+        String paymentStatus "pending|processing|completed|failed|cancelled"
+        String paymentMethod
+        String receiptUrl
+        DateTime paidAt
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% Payment Transaction Entity
+    PAYMENT_TRANSACTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        String referenceFor "UserSubscription"
+        ObjectId referenceId FK
+        String paymentGateway "stripe"
+        String transactionId
+        String paymentIntent
+        Number amount
+        String currency
+        String paymentStatus "pending|processing|completed|failed|cancelled"
+        String failureReason
+        String stripeCustomerId
+        String stripePaymentIntentId
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% User Subscription Entity
+    USER_SUBSCRIPTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        ObjectId subscriptionPlanId FK
+        String status "active|cancelled|expired"
+        Number amount
+        String currency
+        DateTime currentPeriodEnd
+        String stripe_subscription_id
+    }
+
+    %% User Entity
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String subscriptionType
+        Boolean isEmailVerified
+    }
+
+    %% Stripe Account Entity
+    STRIPE_ACCOUNT {
+        ObjectId _id PK
+        ObjectId userId FK
+        String stripeAccountId
+        String stripeApiKey
+        Boolean isActive
+        DateTime createdAt
+    }
+
+    %% Relationships
+    USER ||--o{ PAYMENT : "makes"
+    USER ||--o{ PAYMENT_TRANSACTION : "creates"
+    USER ||--o{ USER_SUBSCRIPTION : "has"
+    USER_SUBSCRIPTION ||--o{ PAYMENT_TRANSACTION : "generates"
+    USER ||--o{ STRIPE_ACCOUNT : "owns"
+
+    %% Styling
+    style PAYMENT fill:#42a5f5,color:#fff
+    style PAYMENT_TRANSACTION fill:#66bb6a,color:#fff
+    style USER_SUBSCRIPTION fill:#ef5350,color:#fff
+    style USER fill:#ffca28,color:#000
+    style STRIPE_ACCOUNT fill:#4db33d,color:#fff

@@ -1,0 +1,109 @@
+sequenceDiagram
+    participant User
+    participant Route as task.route.ts
+    participant Middleware as Middleware
+    participant Controller as task.controller.ts
+    participant Service as task.service.ts
+    participant Redis as Redis Cache
+    participant MongoDB as MongoDB
+    participant Socket as Socket.io
+    participant Queue as BullMQ
+
+    Note over User,Queue: Task Creation Flow V2 (Family-Based)
+
+    User->>Route: POST /tasks<br/>{title, taskType, assignedUserIds}
+    Route->>Middleware: authenticate()
+    Middleware-->>Route: User ID
+
+    Route->>Middleware: checkSecondaryUserPermission()
+    Middleware->>MongoDB: Check ChildrenBusinessUser
+    MongoDB-->>Middleware: Secondary User Status
+    Middleware-->>Route: Permission Granted/Denied
+
+    Route->>Middleware: validateTaskTypeConsistency()
+    Route->>Middleware: checkDailyTaskLimit()
+    Route->>Controller: create()
+
+    Controller->>Service: createTask(data, userId)
+    Service->>Redis: Check Cache (skip)
+    Redis-->>Service: Cache Miss
+
+    Service->>MongoDB: Insert Task Document
+    MongoDB-->>Service: Created Task
+
+    alt Collaborative Task
+        Service->>Service: Record Family Activity
+        Service->>Socket: broadcastToFamilyMembers()
+        Socket-->>User: Real-time Task Created Event
+    end
+
+    Service->>Redis: Invalidate User Cache Keys
+    Redis-->>Service: Cache Invalidated
+
+    Service-->>Controller: Task Created
+    Controller-->>User: 201 Created<br/>{task, message}
+
+    Note over User,Queue: Task Status Update Flow
+
+    User->>Route: PUT /tasks/:id/status<br/>{status: "completed"}
+    Route->>Middleware: verifyTaskAccess()
+    Route->>Middleware: validateStatusTransition()
+    Route->>Controller: updateStatus()
+
+    Controller->>Service: updateTaskStatus(taskId, status, userId)
+    Service->>MongoDB: Update Task Status<br/>Set completedTime
+    MongoDB-->>Service: Updated Task
+
+    alt Collaborative Task
+        Service->>Service: Record Family Activity
+        Service->>Socket: broadcastToFamilyMembers()
+        Socket-->>User: Real-time Status Changed Event
+    end
+
+    Service->>Redis: Invalidate Cache
+    Redis-->>Service: Cache Invalidated
+
+    Service->>Queue: Add preferredTimeQueue Job<br/>JobId: preferred-time:userId:timestamp
+    Queue-->>Service: Job Queued
+
+    Service-->>Controller: Status Updated
+    Controller-->>User: 200 OK<br/>{task, message}
+
+    Note over User,Queue: Get Tasks with Pagination
+
+    User->>Route: GET /tasks/paginate?<br/>page=1&limit=10&status=pending
+    Route->>Middleware: authenticate()
+    Route->>Middleware: validateFiltersForQuery()
+    Route->>Controller: getMyTasksWithPagination()
+
+    Controller->>Service: getUserTasksWithPagination(userId, filters, options)
+    Service->>Redis: Check Cache
+    Redis-->>Service: Cache Miss
+
+    Service->>MongoDB: Find with Pagination<br/>Query: {ownerUserId, status, isDeleted}
+    MongoDB-->>Service: Paginated Tasks
+
+    Service->>Redis: Cache Results<br/>TTL: 120 seconds
+    Redis-->>Service: Cached
+
+    Service-->>Controller: Paginated Response
+    Controller-->>User: 200 OK<br/>{tasks, meta, pagination}
+
+    Note over User,Queue: Daily Progress Flow
+
+    User->>Route: GET /tasks/daily-progress?date=2026-03-14
+    Route->>Controller: getDailyProgress()
+    Controller->>Service: getDailyProgress(userId, date)
+
+    Service->>Redis: Check Daily Cache
+    Redis-->>Service: Cache Miss
+
+    Service->>MongoDB: Find Tasks for Date<br/>startTime: startOfDay - endOfDay
+    MongoDB-->>Service: Today's Tasks
+
+    Service->>Service: Calculate Statistics<br/>Total, Completed, In Progress, %
+    Service->>Redis: Cache Results<br/>TTL: 120 seconds
+    Redis-->>Service: Cached
+
+    Service-->>Controller: Daily Progress Data
+    Controller-->>User: 200 OK<br/>{date, total, completed, progressPercentage, tasks}

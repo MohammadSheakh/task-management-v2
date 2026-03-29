@@ -1,0 +1,68 @@
+flowchart TB
+    subgraph PaymentModule["payment.module"]
+        subgraph Payment["Payment Sub-Module"]
+            P_IFACE[payment.interface.ts]
+            P_CONST[payment.constant.ts]
+            P_SVC[payment.service.ts]
+            P_BOOT[payment.bootstrap.ts]
+            P_GATE[payment/gateways/]
+        end
+
+        subgraph PaymentTransaction["PaymentTransaction Sub-Module"]
+            PT_IFACE[paymentTransaction.interface.ts]
+            PT_CONST[paymentTransaction.constant.ts]
+            PT_MODEL[paymentTransaction.model.ts]
+            PT_SVC[paymentTransaction.service.ts]
+            PT_CTRL[paymentTransaction.controller.ts]
+            PT_ROUTE[paymentTransaction.route.ts]
+            PT_VALID[paymentTransaction.validation.ts]
+        end
+
+        subgraph StripeWebhook["StripeWebhook Sub-Module"]
+            WH_CTRL[webhook.controller.ts]
+            WH_SVC[webhook.service.ts]
+            WH_HANDLERS[handlers/]
+        end
+
+        DOC[doc/ folder]
+        DOC_DIA[doc/dia/ - 8 diagrams]
+        DOC_PERF[doc/perf/ - performance report]
+    end
+
+    subgraph External["External Dependencies"]
+        STRIPE[Stripe API]
+        MONGODB[(MongoDB)]
+        REDIS[(Redis Cache)]
+        SUB[subscription.module]
+        USER[user.module]
+    end
+
+    %% Internal Flow
+    P_SVC --> P_GATE
+    P_GATE --> STRIPE
+
+    PT_ROUTE --> PT_CTRL
+    PT_CTRL --> PT_SVC
+    PT_SVC --> PT_MODEL
+
+    WH_CTRL --> WH_SVC
+    WH_SVC --> WH_HANDLERS
+
+    %% External Dependencies
+    P_SVC --> STRIPE
+    PT_SVC --> MONGODB
+    PT_SVC --> REDIS
+    PT_SVC --> SUB
+    SUB --> USER
+
+    %% Documentation
+    DOC --> DOC_DIA
+    DOC --> DOC_PERF
+
+    %% Styling
+    style Payment fill:#42a5f5,color:#fff
+    style PaymentTransaction fill:#66bb6a,color:#fff
+    style StripeWebhook fill:#ffca28,color:#000
+    style STRIPE fill:#ef5350,color:#fff
+    style MONGODB fill:#4db33d,color:#fff
+    style REDIS fill:#ff7043,color:#fff

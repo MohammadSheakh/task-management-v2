@@ -12,10 +12,10 @@ const UPLOADS_FOLDER = 'uploads/users';
 const upload = fileUploadHandler(UPLOADS_FOLDER);
 import * as validation from './user.validation';
 import { setRequestFiltersV2, setRequstFilterAndValue } from '../../../middlewares/setRequstFilterAndValue';
-import { imageUploadPipelineForUpdateUserProfile } from './user.middleware';
+import { imageUploadPipelineForUpdateUserProfile, verifyChildBelongsToBusinessUser } from './user.middleware';
 import { IsProviderRejected } from '../../../middlewares/provider/IsProviderRejected';
 
-export const optionValidationChecking = <T extends keyof IUser | 'sortBy' | 'page' | 'limit' | 'populate'| 'from' | 'to' | 'providerApprovalStatus'>(
+export const optionValidationChecking = <T extends keyof IUser | 'sortBy' | 'page' | 'limit' | 'populate' | 'from' | 'to' | 'providerApprovalStatus'>(
   filters: T[]
 ) => {
   return filters;
@@ -38,7 +38,7 @@ const controller = new UserController();
 //---------------------------------
 router.route('/paginate').get(
   auth(TRole.admin),
-  validateFiltersForQuery(optionValidationChecking(['_id', 'name', 'createdAt', ...paginationOptions])),
+  validateFiltersForQuery(optionValidationChecking(['_id', 'name', 'createdAt', 'role', ...paginationOptions])),
   setRequstFilterAndValue('role', 'user'),
   controller.getAllWithPaginationV2WithStatistics
 );
@@ -69,9 +69,9 @@ router.route('/paginate/for-mentor').get(
 router.route('/paginate/for-sub-admin').get(
   auth(TRole.admin),
   validateFiltersForQuery(optionValidationChecking(['_id', 'name', 'createdAt', 'from', 'to', ...paginationOptions])),
-  
+
   setRequstFilterAndValue('role', 'subAdmin'),
-  
+
   // setRequestFiltersV2(
   //   { 
   //     isDeleted: false,
@@ -112,7 +112,7 @@ router.route('/paginate/for-provider').get(
   auth(TRole.admin),
   // providerApprovalStatus must pass kora lagbe .. 
   // from and to is for date range filter
-  validateFiltersForQuery(optionValidationChecking(['_id', 'name', 'email', 'phoneNumber','role', 'providerApprovalStatus', 'from', 'to', ...paginationOptions])),
+  validateFiltersForQuery(optionValidationChecking(['_id', 'name', 'email', 'phoneNumber', 'role', 'providerApprovalStatus', 'from', 'to', ...paginationOptions])),
   // setRequstFilterAndValue('role', 'provider'),
   controller.getAllWithPaginationV3
 );
@@ -138,7 +138,7 @@ router.route('/notification-test').get(
 |  Admin | Get Profile Information by Id  to approve doctor / specialist 
 └──────────────────────────────────*/
 router.route('/profile/for-admin').get(
- auth(TRole.admin),
+  auth(TRole.admin),
   validateFiltersForQuery(optionValidationChecking(['_id',
     ...paginationOptions])),
   controller.getAllWithPagination
@@ -235,6 +235,84 @@ router.route('/profile-picture').put(
   controller.updateProfileImageSeparately
 )
 
+/*-─────────────────────────────────
+|  User | Profile | 06-03 | Get support mode preference
+|  @module UserProfile
+|  @figmaIndex 06-03
+|  @desc Get user's support mode (calm/encouraging/logical)
+└──────────────────────────────────*/
+router.route('/support-mode').get(
+  auth(TRole.common),
+  controller.getSupportMode
+);
+
+/*-─────────────────────────────────
+|  User | Profile | 06-03 | Update support mode preference
+|  @module UserProfile
+|  @figmaIndex 06-03
+|  @desc Update user's support mode (calm/encouraging/logical)
+└──────────────────────────────────*/
+router.route('/support-mode').put(
+  auth(TRole.common),
+  validateRequest(validation.updateSupportModeValidationSchema),
+  controller.updateSupportMode
+);
+
+/*-───────────────────────────────── ✔️
+|  Business | Parent | Task Details | task-details-flow-apis.png | Update child's support mode
+|  @module UserProfile
+|  @figmaIndex task-details-flow-apis.png
+|  @desc Parent updates their child's support mode (calm/encouraging/logical)
+|  @auth Business users only
+|  @permission Can only update support mode for own children
+└──────────────────────────────────*/
+router.route('/child-support-mode').put(
+  auth(TRole.business),
+  validateRequest(validation.updateChildSupportModeValidationSchema),
+  verifyChildBelongsToBusinessUser,
+  controller.updateChildSupportMode
+);
+
+/*-─────────────────────────────────
+|  User | Profile | 06-03 | Update notification style preference
+|  @module UserProfile
+|  @figmaIndex 06-03
+|  @desc Update user's notification style (gentle/firm/xyz)
+└──────────────────────────────────*/
+router.route('/notification-style').put(
+  auth(TRole.common),
+  validateRequest(validation.updateNotificationStyleValidationSchema),
+  controller.updateNotificationStyle
+);
+
+/*-─────────────────────────────────
+|  Child | Business | User | Profile | profile-permission-account-interface.png | Get preferred working time
+|  @module User
+|  @figmaIndex profile-permission-account-interface.png
+|  @desc Get user's preferred time for working on tasks (HH:mm format)
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+└──────────────────────────────────*/
+router.route('/preferred-time').get(
+  auth(TRole.commonUser),
+  controller.getPreferredTime
+);
+
+/*-─────────────────────────────────
+|  Child | Business | User | Profile | profile-permission-account-interface.png | Update preferred working time
+|  @module User
+|  @figmaIndex profile-permission-account-interface.png
+|  @desc Update user's preferred time for working on tasks (HH:mm 24-hour format)
+|  @auth All authenticated users (child, business)
+|  @rateLimit 20 requests per hour (prevent frequent changes)
+|  @validation HH:mm format (24-hour), range: 05:00-23:00
+└──────────────────────────────────*/
+router.route('/preferred-time').put(
+  auth(TRole.commonUser),
+  validateRequest(validation.updatePreferredTimeValidationSchema),
+  controller.updatePreferredTime
+);
+
 router.route('/update/:id').put(
   //auth('common'),
   // validateRequest(validation.createHelpMessageValidationSchema),
@@ -253,7 +331,7 @@ router.route('/delete/:id').delete(
 ); // FIXME : change to admin
 
 /*-─────────────────────────────────
-|  As per toky vai's requirement.. 
+|  As per toky vai's requirement..
 └──────────────────────────────────*/
 router.route('/softDelete/:id').put(
   auth(TRole.commonUser),
@@ -263,6 +341,33 @@ router.route('/softDelete/:id').put(
 ////////////
 //[🚧][🧑‍💻✅][🧪] // 🆗
 
+/*-─────────────────────────────────
+|  Admin | User Management | user-list-flow.png | Get all users with pagination and filters
+|  @desc Get paginated list of all users with search, role filter, and date range
+|  @auth Admin only
+|  @query search - Search by username or email
+|  @query role - Filter by role: 'individual' | 'child' | 'business' | 'admin' | 'all'
+|  @query from - Start date (ISO format)
+|  @query to - End date (ISO format)
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -createdAt)
+└──────────────────────────────────*/
+router.route('/admin/all-users').get(
+  auth(TRole.admin),
+  controller.getAllUsersForAdminDashboard
+);
+
+/*-─────────────────────────────────
+|  Admin | User Management | user-list-flow.png | Get user registration count for chart
+|  @desc Get user registration count by month/year for bar chart
+|  @auth Admin only
+|  @query type - 'monthly' (current year) or 'yearly' (last 5 years)
+└──────────────────────────────────*/
+router.route('/admin/user-registration-count').get(
+  auth(TRole.admin),
+  controller.getUserRegistrationCountForChart
+);
 
 export const UserRoutes = router;
 

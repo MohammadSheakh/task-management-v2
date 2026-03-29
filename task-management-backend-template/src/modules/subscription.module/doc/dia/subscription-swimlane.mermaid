@@ -1,0 +1,50 @@
+flowchart TB
+    subgraph User Journey
+        U1[User Views Plans] --> U2[Selects Plan]
+        U2 --> U3[Enters Payment Info]
+        U3 --> U4[Completes Payment]
+        U4 --> U5[Subscription Active]
+        U5 --> U6[Uses Features]
+        U6 --> U7{Renewal Due?}
+        U7 -->|Yes| U8[Auto-Renewal]
+        U7 -->|No| U9[Continue Using]
+        U8 --> U6
+        U9 --> U10{Cancel?}
+        U10 -->|Yes| U11[Cancel Subscription]
+        U10 -->|No| U6
+    end
+
+    subgraph Admin Journey
+        A1[Admin Logs In] --> A2[Views Subscriptions]
+        A2 --> A3{Action?}
+        A3 -->|Create| A4[Create New Plan]
+        A3 -->|Edit| A5[Edit Existing Plan]
+        A3 -->|Delete| A6[Delete Plan]
+        A3 -->|View| A7[View Transactions]
+        
+        A4 --> A8[Set Price & Features]
+        A8 --> A9[Create Stripe Product]
+        A9 --> A10[Save to Database]
+        
+        A5 --> A11[Update Plan Details]
+        A11 --> A10
+        
+        A6 --> A12[Soft Delete Plan]
+        A12 --> A13[Deactivate Plan]
+    end
+
+    subgraph System Journey
+        S1[Cron Job Runs Daily] --> S2[Check Expiring Subscriptions]
+        S2 --> S3{Expiring Today?}
+        S3 -->|Yes| S4[Process Renewal Payment]
+        S3 -->|No| S5[Continue Active]
+        S4 --> S6{Payment Success?}
+        S6 -->|Yes| S7[Extend Subscription]
+        S6 -->|No| S8[Mark as Expired]
+        S7 --> S5
+        S8 --> S9[Notify User]
+    end
+
+    style U1 fill:#42a5f5,color:#fff
+    style A1 fill:#ef5350,color:#fff
+    style S1 fill:#ffca28,color:#000

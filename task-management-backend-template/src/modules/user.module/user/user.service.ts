@@ -12,11 +12,8 @@ import omit from '../../../shared/omit';
 import pick from '../../../shared/pick';
 import { UserProfile } from '../userProfile/userProfile.model';
 import { IUserProfile } from '../userProfile/userProfile.interface';
-import { buildTranslatedField } from '../../../utils/buildTranslatedField';
 //@ts-ignore
 import mongoose from 'mongoose';
-import { WalletTransactionHistory } from '../../wallet.module/walletTransactionHistory/walletTransactionHistory.model';
-// import dayjs from 'dayjs';
 import {
   startOfWeek,
   startOfMonth,
@@ -26,31 +23,28 @@ import {
   eachDayOfInterval,
   isSameDay,
 } from 'date-fns';
-import { TWalletTransactionHistory, TWalletTransactionStatus } from '../../wallet.module/walletTransactionHistory/walletTransactionHistory.constant';
-import { TRole } from '../../../middlewares/roles';
-import { UserRoleData } from '../userRoleData/userRoleData.model';
-import { IUserRoleData } from '../userRoleData/userRoleData.interface';
+
+import {
+  endOfMonth,
+  subMonths
+} from 'date-fns';
+
 //@ts-ignore
 import bcryptjs from 'bcryptjs';
 
-//@ts-ignore
-import {
-  startOfDay,
-  // startOfWeek,
-  // startOfMonth,
-  // startOfYear,
-  startOfQuarter,
-  endOfWeek,
-  endOfMonth,
-  subWeeks,
-  subMonths,
-  subDays,
-} from 'date-fns';
-import { TAdminStatus } from '../userRoleData/userRoleData.constant';
-import { PaymentTransaction } from '../../payment.module/paymentTransaction/paymentTransaction.model';
+import { redisClient } from '../../../helpers/redis/redis';
+import { logger, errorLogger } from '../../../shared/logger';
+
+// User cache configuration
+const USER_CACHE_CONFIG = {
+  PROFILE_TTL: 300,        // 5 minutes
+  STATISTICS_TTL: 600,     // 10 minutes
+  OVERVIEW_TTL: 300,       // 5 minutes
+} as const;
 
 import { Attachment } from '../../attachments/attachment.model';
 import { IAttachment } from '../../attachments/attachment.interface';
+import { TAdminStatus } from '../userRoleData/userRoleData.constant';
 
 
 interface IAdminOrSuperAdminPayload {
@@ -158,7 +152,7 @@ export class UserService extends GenericService<typeof User, IUser> {
   };
 
   //--------------------------------- kaj bd
-  // User | Profile | 06-01 | get profile information of a user 
+  // User | Profile | 06-01 | get profile information of a user
   //---------------------------------
   getProfileInformationOfAUser = async (loggedInUser: IUserFromToken) => {
     //-- name, email, phoneNumber from User table ..
@@ -166,118 +160,50 @@ export class UserService extends GenericService<typeof User, IUser> {
 
     //-- serviceName and rating from Service Provider Or Service Provider Details table
     const id = loggedInUser.userId
+    const cacheKey = `user:${id}:profile`;
 
+    // 🔒 Try cache first
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        logger.debug(`Cache hit for user profile: ${cacheKey}`);
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      errorLogger.error('Redis GET error in getProfileInformationOfAUser:', error);
+      // Continue without cache
+    }
+
+    // Cache miss - query database
     const user = await User.findById(id).select('name email phoneNumber profileImage').lean();
     const userProfile =  await UserProfile.findOne({
       userId: id
     }).select('location dob gender').lean();
 
-    return {
+    const result = {
       ...user,
       ...userProfile
     };
+
+    // 🔒 Cache the result
+    try {
+      await redisClient.setEx(
+        cacheKey,
+        USER_CACHE_CONFIG.PROFILE_TTL,  // 5 minutes
+        JSON.stringify(result)
+      );
+      logger.debug(`User profile cached: ${cacheKey}`);
+    } catch (error) {
+      errorLogger.error('Redis SET error in getProfileInformationOfAUser:', error);
+      // Don't throw - profile retrieval should succeed even if caching fails
+    }
+
+    return result;
   };
 
-//☑️☑️☑️☑️☑️☑️☑️
-  getEarningAndCategoricallyBookingCountAndRecentJobRequest = async (providerId: string, type: string) => {
-    if (!providerId) throw new Error('Provider ID is required');
 
-    const now = new Date();
-    let startDate: Date;
-    let groupStage: any;
-    let dateLabels: string[];
 
-    if (type === 'weekly') {
-      // Sunday as start of week (matches MongoDB $dayOfWeek)
-      startDate = startOfWeek(now, { weekStartsOn: 0 });
-      groupStage = { $dayOfWeek: '$createdAt' };
-      // Generate ['Sun', 'Mon', ..., 'Sat'] based on actual dates
-      const weekDays = eachDayOfInterval({ start: startDate, end: now });
-      const allWeekDays = eachDayOfInterval({ start: startDate, end: new Date(startDate.getTime() + 6 * 86400000) });
-      dateLabels = allWeekDays.map((d) => format(d, 'EEE')); // ['Sun', 'Mon', ...]
-    } else if (type === 'monthly') {
-      startDate = startOfMonth(now);
-      groupStage = { $dayOfMonth: '$createdAt' };
-      const daysInMonth = getDaysInMonth(now);
-      dateLabels = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
-    } else {
-      startDate = startOfYear(now);
-      groupStage = { $month: '$createdAt' };
-      dateLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    }
-
-    // 💰 Income Chart Data
-    const incomeData = await WalletTransactionHistory.aggregate([
-      {
-        $match: {
-          userId: new mongoose.Types.ObjectId(providerId),
-          type: TWalletTransactionHistory.credit,
-          status: TWalletTransactionStatus.completed,
-          isDeleted: false,
-          createdAt: { $gte: startDate, $lte: now },
-        },
-      },
-      {
-        $group: {
-          _id: groupStage,
-          totalIncome: { $sum: '$amount' },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]);
-
-    // 🧮 Format chart data
-    const incomeByDate: Record<string, number> = {};
-    incomeData.forEach((item) => (incomeByDate[item._id] = item.totalIncome));
-
-    const chartData : any = dateLabels.map((label, i) => ({
-      label,
-      income: incomeByDate[i + 1] || 0, // works for day/month (1-indexed)
-    }));
-
-    // Special handling for weekly: MongoDB $dayOfWeek is 1–7 (Sun–Sat)
-    if (type === 'weekly') {
-      // incomeByDate keys are 1 (Sun) to 7 (Sat)
-      chartData.forEach((_, idx) => {
-        chartData[idx].income = incomeByDate[idx + 1] || 0;
-      });
-    }
-
-    const totalIncome = incomeData.reduce((sum, d) => sum + d.totalIncome, 0);
   
-    return {
-      totalIncome,
-      type,
-      chartData, // ✅ Chart ready for frontend (x: day, y: income)
-    };
-  }
-
-  /*-─────────────────────────────────
-  |  total revenue
-  |  total student count
-  |  total mentor count
-  |  total individual capsule
-  |  --
-  |  all subscrition plans along with users
-  |  --
-  |  monthly / quaterly / anually student and teacher count
-  |  --
-  |  top rated mentor list (limit 5)
-  |  --
-  |  latest notification ( limit 5)
-  └──────────────────────────────────*/
-  /** ------------
-   * @role Admin
-   * @Section Dashboard
-   * @module  |
-   * @figmaIndex 03-01
-   * @desc  
-   * 
-  *-----------------*/
-  // getEarningAndCategoricallyBookingCountAndRecentJobRequest
-  getOverview = async (providerId: string, type: string) => {
-    
-  }
 
   // ☑️☑️☑️☑️☑️☑️☑️☑️
   async getAllWithAggregationWithStatistics_V2_ProviderCountFix(
@@ -352,347 +278,6 @@ export class UserService extends GenericService<typeof User, IUser> {
         }
       }
     ];
-
-    // lets calculate total revenue for admin
-
-    //------- calculate this months and last months providers count
-    // also calculate percentage { (newVal - oldVal) / old } * 100
-    // result minus means decreased , positive means increment
-    //------ do same thing for user also .. 
-
-    async function calculateCurrentAndLastMonthsUserCountByRole(role : string) {
-        const now = new Date();
-        const monthStart = startOfMonth(now);
-
-        const lastMonthStart = startOfMonth(subMonths(now, 1));
-        const lastMonthEnd = endOfMonth(subMonths(now, 1));
-
-        const baseQuery = { isDeleted: false, role };
-        
-            const [
-              allCount,
-              thisMonthEarnings,
-              lastMonthEarnings,
-            ] = await Promise.all([
-
-              // All Count
-              User.aggregate([
-                { $match: { ...baseQuery } },
-                {
-                  $group: {
-                    _id: null,
-                    // total: { $sum: '$amount' },
-                    count: { $sum: 1 },
-                  },
-                },
-              ]),
-              
-              // This month earnings
-              User.aggregate([
-                { $match: { ...baseQuery, createdAt: { $gte: monthStart } } },
-                {
-                  $group: {
-                    _id: null,
-                    // total: { $sum: '$amount' },
-                    count: { $sum: 1 },
-                  },
-                },
-              ]),
-        
-              // Last month earnings
-              User.aggregate([
-                {
-                  $match: {
-                    ...baseQuery,
-                    createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
-                  },
-                },
-                {
-                  $group: {
-                    _id: null,
-                    // total: { $sum: '$amount' },
-                    count: { $sum: 1 },
-                  },
-                },
-              ]),
-            ]);
-        
-            // Calculate growth percentages
-            
-            
-            const thisMonthTotal = thisMonthEarnings[0]?.count || 0;
-            const lastMonthTotal = lastMonthEarnings[0]?.count || 0;
-            const monthlyGrowth =
-              lastMonthTotal > 0
-                ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
-                : 0;
-
-        return {
-            allCount : allCount[0]?.count || 0,
-            thisMonthTotal,
-            lastMonthTotal,
-            monthlyGrowth
-        };
-    }
-
-
-    async function calculateCurrentAndLastMonthsServiceBookingCount() {
-        const now = new Date();
-        const monthStart = startOfMonth(now);
-
-        const lastMonthStart = startOfMonth(subMonths(now, 1));
-        const lastMonthEnd = endOfMonth(subMonths(now, 1));
-
-        const baseQuery = { isDeleted: false };
-        
-            const [
-              allBookingCount,
-              thisMonthBooking,
-              lastMonthBooking,
-            ] = await Promise.all([
-
-              // This month earnings
-              ServiceBooking.aggregate([
-                { $match: { ...baseQuery } },
-                {
-                  $group: {
-                    _id: null,
-                    // total: { $sum: '$amount' },
-                    count: { $sum: 1 },
-                  },
-                },
-              ]),
-              
-              // This month earnings
-              ServiceBooking.aggregate([
-                { $match: { ...baseQuery, createdAt: { $gte: monthStart } } },
-                {
-                  $group: {
-                    _id: null,
-                    // total: { $sum: '$amount' },
-                    count: { $sum: 1 },
-                  },
-                },
-              ]),
-        
-              // Last month earnings
-              ServiceBooking.aggregate([
-                {
-                  $match: {
-                    ...baseQuery,
-                    createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
-                  },
-                },
-                {
-                  $group: {
-                    _id: null,
-                    // total: { $sum: '$amount' },
-                    count: { $sum: 1 },
-                  },
-                },
-              ]),
-            ]);
-        
-            // Calculate growth percentages
-            
-            
-            const thisMonthTotal = thisMonthBooking[0]?.count || 0;
-            const lastMonthTotal = lastMonthBooking[0]?.count || 0;
-            const monthlyGrowth =
-              lastMonthTotal > 0
-                ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
-                : 0;
-
-        return {
-            allBookingCount : allBookingCount[0]?.count || 0,
-            thisMonthTotal,
-            lastMonthTotal,
-            monthlyGrowth
-        };
-    }
-
-    //------- get all revenue for admin .. 
-    
-    const walletIdOfUser:IUser = await User.findById(userId).select('walletId')
-
-    async function getTotalRevenueByMonths(year:string) {
-        
-        const targetYear = parseInt(year, 10) || new Date().getFullYear();
-        
-        const totalTransactionsByMonth = await WalletTransactionHistory.aggregate([
-            {
-                $match: {
-                    walletId : walletIdOfUser.walletId,
-                    isDeleted: false,
-                    createdAt: {
-                        $gte: new Date(targetYear, 0, 1), // Start of current year
-                        $lt: new Date(targetYear + 1, 0, 1) // Start of next year
-                    }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        month: { $month: "$createdAt" },
-                        year: { $year: "$createdAt" }
-                    },
-                    total: { $sum: '$amount' },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { "_id.month": 1 }
-            }
-        ]);
-
-        const totalTransactionsAmountForAdmin = await WalletTransactionHistory.aggregate([
-            {
-                $match: {
-                    walletId : walletIdOfUser.walletId,
-                    isDeleted: false,
-                    
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    total: { $sum: '$amount' },
-                }
-            }
-        ]);
-
-        // Create array with all 12 months initialized to 0
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        const result = monthNames.map((name, index) => ({
-            month: name,
-            count: 0,
-            amount : 0,
-        }));
-
-        // Fill in actual counts
-        totalTransactionsByMonth.forEach(item => {
-            const monthIndex = item._id.month - 1; // MongoDB months are 1-indexed
-            result[monthIndex].count = item.count;
-            result[monthIndex].amount = item.total;
-        });
-
-        // Calculate average report count
-        const totalReports = result.reduce((sum, month) => sum + month.count, 0);
-        // const averageReportCount = totalReports / 12;
-
-        return {
-            monthlyData: result,
-            totalTransactionsAmountForAdmin : totalTransactionsAmountForAdmin[0]?.total || 0,
-            // averageReportCount: parseFloat(averageReportCount.toFixed(2))
-        };
-    }
-
-
-    const [
-      totalRevenueByMonth,
-      currentAndLastMonthUserCount, 
-      currentAndLastMonthProviderCount,
-      serviceBookingCount
-    ]
-     = await Promise.all([
-      await getTotalRevenueByMonths(filters?.year as string),  // TODO: eta test korte hobe thik result dicche kina
-      await calculateCurrentAndLastMonthsUserCountByRole("user"),
-      await calculateCurrentAndLastMonthsUserCountByRole("provider"),
-      await calculateCurrentAndLastMonthsServiceBookingCount(),
-    ])
-
-
-
-    // Get statistics
-    const roleStats = await User.aggregate(statisticsPipeline);
-    
-    // get BookingCount 
-    const bookingCount = await ServiceBooking.aggregate(serviceBookingStatPipeline);
-
-
-    const paymentTransactionStatPipeline = [
-      {
-        $group: {
-            _id: null,
-            count: { $sum: 1 },
-            total: { $sum: '$amount' },
-        }
-      }
-    ];
-
-    // get total transaction amount for admin 
-    const totalTransactionAmountForAdmin = await PaymentTransaction
-    .aggregate(paymentTransactionStatPipeline);
-
-
-    //--------------- Find out the approved provider count ----------- START
-    const countPipeline = [
-      // 1️⃣ Match users (same as before)
-      // { $match: userMatchStage },
-
-      // 2️⃣ Lookup role data
-      {
-        $lookup: {
-          from: 'userroledatas',
-          localField: '_id',
-          foreignField: 'userId',
-          as: 'userRoleDataInfo'
-        }
-      },
-
-      // 3️⃣ Unwind
-      {
-        $unwind: {
-          path: '$userRoleDataInfo',
-          preserveNullAndEmptyArrays: false
-        }
-      },
-
-      // 4️⃣ Match accepted providers only
-      {
-        $match: {
-          'userRoleDataInfo.providerApprovalStatus': 'accept'
-        }
-      },
-
-      // 5️⃣ Count only
-      {
-        $count: 'totalAcceptedProviders'
-      }
-    ];
-
-    const acceptedProvidersCount = await User.aggregate(countPipeline);
-    //--------------------------------------------------------------- END
-
-    // Transform stats into the required format
-    const statistics = {
-      // totalUser: roleStats.reduce((sum, stat) => sum + stat.count, 0),
-      totalUser: roleStats.find(stat => stat._id === 'user')?.count || 0,
-
-
-      // totalProviders: roleStats.find(stat => stat._id === 'provider')?.count || 0,
-      // totalProviders: 12,
-
-      totalProviders: acceptedProvidersCount[0]?.totalAcceptedProviders + 1 || 0, // hotfix: only shows thoses providers who's status is accept
-      
-      totalSubAdmin: roleStats.find(stat => stat._id === 'subAdmin')?.count || 0,
-      totalAdmin: roleStats.find(stat => stat._id === 'admin')?.count || 0,
-      totalServiceBooking: bookingCount[0]?.count || 0,
-      totalTransactionAmountForAdmin : totalTransactionAmountForAdmin[0]?.total || 0
-    };
-
-    
-
-    return {
-      statistics,
-      totalRevenueByMonth,
-      currentAndLastMonthUserCount,
-      currentAndLastMonthProviderCount,
-      serviceBookingCount,
-      
-    }
   }
 
 
@@ -717,8 +302,17 @@ export class UserService extends GenericService<typeof User, IUser> {
     if(data.dob){
       updateUserProfile.dob = data.dob;
     }
-  
+
     const res =  await updateUserProfile.save();
+
+    // 🔒 Invalidate cache after update
+    try {
+      const cacheKey = `user:${id}:profile`;
+      await redisClient.del(cacheKey);
+      logger.info(`User profile cache invalidated: ${cacheKey}`);
+    } catch (error) {
+      errorLogger.error('Cache invalidation error:', error);
+    }
 
     return {
       ...updateUser,
@@ -1284,8 +878,163 @@ export class UserService extends GenericService<typeof User, IUser> {
     }
   }
 
+  // ────────────────────────────────────────────────────────────────────────
+  // Support Mode & Notification Preferences
+  // ────────────────────────────────────────────────────────────────────────
 
-}
+  /**
+   * Get user's support mode
+   * @param userId - User ID
+   * @returns Support mode and notification preferences
+   */
+  async getSupportMode(userId: string) {
+    const userProfile = await UserProfile.findOne({ userId }).select(
+      'supportMode notificationStyle updatedAt'
+    );
+
+    if (!userProfile) {
+      // Create default profile if not exists
+      const newProfile = await UserProfile.create({
+        userId,
+        supportMode: 'calm',
+        notificationStyle: 'gentle',
+      });
+
+      return {
+        userId,
+        supportMode: newProfile.supportMode,
+        notificationStyle: newProfile.notificationStyle,
+        updatedAt: newProfile.updatedAt,
+      };
+    }
+
+    return {
+      userId,
+      supportMode: userProfile.supportMode || 'calm',
+      notificationStyle: userProfile.notificationStyle || 'gentle',
+      updatedAt: userProfile.updatedAt,
+    };
+  }
+
+  /**
+   * Update user's support mode
+   * @param userId - User ID
+   * @param supportMode - New support mode
+   * @returns Updated support mode info
+   */
+  async updateSupportMode(userId: string, supportMode: string) {
+    const userProfile = await UserProfile.findOneAndUpdate(
+      { userId },
+      { supportMode },
+      { new: true, upsert: true }
+    ).select('supportMode notificationStyle updatedAt');
+
+    return {
+      userId,
+      supportMode: userProfile.supportMode,
+      notificationStyle: userProfile.notificationStyle,
+      updatedAt: userProfile.updatedAt,
+    };
+  }
+
+  /**
+   * Update child's support mode (for parent/teacher)
+   * @param childUserId - Child user ID
+   * @param supportMode - New support mode
+   * @returns Updated support mode info
+   * @access Parent/Business users only
+   */
+  async updateChildSupportMode(childUserId: string, supportMode: string) {
+    const userProfile = await UserProfile.findOneAndUpdate(
+      { userId: childUserId },
+      { supportMode },
+      { new: true, upsert: true }
+    ).select('userId supportMode notificationStyle updatedAt');
+
+    return {
+      userId: userProfile.userId,
+      supportMode: userProfile.supportMode,
+      notificationStyle: userProfile.notificationStyle,
+      updatedAt: userProfile.updatedAt,
+    };
+  }
+
+  /**
+   * Update user's notification style
+   * @param userId - User ID
+   * @param notificationStyle - New notification style
+   * @returns Updated notification preferences
+   */
+  async updateNotificationStyle(userId: string, notificationStyle: string) {
+    const userProfile = await UserProfile.findOneAndUpdate(
+      { userId },
+      { notificationStyle },
+      { new: true, upsert: true }
+    ).select('supportMode notificationStyle updatedAt');
+
+    return {
+      userId,
+      supportMode: userProfile.supportMode,
+      notificationStyle: userProfile.notificationStyle,
+      updatedAt: userProfile.updatedAt,
+    };
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Preferred Time Management
+  // ────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get user's preferred working time
+   * @param userId - User ID
+   * @returns Preferred time in HH:mm format
+   * @see Figma: profile-permission-account-interface.png (Preferred Time section)
+   */
+  async getPreferredTime(userId: string) {
+    const user = await User.findById(userId).select('preferredTime').lean();
+
+    if (!user) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'User not found'
+      );
+    }
+
+    return {
+      userId,
+      preferredTime: user.preferredTime || '07:00',
+    };
+  }
+
+  /**
+   * Update user's preferred working time
+   * @param userId - User ID
+   * @param preferredTime - New preferred time in HH:mm format (24-hour)
+   * @returns Updated preferred time info
+   * @see Figma: profile-permission-account-interface.png (Preferred Time section)
+   */
+  async updatePreferredTime(userId: string, preferredTime: string) {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { preferredTime },
+      { new: true, runValidators: true }
+    ).select('preferredTime updatedAt');
+
+    if (!user) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'User not found'
+      );
+    }
+
+    return {
+      userId,
+      preferredTime: user.preferredTime,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+
 
 /*********
 const getAllUsers = async (
@@ -1306,3 +1055,176 @@ const getAllUsers = async (
 };
 
 ********** */
+
+  /**
+   * Get all users with pagination, search, and filters for admin dashboard
+   * Figma: main-admin-dashboard/user-list-flow.png
+   * 
+   * @param filters - Query filters
+   * @param options - Pagination options
+   * @returns Paginated users with statistics
+   */
+  async getAllUsersForAdminDashboard(
+    filters: {
+      search?: string;           // Search by username or email
+      role?: string;             // Filter by role: 'individual' | 'child' | 'business' | 'admin'
+      from?: string;             // Start date (ISO format)
+      to?: string;               // End date (ISO format)
+    },
+    options: {
+      page: number;
+      limit: number;
+      sortBy?: string;
+    }
+  ) {
+    const query: any = { isDeleted: false };
+
+    // Search by username or email
+    if (filters.search) {
+      query.$or = [
+        { name: { $regex: filters.search, $options: 'i' } },
+        { email: { $regex: filters.search, $options: 'i' } },
+      ];
+    }
+
+    // Filter by role
+    if (filters.role && filters.role !== 'all') {
+      query.role = filters.role;
+    }
+
+    // Filter by date range
+    if (filters.from || filters.to) {
+      query.createdAt = {};
+      if (filters.from) {
+        query.createdAt.$gte = new Date(filters.from);
+      }
+      if (filters.to) {
+        query.createdAt.$lte = new Date(filters.to);
+      }
+    }
+
+    const result = await User.paginate(query, {
+      page: options.page,
+      limit: options.limit,
+      sortBy: options.sortBy || '-createdAt',
+      populate: [
+        { path: 'profileId', select: 'location phoneNumber' },
+      ],
+      lean: true,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get user registration count for chart (monthly or yearly)
+   * Figma: main-admin-dashboard/user-list-flow.png (User ratio chart)
+   * 
+   * @param type - 'monthly' or 'yearly'
+   * @returns Chart data with user counts
+   */
+  async getUserRegistrationCountForChart(
+    type: 'monthly' | 'yearly' = 'monthly'
+  ) {
+    const now = new Date();
+
+    if (type === 'monthly') {
+      // Get monthly data for current year
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const yearEnd = new Date(now.getFullYear(), 11, 31);
+
+      const monthlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: yearStart, $lte: yearEnd },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.month': 1 } },
+      ]);
+
+      // Fill in missing months with 0
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dataMap = new Map(monthlyData.map((d: any) => [d._id.month, d.count]));
+      
+      const data = monthNames.map((name, index) => ({
+        period: (index + 1).toString(),
+        label: name,
+        count: dataMap.get(index + 1) || 0,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+      const lastYearTotal = await User.countDocuments({
+        createdAt: { $gte: lastYearStart, $lte: lastYearEnd },
+        isDeleted: false,
+      });
+      
+      const growthRate = lastYearTotal > 0 
+        ? ((totalUsers - lastYearTotal) / lastYearTotal) * 100 
+        : 0;
+
+      return {
+        type: 'monthly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    } else {
+      // Get yearly data (last 5 years)
+      const fiveYearsAgo = new Date();
+      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+      const yearlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fiveYearsAgo },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.year': 1 } },
+      ]);
+
+      const data = yearlyData.map((d: any) => ({
+        period: d._id.year.toString(),
+        label: d._id.year.toString(),
+        count: d.count,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate
+      const thisYear = data.find(d => d.period === now.getFullYear().toString())?.count || 0;
+      const lastYear = data.find(d => d.period === (now.getFullYear() - 1).toString())?.count || 0;
+      const growthRate = lastYear > 0 ? ((thisYear - lastYear) / lastYear) * 100 : 0;
+
+      return {
+        type: 'yearly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    }
+  }
+}
+

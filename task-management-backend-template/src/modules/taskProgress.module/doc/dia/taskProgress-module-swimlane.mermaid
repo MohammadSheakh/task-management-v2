@@ -1,0 +1,56 @@
+flowchart TB
+    subgraph "Parent/Business User"
+        P1[Create Collaborative Task] --> P2[Assign to Children]
+        P2 --> P3[View Progress Dashboard]
+        P3 --> P4[See Per-Child Stats]
+        P4 --> P5[Monitor Completion]
+    end
+    
+    subgraph "Child User"
+        C1[View Assigned Tasks] --> C2{Select Task}
+        C2 -->|Start| C3[Update Status: inProgress]
+        C2 -->|Complete Subtask| C4[Mark Subtask Done]
+        C2 -->|Complete Task| C5[Mark Task Complete]
+        C3 --> C6[Track Personal Progress]
+        C4 --> C7[See Percentage Update]
+        C5 --> C8[View Completion Stats]
+    end
+    
+    subgraph "TaskProgress Service"
+        T1[Receive Request] --> T2{Operation?}
+        T2 -->|Create| T3[createOrUpdateProgress]
+        T2 -->|Update| T4[updateProgressStatus]
+        T2 -->|Complete Subtask| T5[completeSubtask]
+        T2 -->|Get Progress| T6[getProgress]
+        T3 --> T7[Validate Task & User]
+        T4 --> T7
+        T5 --> T7
+        T7 --> T8[Database Operation]
+        T8 --> T9[Update Cache]
+        T9 --> T10[Return Result]
+    end
+    
+    subgraph "Database"
+        D1[TaskProgress Collection] --> D2[Indexes on taskId+userId]
+        D2 --> D3[Soft Delete Support]
+        D3 --> D4[Aggregate Pipelines]
+    end
+    
+    subgraph "Redis Cache"
+        R1[Progress Detail Cache] --> R2[5 min TTL]
+        R2 --> R3[Children Progress Cache]
+        R3 --> R4[3 min TTL]
+        R4 --> R5[Invalidate on Write]
+    end
+    
+    subgraph "Notification Service"
+        N1[Task Completed Event] --> N2[Send Parent Notification]
+        N2 --> N3[Update Activity Feed]
+    end
+    
+    P1 --> T1
+    C1 --> T1
+    T10 --> P3
+    T10 --> C6
+    T9 --> R1
+    T10 --> N1

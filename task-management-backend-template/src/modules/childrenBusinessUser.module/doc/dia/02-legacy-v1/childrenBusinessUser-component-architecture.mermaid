@@ -1,0 +1,71 @@
+flowchart TB
+    subgraph "Presentation Layer"
+        A1[Web Dashboard<br/>React Components]
+        A2[Mobile App<br/>Flutter Screens]
+        A3[Admin Panel<br/>React Components]
+    end
+
+    subgraph "Controller Layer"
+        B1[ChildrenBusinessUserController<br/>createChild]
+        B2[ChildrenBusinessUserController<br/>getMyChildren]
+        B3[ChildrenBusinessUserController<br/>removeChild]
+        B4[ChildrenBusinessUserController<br/>getParentBusinessUser]
+        B5[ChildrenBusinessUserController<br/>getStatistics]
+    end
+
+    subgraph "Service Layer"
+        C1[ChildrenBusinessUserService<br/>createChildAccount]
+        C2[ChildrenBusinessUserService<br/>getChildrenOfBusinessUser]
+        C3[ChildrenBusinessUserService<br/>removeChildFromFamily]
+        C4[ChildrenBusinessUserService<br/>getParentBusinessUser]
+        C5[ChildrenBusinessUserService<br/>getChildrenCount]
+    end
+
+    subgraph "Data Access Layer"
+        D1[GenericService<br/>CRUD Operations]
+        D2[ChildrenBusinessUser Model<br/>Mongoose Schema]
+        D3[User Model<br/>Mongoose Schema]
+        D4[SubscriptionPlan Model<br/>Mongoose Schema]
+    end
+
+    subgraph "Cache Layer"
+        E1[Redis Client<br/>Cache Operations]
+        E2[Cache Keys<br/>children:business:<id>]
+        E3[Cache Keys<br/>children:child:<id>]
+    end
+
+    subgraph "Cross-Cutting Concerns"
+        F1[Authentication Middleware]
+        F2[Rate Limiter]
+        F3[Validation Middleware<br/>Zod Schemas]
+        F4[Error Handler]
+        F5[Logger]
+    end
+
+    subgraph "External Dependencies"
+        G1[Subscription Module<br/>Check Limits]
+        G2[User Module<br/>Create Accounts]
+        G3[Notification Module<br/>Send Alerts]
+    end
+
+    A1 & A2 & A3 --> B1 & B2 & B3 & B4 & B5
+    B1 & B2 & B3 & B4 & B5 --> C1 & C2 & C3 & C4 & C5
+    C1 & C2 & C3 & C4 & C5 --> D1 & D2 & D3 & D4
+    C1 & C2 & C3 & C4 & C5 --> E1 & E2 & E3
+    C1 & C2 & C3 & C4 & C5 --> G1 & G2 & G3
+    F1 & F2 & F3 & F4 & F5 -.-> B1 & B2 & B3 & B4 & B5
+
+    style B1 fill:#e1f5ff
+    style B2 fill:#e1f5ff
+    style B3 fill:#e1f5ff
+    style B4 fill:#e1f5ff
+    style B5 fill:#e1f5ff
+    style C1 fill:#c8e6c9
+    style C2 fill:#c8e6c9
+    style C3 fill:#c8e6c9
+    style C4 fill:#c8e6c9
+    style C5 fill:#c8e6c9
+    style D1 fill:#fff4e1
+    style D2 fill:#fff4e1
+    style E1 fill:#f3e5f5
+    style F1 fill:#ffebee

@@ -11,7 +11,7 @@ import { TokenService } from '../modules/token/token.service';
 import { IUser } from '../modules/user.module/user/user.interface';
 import { IUserProfile } from '../modules/user.module/userProfile/userProfile.interface';
 import { UserProfile } from '../modules/user.module/userProfile/userProfile.model';
-import { TApprovalStatus } from '../modules/user.module/userProfile/userProfile.constant';
+
 
 const auth = (...roles: TRole[]/******** Previously it was string[] */) =>
   catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -32,23 +32,23 @@ const auth = (...roles: TRole[]/******** Previously it was string[] */) =>
       req.user = verifyUser;
 
       // Step 4: Check if the user exists and is active
-      const user:IUser = await User.findById(verifyUser?.userId);
+      const user: IUser = await User.findById(verifyUser?.userId);
       // TODO : MUST :: now userProfile does not contain information about approvalStatus and status
-      
+
       if (!user) {
         // user not found
         throw new ApiError(StatusCodes.UNAUTHORIZED, 'You are not authorized.');
       }
-      
-      // SO ... FIx this .. 
-      const userProfile : IUserProfile = await UserProfile.findById(user?.profileId);
 
-      if(!userProfile){
+      // SO ... FIx this .. 
+      const userProfile: IUserProfile = await UserProfile.findById(user?.profileId);
+
+      if (!userProfile) {
         // User profile not found. Please Log In again.
         throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized.');
       }
 
-       
+
       //------------------- As per khairul vai .. he is not designed this verification page .. 
       // else if (!user.isEmailVerified) {
       //   throw new ApiError(
@@ -56,7 +56,7 @@ const auth = (...roles: TRole[]/******** Previously it was string[] */) =>
       //     'Your account is not email verified. please verify your email'
       //   );
       // } 
-      
+
       // TODO : MUST FIX for Kaj Bd 
       // else if (user.role !== 'patient' && userProfile.approvalStatus == TApprovalStatus.pending){
       //     throw new ApiError(

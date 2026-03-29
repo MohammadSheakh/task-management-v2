@@ -1,0 +1,143 @@
+erDiagram
+    %% ===========================================
+    %% CHILDREN BUSINESS USER MODULE - SCHEMA (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% MAIN COLLECTION
+    CHILDREN_BUSINESS_USER {
+        ObjectId _id PK
+        ObjectId parentBusinessUserId FK "Parent/Teacher"
+        ObjectId childUserId FK "Child/Student"
+        DateTime addedAt
+        ObjectId addedBy FK "Who added"
+        String status "active|inactive|removed"
+        Boolean isSecondaryUser "Can create tasks"
+        String note
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% USER COLLECTION (Referenced)
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "business|child"
+        ObjectId accountCreatorId FK "Who created"
+        Boolean isBusinessUser "Is parent/teacher"
+        String profileImage
+        Boolean isEmailVerified
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% USER PROFILE (Referenced)
+    USER_PROFILE {
+        ObjectId _id PK
+        ObjectId userId FK
+        String supportMode "calm|encouraging|logical"
+        String notificationStyle "gentle|firm|xyz"
+        String preferredTime "HH:mm"
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% SUBSCRIPTION (For Limit Enforcement)
+    USER_SUBSCRIPTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        ObjectId subscriptionPlanId FK
+        String status "active|cancelled|expired"
+        DateTime currentPeriodEnd
+        Boolean isDeleted
+    }
+
+    SUBSCRIPTION_PLAN {
+        ObjectId _id PK
+        String subscriptionType "individual|business_starter|business_level1|business_level2"
+        Number maxChildrenAccount "Max children"
+        Number price
+        String currency
+        Boolean isActive
+    }
+
+    %% TASK (For Secondary User Permissions)
+    TASK {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        Boolean isDeleted
+        DateTime createdAt
+    }
+
+    %% TASKPROGRESS (For Real-Time Updates)
+    TASK_PROGRESS {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK "Child working"
+        String status "notStarted|inProgress|completed"
+        Number progressPercentage
+        DateTime completedAt
+        Boolean isDeleted
+    }
+
+    %% NOTIFICATION (For Activity Feed)
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String type "task|activity|permission"
+        String priority "low|normal|high|urgent"
+        String status "pending|sent|delivered|read"
+        DateTime createdAt
+    }
+
+    %% RELATIONSHIPS
+
+    CHILDREN_BUSINESS_USER }o--|| USER : "parent"
+    CHILDREN_BUSINESS_USER }o--|| USER : "child"
+    CHILDREN_BUSINESS_USER }o--|| USER : "added_by"
+
+    USER ||--o| USER_PROFILE : "has"
+    USER ||--o{ CHILDREN_BUSINESS_USER : "parent_of"
+    USER ||--o{ CHILDREN_BUSINESS_USER : "child_of"
+
+    USER ||--o{ USER_SUBSCRIPTION : "has"
+    USER_SUBSCRIPTION }o--|| SUBSCRIPTION_PLAN : "subscribed_to"
+
+    CHILDREN_BUSINESS_USER ||--o{ TASK : "creates" "Secondary user"
+    USER ||--o{ TASK : "creates"
+    TASK ||--o{ TASK_PROGRESS : "tracked_by"
+
+    CHILDREN_BUSINESS_USER ||--o{ NOTIFICATION : "triggers"
+    USER ||--o{ NOTIFICATION : "sends"
+    USER ||--o{ NOTIFICATION : "receives"
+
+    %% UNIQUENESS CONSTRAINTS
+    note "Only ONE Secondary User per business user"
+    note "Unique index: parentBusinessUserId + isSecondaryUser + status + isDeleted"
+
+    %% INDEXES
+    note "Indexes: parentBusinessUserId + status + isDeleted"
+    note "Indexes: childUserId + status + isDeleted"
+    note "Indexes: isSecondaryUser + parentBusinessUserId (unique)"
+
+    %% STYLING
+    style CHILDREN_BUSINESS_USER fill:#ef5350,color:#fff
+    style USER fill:#42a5f5,color:#fff
+    style USER_PROFILE fill:#42a5f5,color:#fff
+    style USER_SUBSCRIPTION fill:#ab47bc,color:#fff
+    style SUBSCRIPTION_PLAN fill:#ab47bc,color:#fff
+    style TASK fill:#66bb6a,color:#fff
+    style TASK_PROGRESS fill:#66bb6a,color:#fff
+    style NOTIFICATION fill:#ffca28,color:#000

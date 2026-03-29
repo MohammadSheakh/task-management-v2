@@ -1,0 +1,57 @@
+flowchart TD
+    subgraph "Business User Flow"
+        A[Business User Registers] --> B[Purchase Business Subscription]
+        B --> C{Subscription Type?}
+        C -->|business_starter| D1[Max 4 Children]
+        C -->|business_level1| D2[Max 40 Children]
+        C -->|business_level2| D3[Max 999 Children]
+    end
+
+    subgraph "Create Child Account Flow"
+        D1 & D2 & D3 --> E[POST /children-business-users/children]
+        E --> F{Check Subscription Limit}
+        F -->|Exceeded| G[Return Error 400]
+        F -->|Under Limit| H{Email Exists?}
+        H -->|Yes| I[Return Error 400]
+        H -->|No| J[Create Child User Account]
+        J --> K[Set accountCreatorId = businessUserId]
+        K --> L[Create Relationship Record]
+        L --> M[Invalidate Redis Cache]
+        M --> N[Return Success 201]
+    end
+
+    subgraph "View Children Flow"
+        O[GET /children-business-users/my-children] --> P{Check Cache}
+        P -->|Hit| Q[Return Cached Data]
+        P -->|Miss| R[Query Database]
+        R --> S[Aggregate with User Data]
+        S --> T[Cache Result]
+        T --> U[Return Children List]
+    end
+
+    subgraph "Remove Child Flow"
+        V[DELETE /children-business-users/children/:id] --> W{Relationship Exists?}
+        W -->|No| X[Return Error 404]
+        W -->|Yes| Y[Soft Delete Relationship]
+        Y --> Z[Set status = removed]
+        Z --> AA[Invalidate Cache]
+        AA --> AB[Return Success 200]
+    end
+
+    subgraph "Child View Parent Flow"
+        AC[GET /children-business-users/my-parent] --> AD{Child Has Parent?}
+        AD -->|No| AE[Return Error 404]
+        AD -->|Yes| AF[Query Parent Business User]
+        AF --> AG[Cache Parent Info]
+        AG --> AH[Return Parent Details]
+    end
+
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style E fill:#fff4e1
+    style O fill:#e8f5e9
+    style V fill:#ffebee
+    style AC fill:#f3e5f5
+    style N fill:#c8e6c9
+    style G fill:#ffcdd2
+    style I fill:#ffcdd2

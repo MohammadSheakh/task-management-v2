@@ -1,0 +1,541 @@
+{
+	"info": {
+		"_postman_id": "01-user-common-part1-v3-complete",
+		"name": "01 - User Common (Part 1: Profile + Tasks + Charts + Preferences)",
+		"description": "Common user endpoints: User Profile, Tasks, Chart Analytics, and Task Preferences\n\n**Authentication Required**: Yes\n**Header**: Authorization: Bearer {{accessToken}}\n\n**Rate Limits**:\n- User endpoints: 30 requests / minute\n- Task creation: 30 / hour (5/day max for personal)\n- Chart endpoints: 30 / minute\n- Preferred time: 30 / minute\n\n**Base URL**: {{baseUrl}}/v1\n\n**Last Updated**: 14-03-26\n**Version**: 3.0 - Complete with Preferred Time",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "taskId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "businessUserId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "subtaskId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01 - User Profile",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "profile"]
+						},
+						"description": "Get current user profile with statistics"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile Info",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe Updated\",\n  \"phoneNumber\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/users/profile-info",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "users", "profile-info"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Task Management",
+			"item": [
+				{
+					"name": "Get Daily Progress",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/daily-progress?date=2026-03-14",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "daily-progress"],
+							"query": [
+								{
+									"key": "date",
+									"value": "2026-03-14"
+								}
+							]
+						},
+						"description": "Get daily task progress for dashboard display\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"date\": \"2026-03-14\",\n    \"totalTasks\": 5,\n    \"completedTasks\": 2,\n    \"pendingTasks\": 3,\n    \"inProgressTasks\": 0,\n    \"progressPercentage\": 40,\n    \"tasks\": [...]\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task Statistics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/statistics",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "statistics"]
+						},
+						"description": "Get task statistics by status\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total\": 25,\n    \"pending\": 10,\n    \"inProgress\": 5,\n    \"completed\": 10\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Tasks (Filtered)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks?status=pending&taskType=personal&priority=high&sortBy=-startTime",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks"],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending"
+								},
+								{
+									"key": "taskType",
+									"value": "personal"
+								},
+								{
+									"key": "priority",
+									"value": "high"
+								},
+								{
+									"key": "sortBy",
+									"value": "-startTime"
+								}
+							]
+						},
+						"description": "Get filtered task list\n\n**Filters**:\n- status: pending|inProgress|completed\n- taskType: personal|singleAssignment|collaborative\n- priority: low|medium|high\n- from: Start date (ISO)\n- to: End date (ISO)\n- sortBy: Field to sort (- for desc)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Tasks (Paginated)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/paginate?page=1&limit=10&status=pending&sortBy=-startTime",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "paginate"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "status",
+									"value": "pending"
+								},
+								{
+									"key": "sortBy",
+									"value": "-startTime"
+								}
+							]
+						},
+						"description": "Get paginated task list with advanced filtering\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"tasks\": [...],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 10,\n      \"total\": 45,\n      \"totalPages\": 5\n    }\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}"]
+						},
+						"description": "Get single task details with subtasks and populated user data\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"_id\": \"task123\",\n    \"title\": \"Math Homework\",\n    \"status\": \"pending\",\n    \"priority\": \"high\",\n    \"taskType\": \"personal\",\n    \"scheduledTime\": \"10:30 AM\",\n    \"subtasks\": [...],\n    \"createdById\": {...},\n    \"ownerUserId\": {...}\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Task",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"New Task\",\n  \"description\": \"Task description\",\n  \"taskType\": \"personal\",\n  \"priority\": \"medium\",\n  \"startTime\": \"2026-03-14T10:00:00.000Z\",\n  \"scheduledTime\": \"10:00 AM\",\n  \"dueDate\": \"2026-03-15T23:59:59.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks"]
+						},
+						"description": "Create a new task\n\n**Task Types**:\n- personal: For yourself only\n- singleAssignment: Assign to one person\n- collaborative: Assign to multiple people\n\n**Permission Required**:\n- Business users: Always allowed\n- Child users: Must be Secondary User\n\n**Rate Limit**: 30 requests/hour\n**Daily Limit**: Max 5 personal tasks per day"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Task Title\",\n  \"description\": \"Updated description\",\n  \"priority\": \"high\",\n  \"dueDate\": \"2026-03-20T23:59:59.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}"]
+						},
+						"description": "Update task details\n\n**Access**: Only task creator or owner can update"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"completed\",\n  \"completedTime\": \"2026-03-14T12:00:00.000Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}", "status"]
+						},
+						"description": "Update task status\n\n**Valid Statuses**:\n- pending\n- inProgress\n- completed\n\n**Valid Transitions**:\n- pending → inProgress → completed\n- pending → completed (direct)\n- inProgress → pending (pause)\n\n**Note**: Completed tasks cannot change status"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Subtask Progress",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"subtasks\": [\n    {\n      \"title\": \"Step 1\",\n      \"isCompleted\": true,\n      \"duration\": \"15 min\"\n    },\n    {\n      \"title\": \"Step 2\",\n      \"isCompleted\": true,\n      \"duration\": \"20 min\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}/subtasks/progress",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}", "subtasks", "progress"]
+						},
+						"description": "Update all subtasks at once\n\n**Auto-Updates**:\n- totalSubtasks count\n- completedSubtasks count\n- completionPercentage\n- status (auto-completed if all done)\n- completedTime (auto-set if all done)"
+					},
+					"response": []
+				},
+				{
+					"name": "Soft Delete Task",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}"]
+						},
+						"description": "Soft delete task (sets isDeleted: true)\n\n**Access**: Only task creator or owner"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Preferred Time Suggestion",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/suggest-preferred-time?assignedUserId=",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "suggest-preferred-time"],
+							"query": [
+								{
+									"key": "assignedUserId",
+									"value": "",
+									"description": "Optional: Get suggestion for assignee (parent creating for child)"
+								}
+							]
+						},
+						"description": "Get AI-powered time suggestion for task scheduling\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"suggestedTime\": \"09:00\",\n    \"suggestedTime12Hour\": \"09:00 AM\",\n    \"basedOn\": \"your_preferred_time\",\n    \"confidence\": \"high\",\n    \"explanation\": \"Based on your task history, you usually start tasks at 09:00 AM.\",\n    \"alternativeTimes\": [\"08:00\", \"09:00\", \"10:00\"]\n  }\n}\n```\n\n**Use Cases**:\n1. Creating task → Get suggested time\n2. Parent creating for child → Pass assignedUserId\n3. Scheduling optimization → Use suggestion"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - SubTask Management",
+			"item": [
+				{
+					"name": "Add Subtask",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"New Subtask\",\n  \"duration\": \"30 min\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}/subtasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}", "subtasks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Subtasks",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}/subtasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}", "subtasks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle Subtask",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tasks/{{taskId}}/subtasks/{{subtaskId}}/toggle",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "tasks", "{{taskId}}", "subtasks", "{{subtaskId}}", "toggle"]
+						},
+						"description": "Toggle subtask completion status"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

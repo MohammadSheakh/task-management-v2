@@ -1,0 +1,74 @@
+erDiagram
+    %% Task Module System Architecture V2 (Family-Based)
+    %% Removed: Group module dependencies
+    %% Added: Family structure via ChildrenBusinessUser relationship
+
+    subgraph Client Layer
+        FLUTTER_APP["Flutter Mobile App\n(Children/Group Members)"]
+        WEB_DASHBOARD["Teacher/Parent Dashboard\n(Web)"]
+        ADMIN_DASHBOARD["Admin Dashboard\n(Web)"]
+    end
+
+    subgraph API Layer
+        ROUTE["task.route.ts\nRate Limiting\nAuthentication\nAuthorization"]
+        CONTROLLER["task.controller.ts\nHTTP Request Handling\nResponse Formatting"]
+        MIDDLEWARE["task.middleware.ts\nPermission Checks\nTask Access Validation\nStatus Transition"]
+    end
+
+    subgraph Business Logic Layer
+        SERVICE["task.service.ts\nTask CRUD Operations\nCache Management\nActivity Tracking"]
+        CACHE["Redis Cache\nCache-Aside Pattern\nTTL: 2-5 min\nKeys: task:*"]
+        QUEUE["BullMQ Queue\npreferredTimeQueue\nAsync Calculations"]
+    end
+
+    subgraph Data Layer
+        TASK_MODEL["Task Model\nMongoose Schema\nIndexes\nPagination Plugin"]
+        USER_MODEL["User Model\nPreferred Time\nProfile Data"]
+        CHILDREN_MODEL["ChildrenBusinessUser\nFamily Relationships\nSecondary User Permissions"]
+        PROGRESS_MODEL["TaskProgress Model\nIndividual Tracking\nPer-user Status"]
+        MONGODB[("MongoDB\nPrimary Database\nCollections: tasks,\nusers, children_business_users")]
+    end
+
+    subgraph Real-time Layer
+        SOCKET["Socket.io\nReal-time Events\nTask Updates\nFamily Activity Feed"]
+    end
+
+    subgraph Notification Layer
+        NOTIF_SERVICE["Notification Service\nFamily Activity Recording\nReal-time Alerts"]
+    end
+
+    FLUTTER_APP --> ROUTE
+    WEB_DASHBOARD --> ROUTE
+    ADMIN_DASHBOARD --> ROUTE
+
+    ROUTE --> MIDDLEWARE
+    ROUTE --> CONTROLLER
+    CONTROLLER --> SERVICE
+
+    SERVICE --> CACHE
+    SERVICE --> QUEUE
+    SERVICE --> TASK_MODEL
+    SERVICE --> NOTIF_SERVICE
+    SERVICE --> SOCKET
+
+    TASK_MODEL --> MONGODB
+    USER_MODEL --> MONGODB
+    CHILDREN_MODEL --> MONGODB
+    PROGRESS_MODEL --> MONGODB
+
+    CACHE -.->|"Cache Hit/Miss"| SERVICE
+    QUEUE -.->|"Async Job"| SERVICE
+
+    classDef client fill:#e1f5ff,stroke:#0066cc
+    classDef api fill:#fff4e1,stroke:#cc6600
+    classDef business fill:#e8f5e9,stroke:#2e7d32
+    classDef data fill:#f3e5f5,stroke:#7b1fa2
+    classDef realtime fill:#ffebee,stroke:#c62828
+    classDef notif fill:#fff8e1,stroke:#ff8f00
+
+    class FLUTTER_APP,WEB_DASHBOARD,ADMIN_DASHBOARD client
+    class ROUTE,CONTROLLER,MIDDLEWARE api
+    class SERVICE,CACHE,QUEUE business
+    class TASK_MODEL,USER_MODEL,CHILDREN_MODEL,PROGRESS_MODEL,MONGODB data
+    class SOCKET realtime
+    class NOTIF_SERVICE notif

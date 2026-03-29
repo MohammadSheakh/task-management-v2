@@ -508,20 +508,198 @@ export class UserController extends GenericController<
   updateProfileImageSeparately = catchAsync(async (req: Request, res: Response) => {
     const id = req.user.userId;
     req.body.profileImage = req.uploadedFiles.profileImage; // it actually returns array of string
-    
+
     const data = req.body;
 
     const result = await this.userService.updateProfileImageSeperately(id, data);
-    
+
     sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
       message: `${this.modelName} updated successfully`,
       success: true,
     });
-    
+
   });
-  
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Support Mode & Notification Preferences
+  // ────────────────────────────────────────────────────────────────────────
+
+  /** ----------------------------------------------
+   * @role User
+   * @Section Profile
+   * @module UserProfile
+   * @figmaIndex 06-03
+   * @desc Get user's support mode preference
+   *----------------------------------------------*/
+  getSupportMode = catchAsync(async (req: Request, res: Response) => {
+    const userId = (req.user as IUser).userId;
+
+    const result = await this.userService.getSupportMode(userId);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Support mode retrieved successfully',
+      success: true,
+    });
+  });
+
+  /** ----------------------------------------------
+   * @role User
+   * @Section Profile
+   * @module UserProfile
+   * @figmaIndex 06-03
+   * @desc Update user's support mode preference
+   *----------------------------------------------*/
+  updateSupportMode = catchAsync(async (req: Request, res: Response) => {
+    const userId = (req.user as IUser).userId;
+    const { supportMode } = req.body;
+
+    const result = await this.userService.updateSupportMode(userId, supportMode);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Support mode updated successfully',
+      success: true,
+    });
+  });
+
+  /** ----------------------------------------------✔️
+   * @role Business | Parent | Task Details | task-details-flow-apis.png | Update child's support mode
+   * @Section Profile
+   * @module UserProfile
+   * @figmaIndex task-details-flow-apis.png
+   * @desc Parent updates their child's support mode preference
+   *----------------------------------------------*/
+  updateChildSupportMode = catchAsync(async (req: Request, res: Response) => {
+    const { childUserId, supportMode } = req.body;
+
+    const result = await this.userService.updateChildSupportMode(childUserId, supportMode);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Child support mode updated successfully',
+      success: true,
+    });
+  });
+
+  /** ----------------------------------------------
+   * @role User
+   * @Section Profile
+   * @module UserProfile
+   * @figmaIndex 06-03
+   * @desc Update user's notification style preference
+   *----------------------------------------------*/
+  updateNotificationStyle = catchAsync(async (req: Request, res: Response) => {
+    const userId = (req.user as IUser).userId;
+    const { notificationStyle } = req.body;
+
+    const result = await this.userService.updateNotificationStyle(userId, notificationStyle);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Notification style updated successfully',
+      success: true,
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Preferred Time Management
+  // ────────────────────────────────────────────────────────────────────────
+
+  /** ----------------------------------------------
+   * @role Child | Business | User
+   * @Section Profile
+   * @module User
+   * @figmaIndex profile-permission-account-interface.png
+   * @desc Get user's preferred working time for tasks
+   *----------------------------------------------*/
+  getPreferredTime = catchAsync(async (req: Request, res: Response) => {
+    const userId = (req.user as IUser).userId;
+
+    const result = await this.userService.getPreferredTime(userId);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Preferred time retrieved successfully',
+      success: true,
+    });
+  });
+
+  /** ----------------------------------------------
+   * @role Child | Business | User
+   * @Section Profile
+   * @module User
+   * @figmaIndex profile-permission-account-interface.png
+   * @desc Update user's preferred working time for tasks
+   * @validation HH:mm format (24-hour), range: 05:00-23:00
+   *----------------------------------------------*/
+  updatePreferredTime = catchAsync(async (req: Request, res: Response) => {
+    const userId = (req.user as IUser).userId;
+    const { preferredTime } = req.body;
+
+    const result = await this.userService.updatePreferredTime(userId, preferredTime);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Preferred time updated successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get all users for admin dashboard with pagination, search, and filters
+   * Figma: main-admin-dashboard/user-list-flow.png
+   */
+  getAllUsersForAdminDashboard = catchAsync(async (req: Request, res: Response) => {
+    const filters = {
+      search: req.query.search as string,
+      role: req.query.role as string,
+      from: req.query.from as string,
+      to: req.query.to as string,
+    };
+
+    const options = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 20,
+      sortBy: req.query.sortBy as string || '-createdAt',
+    };
+
+    const result = await this.userService.getAllUsersForAdminDashboard(filters, options);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Users retrieved successfully for admin dashboard',
+      success: true,
+    });
+  });
+
+  /**
+   * Get user registration count for chart (monthly or yearly)
+   * Figma: main-admin-dashboard/user-list-flow.png
+   */
+  getUserRegistrationCountForChart = catchAsync(async (req: Request, res: Response) => {
+    const { type = 'monthly' } = req.query;
+    
+    const result = await this.userService.getUserRegistrationCountForChart(
+      type as 'monthly' | 'yearly'
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'User registration count retrieved successfully',
+      success: true,
+    });
+  });
 }
 
 

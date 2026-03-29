@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant A as Admin
+    participant API as Subscription API
+    participant SP as SubscriptionPlan Service
+    participant Stripe as Stripe API
+    participant DB as MongoDB
+
+    A->>API: POST /subscription-plans/
+    API->>A: Authenticate (Admin)
+    
+    A->>API: Create Plan (name, price, features)
+    API->>SP: Validate plan data
+    
+    SP->>SP: Create Stripe Product
+    SP->>Stripe: products.create()
+    Stripe-->>SP: stripe_product_id
+    
+    SP->>Stripe: prices.create()
+    Stripe-->>SP: stripe_price_id
+    
+    SP->>DB: Save SubscriptionPlan
+    DB-->>SP: Plan created
+    
+    SP-->>API: Plan created successfully
+    API-->>A: Return plan with IDs

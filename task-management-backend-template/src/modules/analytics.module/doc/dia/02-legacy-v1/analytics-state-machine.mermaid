@@ -1,0 +1,48 @@
+stateDiagram-v2
+    [*] --> Idle
+
+    Idle --> RequestReceived: GET /analytics/*
+
+    state RequestReceived {
+        [*] --> Authenticate
+        Authenticate --> CacheCheck: Auth valid
+        CacheCheck --> CacheHit: Has cache
+        CacheCheck --> CacheMiss: No cache
+    }
+
+    CacheHit --> ReturnCached: Return cached data
+    ReturnCached --> [*]
+
+    state CacheMiss {
+        [*] --> AggregateData
+        AggregateData --> CalculateMetrics
+        CalculateMetrics --> CacheResult
+    }
+
+    CacheResult --> ReturnFresh: Return fresh data
+    ReturnFresh --> [*]
+
+    state CacheInvalidation {
+        [*] --> DetectChange: Task/Group updated
+        DetectChange --> InvalidateKeys: Invalidate related keys
+        InvalidateKeys --> [*]
+    }
+
+    state ScheduledJob {
+        [*] --> PreCompute: Midnight daily
+        PreCompute --> AggregateAll: Aggregate all users
+        AggregateAll --> UpdateCache: Update pre-computed cache
+        UpdateCache --> [*]
+    }
+
+    %% Transitions
+    RequestReceived --> CacheInvalidation: On data change
+    ScheduledJob --> CacheResult: Pre-computed data ready
+
+    note right of Idle
+        Analytics Module States:
+        - User Analytics
+        - Task Analytics
+        - Group Analytics
+        - Admin Analytics
+    end note

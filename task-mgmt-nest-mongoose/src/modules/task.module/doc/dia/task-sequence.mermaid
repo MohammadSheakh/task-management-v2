@@ -1,0 +1,48 @@
+sequenceDiagram
+    participant C as Client
+    participant API as API
+    participant DB as Database
+
+    Note over C,DB: Standard Pagination Flow
+
+    C->>API: GET /tasks/paginate?page=1&limit=20
+    API->>DB: find(filters).skip(0).limit(20).count()
+    DB-->>API: {data: [], total: 100}
+    API-->>C: {data, total, page, totalPages}
+
+    Note over C,DB: Aggregation Pagination Flow
+
+    C->>API: GET /tasks/aggregate?page=1
+    API->>DB: aggregate(pipeline).skip(0).limit(20)
+    API->>DB: aggregate(countPipeline)
+    DB-->>API: {data: [], total: 100}
+    API-->>C: {data, total, page, totalPages}
+
+    Note over C,DB: Virtual Populate Flow
+
+    C->>API: GET /tasks/:id
+    API->>DB: findById(id).populate('subtasks')
+    DB-->>API: {task, subtasks: []}
+    API-->>C: {task, subtasks}
+
+    Note over C,DB: Cache-Aside Flow
+
+    C->>API: GET /tasks/:id
+    API->>Redis: GET task:id:detail
+    alt Cache Hit
+        Redis-->>API: cachedData
+        API-->>C: cachedData
+    else Cache Miss
+        API->>DB: findById(id)
+        DB-->>API: task
+        API->>Redis: SETEX task:id:detail 300 task
+        API-->>C: task
+    end
+
+    Note over C,DB: Cache Invalidation Flow
+
+    C->>API: PUT /tasks/:id
+    API->>DB: updateOne(id, update)
+    API->>Redis: DEL task:id:detail
+    Redis-->>API: OK
+    API-->>C: updatedTask

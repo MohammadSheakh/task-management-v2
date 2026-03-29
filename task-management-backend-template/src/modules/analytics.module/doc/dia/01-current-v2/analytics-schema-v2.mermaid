@@ -1,0 +1,161 @@
+erDiagram
+    %% ===========================================
+    %% ANALYTICS MODULE - DATA SOURCES (v2.0)
+    %% Updated: 12-03-26
+    %% Note: Analytics module aggregates from other modules
+    %%       It does NOT store its own data
+    %% ===========================================
+
+    %% USER DATA SOURCE
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "user|admin|business|child"
+        ObjectId accountCreatorId FK
+        Boolean isBusinessUser
+        DateTime createdAt
+    }
+
+    USER_PROFILE {
+        ObjectId _id PK
+        ObjectId userId FK
+        String supportMode "calm|encouraging|logical"
+        String notificationStyle "gentle|firm|xyz"
+        String preferredTime "HH:mm"
+    }
+
+    %% TASK DATA SOURCE
+    TASK {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        String priority "low|medium|high"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        DateTime startTime
+        DateTime completedTime
+        Number totalSubtasks
+        Number completedSubtasks
+        Number completionPercentage
+    }
+
+    %% TASKPROGRESS DATA SOURCE (NEW!)
+    TASK_PROGRESS {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        String status "notStarted|inProgress|completed"
+        Number[] completedSubtaskIndexes
+        Number progressPercentage
+        DateTime startedAt
+        DateTime completedAt
+    }
+
+    %% CHILDREN BUSINESS USER DATA SOURCE (NEW!)
+    CHILDREN_BUSINESS_USER {
+        ObjectId _id PK
+        ObjectId parentBusinessUserId FK
+        ObjectId childUserId FK
+        Boolean isSecondaryUser
+        String status "active|inactive|removed"
+        DateTime addedAt
+    }
+
+    %% NOTIFICATION DATA SOURCE
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String type "task|reminder|assignment|deadline|activity"
+        String priority "low|normal|high|urgent"
+        String status "pending|sent|delivered|read|failed"
+        DateTime createdAt
+    }
+
+    %% SUBSCRIPTION DATA SOURCE
+    USER_SUBSCRIPTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        ObjectId subscriptionPlanId FK
+        String status "active|cancelled|expired|trial"
+        Number amount
+        DateTime currentPeriodEnd
+    }
+
+    %% ANALYTICS CACHE STRUCTURES (Redis - Virtual)
+    ANALYTICS_USER_CACHE {
+        String cacheKey "analytics:user:{userId}:overview"
+        ObjectId userId
+        Number totalTasks
+        Number completedTasks
+        Number completionRate
+        Number currentStreak
+        Number productivityScore
+        DateTime lastUpdated
+        Number ttl "5 minutes"
+    }
+
+    ANALYTICS_FAMILY_CACHE {
+        String cacheKey "analytics:family:{businessUserId}:overview"
+        ObjectId businessUserId
+        Number childrenCount
+        Number totalTasks
+        Number completedToday
+        Number completionRate
+        DateTime lastUpdated
+        Number ttl "5 minutes"
+    }
+
+    ANALYTICS_CHART_CACHE {
+        String cacheKey "analytics:charts:{type}:{params}"
+        String chartType "user-growth|task-status|family-activity|..."
+        Object chartData "labels[], datasets[]"
+        DateTime cachedAt
+        Number ttl "5 minutes"
+    }
+
+    %% RELATIONSHIPS
+
+    USER ||--o| USER_PROFILE : "has"
+    USER ||--o{ TASK : "creates"
+    USER ||--o{ TASK : "owns"
+    USER ||--o{ TASK : "assigned_to"
+    USER ||--o{ TASK_PROGRESS : "works_on"
+    USER ||--o{ CHILDREN_BUSINESS_USER : "parent_of"
+    USER ||--o{ CHILDREN_BUSINESS_USER : "child_of"
+    USER ||--o{ NOTIFICATION : "sends"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ USER_SUBSCRIPTION : "has"
+
+    TASK ||--o{ TASK_PROGRESS : "tracked_by"
+    TASK ||--o{ NOTIFICATION : "triggers"
+
+    TASK_PROGRESS }o--|| USER : "belongs_to"
+    TASK_PROGRESS }o--|| TASK : "tracks"
+
+    CHILDREN_BUSINESS_USER }o--|| USER : "parent"
+    CHILDREN_BUSINESS_USER }o--|| USER : "child"
+
+    USER_SUBSCRIPTION ||--o| SUBSCRIPTION_PLAN : "subscribed_to"
+
+    %% ANALYTICS AGGREGATION (Virtual - Read-Only)
+    note "Analytics Module aggregates from these collections"
+    note "It does NOT store data - only caches results in Redis"
+    note "Cache TTLs: 1-15 minutes depending on data type"
+
+    %% STYLING
+    style USER fill:#42a5f5,color:#fff
+    style USER_PROFILE fill:#42a5f5,color:#fff
+    style TASK fill:#66bb6a,color:#fff
+    style TASK_PROGRESS fill:#66bb6a,color:#fff
+    style CHILDREN_BUSINESS_USER fill:#ef5350,color:#fff
+    style NOTIFICATION fill:#ffca28,color:#000
+    style USER_SUBSCRIPTION fill:#ab47bc,color:#fff
+    style ANALYTICS_USER_CACHE fill:#bdbdbd,color:#000
+    style ANALYTICS_FAMILY_CACHE fill:#bdbdbd,color:#000
+    style ANALYTICS_CHART_CACHE fill:#bdbdbd,color:#000

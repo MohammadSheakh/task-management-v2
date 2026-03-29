@@ -1,0 +1,22 @@
+flowchart TD
+    A[User Opens Task] --> B[View Subtasks]
+    B --> C{User Type?}
+    
+    C -->|Parent| P1[Add Subtasks]
+    P1 --> P2[Edit Subtasks]
+    P2 --> P3[Delete Subtasks]
+    P3 --> P4[Monitor Progress]
+    
+    C -->|Child| C1[View Assigned Subtasks]
+    C1 --> C2[Complete Subtask]
+    C2 --> C3[Update Progress]
+    C3 --> C4[See Completion %]
+    
+    C -->|Individual| I1[Manage Own Subtasks]
+    I1 --> I2[Add Subtask]
+    I2 --> I3[Complete Subtask]
+    I3 --> I4[Track Progress]
+    
+    P4 --> P1
+    C4 --> C1
+    I4 --> I1

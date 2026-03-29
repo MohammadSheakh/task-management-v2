@@ -1,0 +1,46 @@
+flowchart LR
+    subgraph ReadPath["Read Operations Path"]
+        Request[GET Request] --> Cache{Cache Hit?}
+        Cache -->|Yes| CachedData[Return Cached Data]
+        Cache -->|No| DB[Query MongoDB]
+        DB --> Lean[Use .lean]
+        Lean --> Project[Apply Projection]
+        Project --> Transform[Transform Data]
+        Transform --> CacheSet[Set in Cache]
+        CacheSet --> Response[Return Response]
+    end
+
+    subgraph WritePath["Write Operations Path"]
+        WriteRequest[POST/PUT Request] --> Validate[Validate with Zod]
+        Validate --> Auth[Authenticate User]
+        Auth --> WriteDB[Write to MongoDB]
+        WriteDB --> CacheInvalid[Invalidate Cache]
+        CacheInvalid --> WriteResponse[Return Response]
+    end
+
+    subgraph HeavyOp["Heavy Operations Path"]
+        HeavyRequest[Heavy Request] --> Check{> 500ms?}
+        Check -->|Yes| BullMQ[Add to BullMQ Queue]
+        BullMQ --> Accept[202 Accepted]
+        Accept --> JobResponse[Return Job ID]
+        BullMQ --> Worker[Background Worker]
+        Worker --> ProcessDB[Process in DB]
+        ProcessDB --> Notify[Send Notification]
+    end
+
+    subgraph RateLimit["Rate Limiting"]
+        Incoming[Incoming Request] --> RateCheck{Within Limit?}
+        RateCheck -->|No| Reject[429 Too Many Requests]
+        RateCheck -->|Yes| Allow[Allow Request]
+        Allow --> ReadPath
+        Allow --> WritePath
+        Allow --> HeavyOp
+    end
+
+    subgraph Monitoring["Monitoring & Logging"]
+        Request --> LogReq[Log Request]
+        Response --> LogRes[Log Response]
+        WriteResponse --> LogWrite[Log Write Operation]
+        JobResponse --> LogJob[Log Job Creation]
+        Reject --> LogReject[Log Rate Limit Hit]
+    end

@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { User } from '../modules/user.module/user/user.model';
 import { UserProfile } from '../modules/user.module/userProfile/userProfile.model';
 import { TSubscription } from '../enums/subscription';
-import { Wallet } from '../modules/wallet.module/wallet/wallet.model';
+// import { Wallet } from '../modules/wallet.module/wallet/wallet.model';
 // Load environment variables
 dotenv.config();
 
@@ -20,8 +20,8 @@ const usersData = [
     role: 'admin',
     isEmailVerified: true,
     isDeleted: false,
-    isResetPassword:false,
-    failedLoginAttempts : 0,
+    isResetPassword: false,
+    failedLoginAttempts: 0,
     deletedAt: null,
   },
 ];
@@ -52,22 +52,24 @@ const seedUsers = async () => {
         // Note: if your schema requires userId, you'll need to update it later
       });
 
+      /*---------
       const usersWallet = await Wallet.create({
         amount : 0,
         // Note: if your schema requires userId, you'll need to update it later
       });
+      ---------*/
 
       // 2. Create User with profileId
       const user = await User.create({
-        ...userData, 
+        ...userData,
         profileId: userProfile._id,
-        walletId: usersWallet._id,
+        // walletId: usersWallet._id,
       });
 
 
       // If UsersWallet requires userId, update it now:
-      await Wallet.findByIdAndUpdate(usersWallet._id, { userId: user._id });
-    
+      // await Wallet.findByIdAndUpdate(usersWallet._id, { userId: user._id });
+
       // 3. If UserProfile requires userId, update it now:
       // await UserProfile.findByIdAndUpdate(userProfile._id, { userId: user._id });
     }

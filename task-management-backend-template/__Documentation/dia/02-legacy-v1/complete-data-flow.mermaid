@@ -1,0 +1,165 @@
+flowchart TB
+    %% ===========================================
+    %% COMPLETE DATA FLOW - END TO END
+    %% ===========================================
+    
+    subgraph UserActions["👤 User Actions"]
+        SIGNUP["1. User Signup"]
+        LOGIN["2. User Login"]
+        CREATE_TASK["3. Create Task"]
+        COMPLETE["4. Complete Task"]
+        SUBSCRIBE["5. Subscribe"]
+    end
+    
+    subgraph APIGateway["🔌 API Gateway"]
+        JWT_AUTH["JWT Authentication"]
+        RATE_LIMIT["Rate Limiting"]
+        REQUEST_LOG["Request Logging"]
+    end
+    
+    subgraph BusinessLogic["⚙️ Business Logic Layer"]
+        
+        subgraph TaskFlow["📋 Task Flow"]
+            TASK_VALID["Validate Task Data"]
+            TASK_CREATE["Create Task"]
+            TASK_CACHE["Cache Task"]
+            TASK_ACTIVITY["Record Activity"]
+        end
+        
+        subgraph GroupFlow["👥 Group Flow"]
+            GROUP_VALID["Validate Group Data"]
+            GROUP_CREATE["Create Group"]
+            INVITE_SEND["Send Invitations"]
+            MEMBER_ADD["Add Member"]
+        end
+        
+        subgraph NotificationFlow["🔔 Notification Flow"]
+            NOTIF_CREATE["Create Notification"]
+            NOTIF_QUEUE["Queue Notification"]
+            NOTIF_SEND["Send Notification"]
+        end
+        
+        subgraph AnalyticsFlow["📊 Analytics Flow"]
+            ANALYTICS_QUERY["Query Analytics"]
+            ANALYTICS_CACHE["Check Cache"]
+            ANALYTICS_AGG["Aggregate Data"]
+            ANALYTICS_STORE["Store in Cache"]
+        end
+        
+        subgraph PaymentFlow["💳 Payment Flow"]
+            PAYMENT_INIT["Initiate Payment"]
+            STRIPE_PROCESS["Stripe Processing"]
+            WEBHOOK_RECV["Receive Webhook"]
+            TRANSACTION_CREATE["Create Transaction"]
+        end
+    end
+    
+    subgraph DataLayer["💾 Data Layer"]
+        
+        subgraph MongoDB["🍃 MongoDB"]
+            TASK_DB["task Collection"]
+            GROUP_DB["group Collection"]
+            USER_DB["user Collection"]
+            NOTIF_DB["notification Collection"]
+            SUB_DB["subscription Collection"]
+            TXN_DB["transaction Collection"]
+        end
+        
+        subgraph Redis["🔴 Redis"]
+            TASK_CACHE_DB["Task Cache"]
+            GROUP_CACHE_DB["Group Cache"]
+            ANALYTICS_CACHE_DB["Analytics Cache"]
+            SESSION_DB["Session Store"]
+        end
+    end
+    
+    subgraph AsyncProcessing["🔄 Async Processing"]
+        BULLMQ["🐂 BullMQ"]
+        NOTIF_WORKER["Notification Worker"]
+        EMAIL_WORKER["Email Worker"]
+        ANALYTICS_WORKER["Analytics Worker"]
+    end
+    
+    subgraph ExternalServices["🌐 External Services"]
+        STRIPE["💳 Stripe API"]
+        EMAIL_SVC["📧 Email Service"]
+        PUSH_SVC["📱 Push Service"]
+        SMS_SVC["📱 SMS Service"]
+    end
+    
+    %% User Actions to API Gateway
+    SIGNUP --> JWT_AUTH
+    LOGIN --> JWT_AUTH
+    CREATE_TASK --> JWT_AUTH
+    COMPLETE --> JWT_AUTH
+    SUBSCRIBE --> JWT_AUTH
+    
+    JWT_AUTH --> RATE_LIMIT
+    RATE_LIMIT --> REQUEST_LOG
+    
+    %% Request Logging to Business Logic
+    REQUEST_LOG --> TASK_VALID
+    REQUEST_LOG --> GROUP_VALID
+    REQUEST_LOG --> NOTIF_CREATE
+    REQUEST_LOG --> ANALYTICS_QUERY
+    REQUEST_LOG --> PAYMENT_INIT
+    
+    %% Task Flow
+    TASK_VALID --> TASK_CREATE
+    TASK_CREATE --> TASK_DB
+    TASK_CREATE --> TASK_CACHE
+    TASK_CACHE --> TASK_CACHE_DB
+    TASK_CREATE --> TASK_ACTIVITY
+    TASK_ACTIVITY --> NOTIF_CREATE
+    
+    %% Group Flow
+    GROUP_VALID --> GROUP_CREATE
+    GROUP_CREATE --> GROUP_DB
+    GROUP_CREATE --> INVITE_SEND
+    INVITE_SEND --> NOTIF_QUEUE
+    GROUP_CREATE --> MEMBER_ADD
+    MEMBER_ADD --> GROUP_DB
+    
+    %% Notification Flow
+    NOTIF_CREATE --> NOTIF_DB
+    NOTIF_CREATE --> NOTIF_QUEUE
+    NOTIF_QUEUE --> NOTIF_WORKER
+    NOTIF_WORKER --> NOTIF_SEND
+    NOTIF_SEND --> EMAIL_SVC
+    NOTIF_SEND --> PUSH_SVC
+    NOTIF_SEND --> SMS_SVC
+    
+    %% Analytics Flow
+    ANALYTICS_QUERY --> ANALYTICS_CACHE
+    ANALYTICS_CACHE -->|Hit| ANALYTICS_CACHE_DB
+    ANALYTICS_CACHE -->|Miss| ANALYTICS_AGG
+    ANALYTICS_AGG --> TASK_DB
+    ANALYTICS_AGG --> GROUP_DB
+    ANALYTICS_AGG --> USER_DB
+    ANALYTICS_AGG --> ANALYTICS_STORE
+    ANALYTICS_STORE --> ANALYTICS_CACHE_DB
+    
+    %% Payment Flow
+    PAYMENT_INIT --> STRIPE_PROCESS
+    STRIPE_PROCESS --> STRIPE
+    STRIPE -->|Webhook| WEBHOOK_RECV
+    WEBHOOK_RECV --> TRANSACTION_CREATE
+    TRANSACTION_CREATE --> TXN_DB
+    TRANSACTION_CREATE --> NOTIF_CREATE
+    
+    %% Async Processing
+    ANALYTICS_AGG -.->|Scheduled| ANALYTICS_WORKER
+    ANALYTICS_WORKER --> ANALYTICS_STORE
+    
+    %% Styling
+    style UserActions fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style BusinessLogic fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style DataLayer fill:#fce4ec,stroke:#c2185b,color:#000
+    style AsyncProcessing fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style ExternalServices fill:#fff8e1,stroke:#f57f17,color:#000
+    
+    style MongoDB fill:#4db33d,color:#fff
+    style Redis fill:#ff7043,color:#fff
+    style BULLMQ fill:#ffca28,color:#000
+    style STRIPE fill:#6772e5,color:#fff

@@ -1,0 +1,68 @@
+sequenceDiagram
+    participant Client
+    participant API as TaskController
+    participant Service as TaskService
+    participant Cache as Redis
+    participant DB as MongoDB
+    participant SubTaskService
+
+    Note over Client,SubTaskService: Create Task Flow
+
+    Client->>API: POST /tasks
+    API->>Service: create(taskData)
+    Service->>DB: insert(task)
+    DB-->>Service: savedTask
+    Service->>Cache: set(task:id:detail, savedTask, 5min)
+    Service-->>API: savedTask
+    API-->>Client: 201 Created + task
+
+    Note over Client,SubTaskService: Get Tasks Flow
+
+    Client->>API: GET /tasks/my
+    API->>Service: getTasksByUserId(userId)
+    Service->>Cache: get(task:user:tasks)
+    alt Cache Hit
+        Cache-->>Service: cachedTasks
+        Service-->>API: cachedTasks
+        API-->>Client: 200 OK + tasks
+    else Cache Miss
+        Service->>DB: find({ownerUserId/assignedUserIds})
+        DB-->>Service: tasks
+        Service->>Cache: set(task:user:tasks, tasks, 2min)
+        Service-->>API: tasks
+        API-->>Client: 200 OK + tasks
+    end
+
+    Note over Client,SubTaskService: Add SubTask Flow
+
+    Client->>API: POST /tasks/:id/subtasks
+    API->>Service: addSubtask(taskId, title, order, userId)
+    Service->>SubTaskService: createSubTask(dto, userId)
+    SubTaskService->>DB: insert(subTask)
+    SubTaskService->>DB: update(task.totalSubtasks)
+    DB-->>SubTaskService: savedSubTask
+    SubTaskService-->>Service: subTask
+    Service->>Cache: del(task:id:detail)
+    Service-->>API: subTask
+    API-->>Client: 201 Created + subTask
+
+    Note over Client,SubTaskService: Update Task Status Flow
+
+    Client->>API: PUT /tasks/:id/status
+    API->>Service: updateTaskStatus(taskId, status)
+    Service->>DB: updateOne({_id}, {status, completedTime})
+    DB-->>Service: updatedTask
+    Service->>Cache: del(task:id:detail)
+    Service-->>API: updatedTask
+    API-->>Client: 200 OK + task
+
+    Note over Client,SubTaskService: Toggle SubTask Flow
+
+    Client->>API: PUT /subtasks/:id/toggle
+    API->>SubTaskService: toggleSubTaskStatus(id, isCompleted, userId)
+    SubTaskService->>DB: updateOne(subTask)
+    SubTaskService->>DB: updateStats(task.totalSubtasks, task.completedSubtasks)
+    DB-->>SubTaskService: updatedSubTask
+    SubTaskService->>Cache: del(task:id:detail)
+    SubTaskService-->>API: subTask
+    API-->>Client: 200 OK + subTask

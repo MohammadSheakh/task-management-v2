@@ -1,0 +1,76 @@
+sequenceDiagram
+    participant P as Parent Dashboard
+    participant C as Child App
+    participant TPC as TaskProgressController
+    participant TPS as TaskProgressService
+    participant TS as TaskService
+    participant DB as Database
+    participant Redis as Redis Cache
+    participant Notif as NotificationService
+    
+    box "Auto-Create on Task Creation"
+        TS->>TPS: bulkCreateForTask(taskId, assignedUserIds)
+        TPS->>DB: Insert TaskProgress (per child)
+        DB-->>TPS: progress records
+        TPS->>Redis: Invalidate cache
+        Redis-->>TPS: OK
+        TPS-->>TS: created
+    end
+    
+    box "Child Starts Task"
+        C->>TPC: PUT /task-progress/:taskId/status
+        TPC->>TPS: updateProgressStatus(taskId, userId, inProgress)
+        TPS->>DB: Find or Create TaskProgress
+        DB-->>TPS: progress record
+        TPS->>DB: Update status, startedAt
+        DB-->>TPS: OK
+        TPS->>Redis: Invalidate cache
+        Redis-->>TPS: OK
+        TPS-->>TPC: updated
+        TPC-->>C: 200 OK
+    end
+    
+    box "Child Completes Subtask"
+        C->>TPC: PUT /task-progress/:taskId/subtasks/0/complete
+        TPC->>TPS: completeSubtask(taskId, 0, userId)
+        TPS->>DB: Find TaskProgress
+        DB-->>TPS: progress record
+        TPS->>DB: Add to completedSubtaskIndexes
+        TPS->>DB: Update progressPercentage
+        DB-->>TPS: OK
+        TPS->>TPS: Check if 100%
+        TPS->>Notif: Notify parent if complete
+        Notif-->>TPS: Sent
+        TPS->>Redis: Invalidate cache
+        Redis-->>TPS: OK
+        TPS-->>TPC: updated
+        TPC-->>C: 200 OK
+    end
+    
+    box "Parent Views Progress"
+        P->>TPC: GET /task-progress/:taskId/children
+        TPC->>TPS: getAllChildrenProgress(taskId)
+        TPS->>Redis: Check cache
+        Redis-->>TPS: Miss
+        TPS->>DB: Find TaskProgress + populate userId
+        DB-->>TPS: progress records
+        TPS->>TPS: Calculate summary stats
+        TPS->>Redis: Cache result
+        Redis-->>TPS: OK
+        TPS-->>TPC: progress data
+        TPC-->>P: 200 OK + data
+    end
+    
+    box "Get Child Performance"
+        P->>TPC: GET /analytics/child/:childId/performance
+        TPC->>TPS: getChildPerformance(childId)
+        TPS->>Redis: Check cache
+        Redis-->>TPS: Miss
+        TPS->>DB: Find all TaskProgress for child
+        DB-->>TPS: progress records
+        TPS->>TPS: Calculate stats & streak
+        TPS->>Redis: Cache result
+        Redis-->>TPS: OK
+        TPS-->>TPC: performance data
+        TPC-->>P: 200 OK + stats
+    end

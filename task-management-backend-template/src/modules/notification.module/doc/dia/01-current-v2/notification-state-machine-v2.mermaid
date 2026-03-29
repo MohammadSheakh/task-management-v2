@@ -1,0 +1,169 @@
+stateDiagram-v2
+    %% ===========================================
+    %% NOTIFICATION MODULE - STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% NOTIFICATION STATUS STATES
+    state NotificationStatus {
+        [*] --> Pending: Created
+        Pending --> Sent: Delivered via Socket.IO
+        Pending --> Failed: Delivery Failed
+        Sent --> Delivered: User Receives
+        Delivered --> Read: User Reads
+        Read --> [*]
+        Failed --> Pending: Retry (3 attempts)
+        Failed --> [*]
+        
+        note right of Sent
+            Delivery Channels:
+            - Socket.IO (Real-Time) ⭐
+            - Push (Fallback)
+            - Email
+            - SMS
+        end note
+    }
+
+    %% REAL-TIME DELIVERY STATES ⭐ NEW!
+    state RealTimeDelivery {
+        [*] --> CheckOnline: User Online?
+        CheckOnline --> EmitSocketIO: Yes
+        CheckOnline --> FallbackPush: No
+        EmitSocketIO --> Delivered: Success
+        EmitSocketIO --> FallbackPush: Offline
+        FallbackPush --> Sent: Push Sent
+        Delivered --> [*]
+        Sent --> [*]
+        
+        note right of EmitSocketIO
+            Socket.IO Events:
+            - notification:new
+            - notification:read
+            - group:activity
+        end note
+    }
+
+    %% TASK REMINDER STATES
+    state TaskReminder {
+        [*] --> Scheduled: Created
+        Scheduled --> Pending: reminderTime Reached
+        Pending --> Sending: BullMQ Job
+        Sending --> Sent: Notification Sent
+        Sending --> Failed: Send Failed
+        Sent --> Reschedule: Recurring?
+        Sent --> [*]: One-time
+        Reschedule --> Scheduled: Next Occurrence
+        Failed --> Pending: Retry (3 attempts)
+        Failed --> [*]
+        
+        note right of Scheduled
+            Trigger Types:
+            - before_deadline
+            - at_deadline
+            - after_deadline
+            - custom_time
+            - recurring
+        end note
+    }
+
+    %% FAMILY ACTIVITY BROADCAST STATES ⭐ NEW!
+    state FamilyActivityBroadcast {
+        [*] --> ActivityTriggered: Event Occurs
+        ActivityTriggered --> AddToFeed: Add to Redis
+        AddToFeed --> BroadcastFamily: Socket.IO Family Room
+        BroadcastFamily --> ParentsReceive: Parents Receive
+        ParentsReceive --> UpdateDashboard: Dashboard Updates
+        UpdateDashboard --> [*]
+        
+        note right of BroadcastFamily
+            Activity Types:
+            - task_completed
+            - task_started
+            - permission_changed
+            - secondary_user_granted
+        end note
+    }
+
+    %% CACHE STATES
+    state CacheStates {
+        [*] --> CheckCache: Request
+        CheckCache --> Valid: Cache Hit
+        CheckCache --> Expired: Cache Miss
+        Valid --> Return: Return Data
+        Expired --> QueryDB: Query MongoDB
+        QueryDB --> Store: Store in Redis
+        Store --> Return: Return Data
+        Return --> [*]
+
+        note right of CheckCache
+            Cache TTLs:
+            - Unread count: 60s
+            - Notification list: 300s
+            - Socket.IO state: 60s
+        end note
+    }
+
+    %% BULK NOTIFICATION STATES
+    state BulkNotification {
+        [*] --> ValidateRequest: Admin Request
+        ValidateRequest --> CreateNotifications: Create for Each User
+        CreateNotifications --> LoopUsers: For Each User
+        LoopUsers --> EmitSocketIO: Emit via Socket.IO
+        EmitSocketIO --> NextUser: Next User
+        NextUser --> LoopUsers: More Users?
+        NextUser --> InvalidateCaches: All Done
+        InvalidateCaches --> [*]
+        
+        note right of LoopUsers
+            Bulk Limits:
+            - Max 1000 notifications
+            - Rate limited
+            - Async processing
+        end note
+    }
+
+    %% USER NOTIFICATION PREFERENCES
+    state UserPreferences {
+        [*] --> Default: Default Settings
+        Default --> Customize: User Customizes
+        Customize --> InAppEnabled: In-App On/Off
+        Customize --> EmailEnabled: Email On/Off
+        Customize --> PushEnabled: Push On/Off
+        Customize --> SMSEnabled: SMS On/Off
+        InAppEnabled --> Active
+        EmailEnabled --> Active
+        PushEnabled --> Active
+        SMSEnabled --> Active
+        Active --> [*]
+        
+        note right of Customize
+            Channel Preferences:
+            - In-app (Real-Time)
+            - Email
+            - Push
+            - SMS (Critical)
+        end note
+    }
+
+    %% Styling
+    state NotificationStatus {
+        style Pending fill:#fff9c4
+        style Sent fill:#81c784
+        style Delivered fill:#64b5f6
+        style Read fill:#4db6ac
+        style Failed fill:#e57373
+    }
+    
+    state RealTimeDelivery {
+        style CheckOnline fill:#fff9c4
+        style EmitSocketIO fill:#81c784
+        style FallbackPush fill:#ffb74d
+    }
+    
+    style NotificationStatus fill:#e3f2fd,stroke:#1565c0
+    style RealTimeDelivery fill:#e8f5e9,stroke:#2e7d32
+    style TaskReminder fill:#fff3e0,stroke:#e65100
+    style FamilyActivityBroadcast fill:#f3e5f5,stroke:#7b1fa2
+    style CacheStates fill:#ffe0b2,stroke:#e65100
+    style BulkNotification fill:#e0f7fa,stroke:#006064
+    style UserPreferences fill:#fce4ec,stroke:#c2185b

@@ -1,0 +1,538 @@
+{
+  "info": {
+    "_postman_id": "subscription-plan-management-v1",
+    "name": "03 - Subscription Plan Management",
+    "description": "Subscription Plan Management APIs\n\n## Roles & Permissions\n\n### Super Admin / Admin\n- ✅ Create subscription plans (Stripe for Business, RevenueCat for Individual)\n- ✅ Update subscription plan details\n- ✅ Delete/Soft-delete subscription plans\n- ✅ View all subscription plans\n\n### Business User (Parent)\n- ✅ View business subscription plans (business_starter, business_level1, business_level2)\n- ✅ Purchase business subscription\n- ✅ Cancel subscription\n\n### Individual User (Patient/Child)\n- ✅ View individual subscription plans (individual)\n- ✅ Purchase individual subscription via RevenueCat\n- ✅ Cancel subscription\n\n## Environment Variables\n- BASE_URL: http://localhost:5000/api/v1\n- ADMIN_TOKEN: Super Admin JWT token\n- USER_TOKEN: Regular user JWT token\n- SUBSCRIPTION_PLAN_ID: Created subscription plan ID\n\n## RevenueCat vs Stripe\n- **Individual plans** → RevenueCat (iOS/Android mobile apps)\n- **Business plans** → Stripe (web)\n\n## Last Updated\n- Date: 25-03-26\n- Version: 1.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {"key": "BASE_URL", "value": "http://localhost:5000", "type": "string"},
+    {"key": "ADMIN_TOKEN", "value": "", "type": "string"},
+    {"key": "USER_TOKEN", "value": "", "type": "string"},
+    {"key": "SUBSCRIPTION_PLAN_ID", "value": "", "type": "string"},
+    {"key": "SUBSCRIPTION_ID", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "00 - Authentication",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"ADMIN_TOKEN\", jsonData.data.tokens.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login as User (Patient/Parent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"USER_TOKEN\", jsonData.data.tokens.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"UserPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Super Admin - Create Subscription Plan",
+      "item": [
+        {
+          "name": "Create Individual Plan (RevenueCat)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"SUBSCRIPTION_PLAN_ID\", jsonData.data.plan._id);",
+                  "    ",
+                  "    // Check if RevenueCat setup is required",
+                  "    if (jsonData.data.metadata && jsonData.data.metadata.revenueCatSetupRequired) {",
+                  "        console.log('⚠️ REVENUECAT SETUP REQUIRED');",
+                  "        console.log('Product Identifier: ' + jsonData.data.metadata.revenueCatProductIdentifier);",
+                  "        console.log('Package Identifier: ' + jsonData.data.metadata.revenueCatPackageIdentifier);",
+                  "        console.log('Dashboard: https://dashboard.revenuecat.com');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionName\": \"Individual Monthly\",\n  \"subscriptionType\": \"individual\",\n  \"amount\": \"9.99\",\n  \"maxChildrenAccount\": 0,\n  \"purchaseChannel\": \"revenuecat\",\n  \"availablePlatforms\": [\"ios\", \"android\"],\n  \"revenueCatProductIdentifier\": \"individual_monthly\",\n  \"revenueCatPackageIdentifier\": \"monthly\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan"]
+            },
+            "description": "Create an Individual subscription plan for RevenueCat (mobile apps)\n\n**Business Logic:**\n- subscriptionType: 'individual' → Automatically sets purchaseChannel to 'revenuecat'\n- Available on iOS and Android platforms\n- Admin must create product in RevenueCat dashboard\n\n**RevenueCat Setup Steps:**\n1. Go to https://dashboard.revenuecat.com\n2. Create Product with identifier: individual_monthly\n3. Link to App Store Connect (iOS)\n4. Link to Google Play Console (Android)\n5. Create Package with identifier: monthly\n6. Set price in both stores\n\n**Response Metadata:**\n- revenueCatSetupRequired: true\n- revenueCatProductIdentifier\n- revenueCatPackageIdentifier\n- dashboardUrl"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Business Starter Plan (Stripe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"SUBSCRIPTION_PLAN_ID\", jsonData.data.plan._id);",
+                  "    ",
+                  "    // Check if Stripe was created",
+                  "    if (jsonData.data.metadata && jsonData.data.metadata.stripeProductId) {",
+                  "        console.log('✅ STRIPE PRODUCT CREATED');",
+                  "        console.log('Product ID: ' + jsonData.data.metadata.stripeProductId);",
+                  "        console.log('Price ID: ' + jsonData.data.metadata.stripePriceId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionName\": \"Business Starter\",\n  \"subscriptionType\": \"business_starter\",\n  \"amount\": \"29.99\",\n  \"maxChildrenAccount\": 5,\n  \"purchaseChannel\": \"stripe\",\n  \"availablePlatforms\": [\"web\"],\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan"]
+            },
+            "description": "Create a Business Starter subscription plan for Stripe (web)\n\n**Business Logic:**\n- subscriptionType: 'business_starter' → Automatically sets purchaseChannel to 'stripe'\n- Available on web platform only\n- Stripe product and price created automatically\n\n**Features:**\n- Max 5 children accounts\n- Web-based payment via Stripe\n- Automatic recurring billing\n\n**Response Metadata:**\n- stripeProductId\n- stripePriceId"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Business Level 1 Plan (Stripe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"SUBSCRIPTION_PLAN_ID\", jsonData.data.plan._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionName\": \"Business Level 1\",\n  \"subscriptionType\": \"business_level1\",\n  \"amount\": \"49.99\",\n  \"maxChildrenAccount\": 10,\n  \"purchaseChannel\": \"stripe\",\n  \"availablePlatforms\": [\"web\"],\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan"]
+            },
+            "description": "Create Business Level 1 subscription plan (10 children accounts)"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Business Level 2 Plan (Stripe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"SUBSCRIPTION_PLAN_ID\", jsonData.data.plan._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionName\": \"Business Level 2\",\n  \"subscriptionType\": \"business_level2\",\n  \"amount\": \"79.99\",\n  \"maxChildrenAccount\": 25,\n  \"purchaseChannel\": \"stripe\",\n  \"availablePlatforms\": [\"web\"],\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan"]
+            },
+            "description": "Create Business Level 2 subscription plan (25 children accounts)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Super Admin - Update Subscription Plan",
+      "item": [
+        {
+          "name": "Update Subscription Plan Details",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionName\": \"Individual Monthly - Updated\",\n  \"amount\": \"12.99\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Update subscription plan details\n\n**Updatable Fields:**\n- subscriptionName\n- amount\n- maxChildrenAccount\n- isActive\n- isDeleted\n- revenueCatProductIdentifier\n- revenueCatPackageIdentifier\n\n**Non-Updatable (Auto-managed):**\n- subscriptionType (cannot change Individual to Business)\n- purchaseChannel (automatically set based on subscriptionType)\n- stripe_product_id (requires new product creation)\n- stripe_price_id (requires new price creation)\n\n**Note:** If updating amount for Stripe plans, you may want to create a new price in Stripe dashboard"
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Subscription Plan",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Deactivate a subscription plan\n\n**Effect:**\n- Plan will not be shown to users\n- Existing subscriptions remain active\n- New purchases blocked\n\n**Use Cases:**\n- Replacing with new plan\n- Temporary unavailability\n- Pricing changes"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Super Admin - Delete Subscription Plan",
+      "item": [
+        {
+          "name": "Soft Delete Subscription Plan",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/softDelete/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "softDelete", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Soft delete a subscription plan\n\n**Effect:**\n- Sets isDeleted: true\n- Plan hidden from all queries\n- Can be restored if needed\n\n**Recommended:** Use soft delete instead of hard delete"
+          },
+          "response": []
+        },
+        {
+          "name": "Hard Delete Subscription Plan",
+          "request": {
+            "method": "DELETE",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/delete/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "delete", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Permanently delete a subscription plan\n\n**⚠️ Warning:**\n- Cannot be undone\n- May break existing subscriptions\n- Use with caution\n\n**Recommended:** Use soft delete instead"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - View Subscription Plans (All Users)",
+      "item": [
+        {
+          "name": "Get All Subscription Plans",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan"]
+            },
+            "description": "Get all subscription plans (public endpoint)\n\n**Response:** All plans regardless of type\n\n**Use Case:** Admin dashboard, public pricing page"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Plans (Paginated)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/paginate?isActive=true&page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "paginate"],
+              "query": [
+                {"key": "isActive", "value": "true"},
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "10"}
+              ]
+            },
+            "description": "Get active subscription plans with pagination\n\n**Query Parameters:**\n- page: Page number (default: 1)\n- limit: Items per page (default: 10)\n- sortBy: Sort field (e.g., -createdAt)\n\n**Response:** Paginated list of active plans"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business Subscription Plans (For Parents)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/paginate?isActive=true&subscriptionType=business_starter",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "paginate"],
+              "query": [
+                {"key": "isActive", "value": "true"},
+                {"key": "subscriptionType", "value": "business_starter"}
+              ]
+            },
+            "description": "Get business subscription plans for parent users\n\n**Filter by:**\n- subscriptionType: business_starter, business_level1, business_level2\n\n**Use Case:** Parent dashboard - show only business plans they can purchase"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Individual Subscription Plans (For Users)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/paginate?isActive=true&subscriptionType=individual",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "paginate"],
+              "query": [
+                {"key": "isActive", "value": "true"},
+                {"key": "subscriptionType", "value": "individual"}
+              ]
+            },
+            "description": "Get individual subscription plans for regular users\n\n**Filter by:**\n- subscriptionType: individual\n\n**Use Case:** User dashboard - show only individual plans (RevenueCat)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscription Plan by ID",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Get details of a specific subscription plan\n\n**Response includes:**\n- Plan details (name, type, amount)\n- Features (maxChildrenAccount)\n- Platform availability\n- RevenueCat/Stripe identifiers"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Purchase Subscription (User)",
+      "item": [
+        {
+          "name": "Purchase Business Subscription (Stripe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    console.log('Checkout URL: ' + jsonData.data);",
+                  "    // Redirect user to Stripe checkout",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/purchase/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "purchase", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Purchase a business subscription plan via Stripe\n\n**For:** Business plans (business_starter, business_level1, business_level2)\n\n**Flow:**\n1. User clicks \"Subscribe\"\n2. Backend creates Stripe Checkout Session\n3. Returns checkout URL\n4. User redirected to Stripe\n5. After payment, webhook updates subscription status\n\n**Response:** Stripe checkout URL\n\n**Next Step:** Redirect user to the checkout URL"
+          },
+          "response": []
+        },
+        {
+          "name": "Purchase Individual Subscription (RevenueCat)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    console.log('RevenueCat Config:');",
+                  "    console.log('API Key: ' + jsonData.data.apiKey);",
+                  "    console.log('App User ID: ' + jsonData.data.appUserId);",
+                  "    console.log('Product: ' + jsonData.data.productIdentifier);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/revenuecat-purchase/{{SUBSCRIPTION_PLAN_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "revenuecat-purchase", "{{SUBSCRIPTION_PLAN_ID}}"]
+            },
+            "description": "Purchase individual subscription via RevenueCat (mobile apps)\n\n**For:** Individual plans (iOS/Android)\n\n**Flow:**\n1. Mobile app calls this endpoint\n2. Backend returns RevenueCat configuration\n3. App uses RevenueCat SDK to purchase\n4. RevenueCat webhook updates backend\n5. Subscription status updated automatically\n\n**Response includes:**\n- RevenueCat API key\n- App user ID\n- Product identifier\n- Package identifier\n- Platform-specific instructions\n\n**Next Step:** Use RevenueCat SDK in mobile app to complete purchase"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Cancel Subscription (User)",
+      "item": [
+        {
+          "name": "Cancel My Subscription",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/cancel",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "cancel"]
+            },
+            "description": "Cancel user's active subscription\n\n**Effect:**\n- Sets cancelledAtPeriodEnd: true\n- Status changes to 'cancelling'\n- Subscription remains active until end of billing period\n- No refund (handled via Stripe/RevenueCat)\n\n**For:** Both Stripe and RevenueCat subscriptions\n\n**Note:** Sends notification to admin"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Admin - Manage User Subscriptions",
+      "item": [
+        {
+          "name": "Cancel Patient's Subscription (Admin)",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"USER_ID_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/subscription-plan/cancel-for-patient?personId=USER_ID_HERE",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscription-plan", "cancel-for-patient"],
+              "query": [
+                {"key": "personId", "value": "USER_ID_HERE"}
+              ]
+            },
+            "description": "Admin cancels a patient's subscription and assigns vice subscription\n\n**Use Cases:**\n- Subscription dispute\n- Refund processing\n- Manual subscription management\n\n**Effect:**\n- Cancels current subscription at period end\n- Sends notification to patient\n- Admin can assign new subscription\n\n**Query Parameter:**\n- personId: User ID of the patient"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

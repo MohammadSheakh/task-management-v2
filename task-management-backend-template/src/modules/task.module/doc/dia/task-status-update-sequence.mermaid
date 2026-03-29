@@ -1,0 +1,68 @@
+sequenceDiagram
+    participant C1 as Child 1 App
+    participant C2 as Child 2 App
+    participant C3 as Child 3 App
+    participant TP as TaskProgress Controller
+    participant TPS as TaskProgress Service
+    participant DB as MongoDB
+    participant Socket as Socket.io
+    participant P as Parent Dashboard
+
+    Note over C1,P: Initial State: Task "inProgress", 2/3 children completed
+
+    C3->>TP: PUT /task-progress/:taskId/status<br/>{ status: "completed" }
+    activate TP
+    TP->>TP: Validate Request
+    TP->>TPS: updateProgressStatus(taskId, userId, "completed")
+    activate TPS
+
+    TPS->>DB: Find TaskProgress for Child 3
+    activate DB
+    DB-->>TPS: Progress document
+    deactivate DB
+
+    TPS->>TPS: Update status to "completed"
+    TPS->>TPS: Set completedAt timestamp
+    TPS->>DB: Save progress
+    activate DB
+    DB-->>TPS: Success
+    deactivate DB
+
+    Note over TPS: 🆕 Check if ALL children completed
+
+    TPS->>DB: Find Task (verify collaborative)
+    activate DB
+    DB-->>TPS: { taskType: "collaborative" }
+    deactivate DB
+
+    TPS->>DB: Find all TaskProgress records
+    activate DB
+    DB-->>TPS: [Child1:completed, Child2:completed, Child3:completed]
+    deactivate DB
+
+    TPS->>TPS: Count completed: 3/3
+    TPS->>TPS: ALL completed! ✅
+
+    Note over TPS: Auto-complete parent task
+
+    TPS->>DB: UPDATE tasks SET<br/>status="completed",<br/>completedAt=NOW()
+    activate DB
+    DB-->>TPS: Success
+    deactivate DB
+
+    TPS->>TPS: Invalidate Redis cache
+    TPS->>Socket: emit('task:auto-completed', {...})
+    activate Socket
+    Socket->>P: Real-time update
+    activate P
+    P->>P: Refresh task status
+    P-->>Socket: Acknowledged
+    deactivate P
+    deactivate Socket
+
+    TPS-->>TP: Success response
+    deactivate TPS
+    TP-->>C3: { status: "completed",<br/>parentTaskAutoCompleted: true }
+    deactivate TP
+
+    Note over C1,P: Final State: All children completed,<br/>Parent task "completed"

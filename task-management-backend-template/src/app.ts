@@ -14,9 +14,8 @@ import i18next from './i18n/i18n'; // Import the i18next configuration
 //@ts-ignore
 import i18nextMiddleware from 'i18next-http-middleware';
 import webhookHandler from './modules/payment.module/stripeWebhook/webhookHandler';
+import revenueCatWebhookHandler from './modules/payment.module/revenueCatWebhook/webhookHandler';
 import { welcome } from './utils/welcome';
-import {  calendlyOAuthCallbackHandlerV2, calendlyWebHookHandler }  from './modules/calendly.module/webhookHandler';
-import { verifyCalendlySignature } from './middlewares/calendly/verifyCalendlySignature';
 // import i18nextFsBackend from 'i18next-fs-backend';
 
 /*-─────────────────────────────────
@@ -26,9 +25,9 @@ import './modules/payment.module/payment/payment.bootstrap.ts';
 
 const app = express();
 
-//---------------------------------
-// for payment related thing.. we need to use view engine .. 
-//---------------------------------
+//=================================
+// Payment - EJS View Setup
+//=================================
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -47,18 +46,12 @@ app.use(
     credentials: true,
   })
 );
-app.get('/api/calendly/callback',
-  //  express.raw({ type: 'application/json'  }),
-    calendlyOAuthCallbackHandlerV2);
 
-// app.get('/api/calendly/:id/dashboard',
-// calendlyOAuthCallbackHandlerV2);
 
 app.post('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }), webhookHandler);
 
-// Step 2: Handle OAuth callback
-
-app.post('/api/webhooks/calendly', express.raw({ type: 'application/json' , limit: '1mb' }), verifyCalendlySignature , calendlyWebHookHandler);
+// 🆕 RevenueCat Webhook (must be before express.json() middleware)
+app.post('/api/v1/revenuecat-webhook', express.raw({ type: 'application/json' }), revenueCatWebhookHandler);
 
 
 app.use(express.json());

@@ -1,0 +1,155 @@
+---
+title: Notification Module - System Architecture Diagram
+description: High-level system architecture showing notification flow and components
+date: 07-03-26
+---
+
+flowchart TB
+    subgraph Client["Client Layer"]
+        WebApp[Web Application<br/>React/Next.js]
+        MobileApp[Mobile Application<br/>Flutter]
+        AdminPanel[Admin Panel]
+    end
+    
+    subgraph API["API Gateway Layer"]
+        LoadBalancer[Load Balancer]
+        APIGateway[API Gateway<br/>Rate Limiting, Auth]
+    end
+    
+    subgraph NotificationServices["Notification Service Layer"]
+        NotificationService[Notification Service<br/>notification.service.ts]
+        TaskReminderService[Task Reminder Service<br/>taskReminder.service.ts]
+        EmailService[Email Service<br/>email.service.ts]
+        PushService[Push Notification Service<br/>push.service.ts]
+    end
+    
+    subgraph Controllers["Controller Layer"]
+        NotificationController[Notification Controller<br/>notification.controller.ts]
+        TaskReminderController[Task Reminder Controller<br/>taskReminder.controller.ts]
+    end
+    
+    subgraph Middleware["Middleware Layer"]
+        AuthMiddleware[Auth Middleware]
+        ValidationMiddleware[Validation Middleware]
+        RateLimitMiddleware[Rate Limit Middleware]
+        ChannelMiddleware[Channel Middleware]
+    end
+    
+    subgraph BusinessLogic["Business Logic"]
+        NotificationLogic[Notification Logic<br/>- Create Notification<br/>- Multi-channel Delivery<br/>- Priority Routing<br/>- Scheduling]
+        
+        ReminderLogic[Reminder Logic<br/>- Schedule Reminders<br/>- Recurring Reminders<br/>- Trigger Conditions<br/>- Cancellation]
+        
+        DeliveryLogic[Delivery Logic<br/>- Channel Selection<br/>- Retry Mechanism<br/>- Rate Limiting<br/>- Template Rendering]
+    end
+    
+    subgraph Data["Data Layer"]
+        MongoDB[(MongoDB<br/>Primary Database)]
+        Redis[(Redis<br/>Cache & Pub/Sub)]
+        BullMQ[(BullMQ<br/>Job Queue)]
+    end
+    
+    subgraph Collections["MongoDB Collections"]
+        Notifications[notifications Collection]
+        TaskReminders[taskreminders Collection]
+        Tasks[tasks Collection]
+        Users[users Collection]
+    end
+    
+    subgraph JobProcessors["BullMQ Job Processors"]
+        EmailProcessor[Email Processor<br/>- Send Email<br/>- Templates<br/>- Attachments]
+        
+        PushProcessor[Push Processor<br/>- FCM/APNs<br/>- Device Tokens<br/>- Payload Formatting]
+        
+        SMSProcessor[SMS Processor<br/>- Twilio/AWS SNS<br/>- Message Formatting<br/>- Delivery Tracking]
+        
+        CleanupProcessor[Cleanup Processor<br/>- Old Notifications<br/>- Expired Reminders<br/>- Data Retention]
+    end
+    
+    subgraph External["External Services"]
+        SendGrid[Email Provider<br/>SendGrid/AWS SES]
+        FCM[Firebase Cloud Messaging]
+        APNs[Apple Push Notification]
+        Twilio[SMS Provider<br/>Twilio/AWS SNS]
+        WebSocket[WebSocket Server<br/>Real-time Updates]
+    end
+    
+    %% Client to API
+    WebApp --> LoadBalancer
+    MobileApp --> LoadBalancer
+    AdminPanel --> LoadBalancer
+    LoadBalancer --> APIGateway
+    
+    %% API to Controllers
+    APIGateway --> NotificationController
+    APIGateway --> TaskReminderController
+    
+    %% Middleware Flow
+    NotificationController --> AuthMiddleware
+    TaskReminderController --> AuthMiddleware
+    
+    AuthMiddleware --> ValidationMiddleware
+    ValidationMiddleware --> RateLimitMiddleware
+    RateLimitMiddleware --> ChannelMiddleware
+    
+    %% Controllers to Services
+    ChannelMiddleware --> NotificationService
+    ChannelMiddleware --> TaskReminderService
+    
+    %% Services to Business Logic
+    NotificationService --> NotificationLogic
+    TaskReminderService --> ReminderLogic
+    
+    NotificationService --> DeliveryLogic
+    TaskReminderService --> DeliveryLogic
+    
+    %% Business Logic to Data
+    NotificationLogic --> MongoDB
+    ReminderLogic --> MongoDB
+    DeliveryLogic --> Redis
+    
+    %% Job Queue Integration
+    NotificationLogic -.-> BullMQ
+    ReminderLogic -.-> BullMQ
+    
+    BullMQ --> EmailProcessor
+    BullMQ --> PushProcessor
+    BullMQ --> SMSProcessor
+    BullMQ --> CleanupProcessor
+    
+    %% External Service Integration
+    EmailProcessor --> SendGrid
+    PushProcessor --> FCM
+    PushProcessor --> APNs
+    SMSProcessor --> Twilio
+    
+    %% Real-time Updates
+    NotificationLogic -.-> WebSocket
+    WebSocket --> WebApp
+    WebSocket --> MobileApp
+    
+    %% Caching
+    NotificationService -.-> Redis
+    TaskReminderService -.-> Redis
+    
+    %% Data Relationships
+    Notifications -.-> Users
+    TaskReminders -.-> Tasks
+    TaskReminders -.-> Users
+    Notifications -.-> Tasks
+    
+    %% Scheduled Jobs
+    ReminderLogic --> BullMQ
+    BullMQ -.->|Scheduled Jobs| TaskReminderService
+    
+    %% Styling
+    style Client fill:#E3F2FD
+    style API fill:#FFF3E0
+    style NotificationServices fill:#E8F5E9
+    style Controllers fill:#F3E5F5
+    style Middleware fill:#FFEBEE
+    style BusinessLogic fill:#E0F7FA
+    style Data fill:#F1F8E9
+    style Collections fill:#FFF8E1
+    style JobProcessors fill:#FCE4EC
+    style External fill:#F9FBE7

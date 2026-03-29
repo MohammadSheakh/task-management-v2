@@ -1,0 +1,39 @@
+stateDiagram-v2
+    [*] --> Active: SubTask created
+    
+    state "Completion States" as Completion {
+        Active --> InProgress: Start working
+        InProgress --> Completed: Mark complete
+        Completed --> InProgress: Reopen
+        InProgress --> Active: Pause work
+    }
+    
+    Completion --> Deleted: Soft delete
+    Deleted --> [*]: Hard delete
+    Completed --> [*]: Parent task done
+    
+    note right of Active
+        SubTask is created
+        Not yet started
+        Visible in list
+    end note
+    
+    note right of InProgress
+        Working on subtask
+        Partial completion
+        Tracking time
+    end note
+    
+    note right of Completed
+        SubTask done
+        completedAt set
+        Progress updated
+    end note
+    
+    classDef activeState fill:#c8e6c9
+    classDef completedState fill:#a5d6a7
+    classDef deletedState fill:#ffcdd2
+    
+    class Active,InProgress activeState
+    class Completed completedState
+    class Deleted deletedState

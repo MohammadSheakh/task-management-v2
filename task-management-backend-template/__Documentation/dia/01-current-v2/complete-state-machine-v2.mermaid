@@ -1,0 +1,249 @@
+stateDiagram-v2
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% USER STATES
+    state UserStates {
+        [*] --> Unverified: Sign Up
+        Unverified --> Verified: Verify Email
+        Unverified --> Deleted: Delete Account
+        Verified --> Active: Complete Profile
+        Verified --> Deleted: Delete Account
+        Active --> Deleted: Delete Account
+        Active --> Suspended: Violation
+        Suspended --> Active: Appeal Approved
+        Suspended --> Deleted: Permanent Ban
+        Deleted --> [*]
+    }
+
+    %% CHILD/BUSINESS USER STATES
+    state ChildBusinessUserStates {
+        [*] --> Pending: Parent Creates Account
+        Pending --> Active: Account Activated
+        Active --> Inactive: Deactivated by Parent
+        Inactive --> Active: Reactivated
+        Active --> Removed: Removed from Family
+        Removed --> [*]
+    }
+
+    %% SECONDARY USER STATES
+    state SecondaryUserStates {
+        [*] --> NotSecondary: Default
+        NotSecondary --> Secondary: Parent Grants Permission
+        Secondary --> NotSecondary: Parent Revokes
+    }
+
+    %% TASK STATES
+    state TaskStates {
+        [*] --> Draft: Create Task
+        Draft --> Pending: Submit Task
+        Draft --> Deleted: Delete Draft
+        Pending --> InProgress: Start Task
+        Pending --> Completed: Complete Task
+        Pending --> Deleted: Delete Task
+        InProgress --> Completed: Complete Task
+        InProgress --> Pending: Reopen Task
+        InProgress --> Deleted: Delete Task
+        Completed --> Pending: Reopen Completed
+        Completed --> Deleted: Delete Completed
+        Deleted --> [*]
+        
+        note right of Completed
+            Auto-completed when:
+            - All subtasks done
+            - OR all children complete
+            - OR manual completion
+        end note
+    }
+
+    %% SUBTASK STATES
+    state SubtaskStates {
+        [*] --> Pending: Create Subtask
+        Pending --> InProgress: Start Subtask
+        Pending --> Completed: Complete Subtask
+        InProgress --> Completed: Complete Subtask
+        Completed --> Pending: Reopen Subtask
+        Completed --> [*]
+        Deleted --> [*]
+    }
+
+    %% TASK PROGRESS STATES (NEW!)
+    state TaskProgressStates {
+        [*] --> NotStarted: Task Assigned
+        NotStarted --> InProgress: Child Starts
+        InProgress --> Completed: Child Completes
+        NotStarted --> Completed: Direct Complete
+        Completed --> [*]
+    }
+
+    %% SUBTASK PROGRESS STATES
+    state SubtaskProgressStates {
+        [*] --> SubtaskPending
+        SubtaskPending --> SubtaskCompleted: Complete Subtask
+        SubtaskCompleted --> [*]
+    }
+
+    %% FAMILY STATES (Replaced by ChildrenBusinessUser)
+    state FamilyStates {
+        [*] --> Creating: Parent Signs Up
+        Creating --> Active: Family Setup Complete
+        Active --> Inactive: All Children Removed
+        Inactive --> Active: Add New Children
+        Active --> Deleted: Parent Deletes Account
+        Deleted --> [*]
+    }
+
+    %% MEMBER STATES
+    state MemberStates {
+        [*] --> Invited: Parent Creates Child Account
+        Invited --> Accepted: Child Accepts
+        Invited --> Expired: Invite Expires
+        Accepted --> Active: Account Activated
+        Accepted --> Declined: Child Declines
+        Active --> Removed: Removed by Parent
+        Removed --> [*]
+        Expired --> [*]
+        Declined --> [*]
+    }
+
+    %% SUBSCRIPTION STATES
+    state SubscriptionStates {
+        [*] --> None: No Subscription
+        None --> Trial: Start Free Trial
+        Trial --> Active: Trial Ends + Payment
+        Trial --> Expired: Trial Expires
+        Active --> Renewed: Auto-Renewal
+        Active --> Cancelled: User Cancels
+        Active --> Expired: Payment Failed
+        Cancelled --> Expired: Period Ends
+        Renewed --> Active: Payment Success
+        Renewed --> Expired: Payment Failed
+        Expired --> None: Subscription Ends
+        Expired --> Trial: New Trial
+        Expired --> [*]
+    }
+
+    %% PAYMENT STATES
+    state PaymentStates {
+        [*] --> Pending: Initiate Payment
+        Pending --> Processing: Submit to Gateway
+        Processing --> Completed: Payment Success
+        Processing --> Failed: Payment Failed
+        Failed --> Pending: Retry Payment
+        Failed --> Cancelled: User Cancels
+        Completed --> Refunded: Refund Requested
+        Completed --> [*]
+        Cancelled --> [*]
+        Refunded --> [*]
+    }
+
+    %% NOTIFICATION STATES
+    state NotificationStates {
+        [*] --> Pending: Create Notification
+        Pending --> Sent: Send Notification
+        Sent --> Delivered: Delivery Confirmed
+        Delivered --> Read: User Reads
+        Delivered --> Failed: Delivery Failed
+        Failed --> Pending: Retry
+        Failed --> [*]
+        Read --> [*]
+    }
+
+    %% SCHEDULED NOTIFICATION STATES
+    state ScheduledNotificationStates {
+        Pending --> Scheduled: Schedule for Later
+        Scheduled --> Sent: Trigger Time Reached
+    }
+
+    %% TASK REMINDER STATES
+    state ReminderStates {
+        [*] --> Created: Create Reminder
+        Created --> Scheduled: Schedule Reminder
+        Scheduled --> Sent: Reminder Triggered
+        Scheduled --> Cancelled: User Cancels
+        Sent --> [*]
+        Cancelled --> [*]
+    }
+
+    %% RECURRING REMINDER STATES
+    state RecurringReminderStates {
+        Scheduled --> Sent: Trigger
+        Sent --> Scheduled: Next Occurrence
+    }
+
+    %% CONVERSATION STATES
+    state ConversationStates {
+        [*] --> Created: Create Conversation
+        Created --> Active: Participants Join
+        Active --> Inactive: All Leave
+        Inactive --> Active: New Participant
+        Active --> Deleted: Delete Conversation
+        Deleted --> [*]
+    }
+
+    %% MESSAGE STATES
+    state MessageStates {
+        [*] --> Sent: Send Message
+        Sent --> Delivered: Delivered to Recipient
+        Delivered --> Read: Recipient Reads
+        Sent --> Failed: Send Failed
+        Failed --> Sent: Retry Send
+        Failed --> [*]
+        Read --> [*]
+    }
+
+    %% Styling
+    state UserStates {
+        style Unverified fill:#90caf9
+        style Verified fill:#42a5f5
+        style Active fill:#66bb6a
+        style Suspended fill:#ffa726
+        style Deleted fill:#ef5350
+    }
+    
+    state ChildBusinessUserStates {
+        style Pending fill:#90caf9
+        style Active fill:#66bb6a
+        style Inactive fill:#ffa726
+        style Removed fill:#ef5350
+    }
+    
+    state TaskStates {
+        style Draft fill:#90caf9
+        style Pending fill:#fff9c4
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+        style Deleted fill:#e57373
+    }
+    
+    state SubtaskStates {
+        style Pending fill:#fff9c4
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+    }
+    
+    state TaskProgressStates {
+        style NotStarted fill:#90caf9
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+    }
+    
+    style UserStates fill:#e3f2fd,stroke:#1565c0
+    style ChildBusinessUserStates fill:#e3f2fd,stroke:#1565c0
+    style SecondaryUserStates fill:#e8f5e9,stroke:#2e7d32
+    style TaskStates fill:#c8e6c9,stroke:#2e7d32
+    style SubtaskStates fill:#c8e6c9,stroke:#2e7d32
+    style TaskProgressStates fill:#c8e6c9,stroke:#2e7d32
+    style SubtaskProgressStates fill:#c8e6c9,stroke:#2e7d32
+    style FamilyStates fill:#fce4ec,stroke:#c2185b
+    style MemberStates fill:#fce4ec,stroke:#c2185b
+    style SubscriptionStates fill:#e1bee7,stroke:#7b1fa2
+    style PaymentStates fill:#80cbc4,stroke:#00695c
+    style NotificationStates fill:#ffe082,stroke:#f9a825
+    style ScheduledNotificationStates fill:#ffe082,stroke:#f9a825
+    style ReminderStates fill:#ffe082,stroke:#f9a825
+    style RecurringReminderStates fill:#ffe082,stroke:#f9a825
+    style ConversationStates fill:#b0bec5,stroke:#37474f
+    style MessageStates fill:#b0bec5,stroke:#37474f

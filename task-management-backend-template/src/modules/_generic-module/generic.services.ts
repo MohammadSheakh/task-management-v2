@@ -11,7 +11,7 @@ export class GenericService<ModelType, InterfaceType> {
     this.model = model;
   }
 
-  async create(data:/*InterfaceType*/ Partial<InterfaceType>) : Promise<InterfaceType> {
+  async create(data:/*InterfaceType*/ Partial<InterfaceType>): Promise<InterfaceType> {
     // console.log('req.body from generic create 🧪🧪', data);
     return await this.model.create(data);
   }
@@ -27,7 +27,7 @@ export class GenericService<ModelType, InterfaceType> {
   }
 
   async createOrUpdate(data:/*InterfaceType*/ Partial<InterfaceType>) {
-    
+
     const result = await this.model.findOneAndUpdate(
       {}, // Singleton pattern
       data,
@@ -47,92 +47,92 @@ export class GenericService<ModelType, InterfaceType> {
   }
 
 
-  async createAndPopulateSpecificFields(data:InterfaceType, populateOptions?: (string | any)[]) : Promise<InterfaceType> {
+  async createAndPopulateSpecificFields(data: InterfaceType, populateOptions?: (string | any)[]): Promise<InterfaceType> {
     // Create the document
     const createdObject = await this.model.create(data);
-    
+
     // If populate options are provided, fetch and populate
     if (populateOptions && populateOptions.length > 0) {
-        return await this.getById(createdObject._id.toString(), populateOptions);
+      return await this.getById(createdObject._id.toString(), populateOptions);
     }
-    
+
     return createdObject;
   }
 
   async getAll() {
-    return await this.model.find({isDeleted : false}).select('-__v');
+    return await this.model.find({ isDeleted: false }).select('-__v');
   }
 
 
   async getAllV2(filter?: any, populateOptions?: (string | any)[], select?: string) {
     let query = this.model.find(filter).select(select);
-    
+
     if (populateOptions && populateOptions.length > 0) {
-        
-        // Check if it's the old format (array of strings)
-        if (typeof populateOptions[0] === 'string') {
-            // query = query.select(populateOptions[0]);
-            populateOptions.forEach(field => {
-                query = query.populate(field as string);
-            });
-        } else {
-            populateOptions.forEach(option => {
-                query = query.populate(option);
-            });
-        }
+
+      // Check if it's the old format (array of strings)
+      if (typeof populateOptions[0] === 'string') {
+        // query = query.select(populateOptions[0]);
+        populateOptions.forEach(field => {
+          query = query.populate(field as string);
+        });
+      } else {
+        populateOptions.forEach(option => {
+          query = query.populate(option);
+        });
+      }
     }
-    
+
     const object = await query.select('-__v');
     if (!object) {
-        return null;
+      return null;
     }
     return object;
   }
-  
+
   async getAllWithPagination(
     filters: any, // Partial<INotification> // FixMe : fix type
     options: PaginateOptions,
     populateOptions?: any,
-    select ? : string | string[]
+    select?: string | string[]
   ) {
 
     // console.log('Service received filters:', JSON.stringify(filters, null, 2));
 
     const result = await this.model.paginate(filters, options, populateOptions, select);
-    
+
     return result;
   }
 
-  async getById(id: string , populateOptions?: (string | any)[], select?: string) : Promise<InterfaceType | null>  {
-    
+  async getById(id: string, populateOptions?: (string | any)[], select?: string): Promise<InterfaceType | null> {
+
     let query = this.model.findById(id).select(select);
-    
+
     if (populateOptions && populateOptions.length > 0) {
-      
-      console.log("populateOptions : ", populateOptions);
+
+      // console.log("populateOptions : ", populateOptions);
 
       // Check if it's the old format (array of strings)
       if (typeof populateOptions[0] === 'string') {
-        console.log("if block hit ")
+
         // query = query.select(populateOptions[0]);
         populateOptions.forEach(field => {
-            console.log('field : ', field);  
+          // console.log('field : ', field);  
 
-            query = query.populate(field as string);
+          query = query.populate(field as string);
         });
       } else {
 
-        console.log("else block hit ")
+        // console.log("else block hit ")
         populateOptions.forEach(option => {
-            console.log('option : ', option);
-            query = query.populate(option);
+          // console.log('option : ', option);
+          query = query.populate(option);
         });
       }
     }
-    
+
     const object = await query.select('-__v');
     if (!object) {
-        return null;
+      return null;
     }
     return object;
   }
@@ -155,22 +155,22 @@ export class GenericService<ModelType, InterfaceType> {
     }
 
     let query = this.model.findByIdAndUpdate(id, data, { new: true }).select('-__v');
-    
+
     if (populateOptions && populateOptions.length > 0) {
-        
-        // Check if it's the old format (array of strings)
-        if (typeof populateOptions[0] === 'string') {
-            // query = query.select(populateOptions[0]);
-            populateOptions.forEach(field => {
-                query = query.populate(field as string);
-            });
-        } else {
-            populateOptions.forEach(option => {
-                query = query.populate(option);
-            });
-        }
+
+      // Check if it's the old format (array of strings)
+      if (typeof populateOptions[0] === 'string') {
+        // query = query.select(populateOptions[0]);
+        populateOptions.forEach(field => {
+          query = query.populate(field as string);
+        });
+      } else {
+        populateOptions.forEach(option => {
+          query = query.populate(option);
+        });
+      }
     }
-    
+
     return await query;
   }
 

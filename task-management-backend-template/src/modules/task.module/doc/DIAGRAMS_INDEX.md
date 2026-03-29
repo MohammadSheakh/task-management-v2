@@ -2,12 +2,14 @@
 
 This file serves as an index for all Task Module diagrams. Each diagram is stored in a separate `.mermaid` file for better organization and maintainability.
 
+**All diagrams are located in the `/dia/` subfolder.**
+
 ---
 
 ## Module Level Diagrams
 
 ### 1. ER Diagram - Task Schema
-**File:** [`task-schema.mermaid`](./task-schema.mermaid)
+**File:** [`dia/task-schema.mermaid`](./dia/task-schema.mermaid)
 
 Shows the Task collection structure with relationships to User, Group, SubTask, TaskReminder, Notification, and Attachment.
 
@@ -23,7 +25,7 @@ Shows the Task collection structure with relationships to User, Group, SubTask, 
 ---
 
 ### 2. User Flow Diagram - Task Management
-**File:** [`task-user-flow.mermaid`](./task-user-flow.mermaid)
+**File:** [`dia/task-user-flow.mermaid`](./dia/task-user-flow.mermaid)
 
 Complete user flow for task operations including creation, viewing, updating, completing, and deleting tasks.
 
@@ -37,7 +39,7 @@ Complete user flow for task operations including creation, viewing, updating, co
 ---
 
 ### 3. Swimlane Diagram - Task Assignment & Collaboration
-**File:** [`task-swimlane.mermaid`](./task-swimlane.mermaid)
+**File:** [`dia/task-swimlane.mermaid`](./dia/task-swimlane.mermaid)
 
 Shows collaboration between Task Creator, System, and Assignee with clear responsibility separation.
 
@@ -49,7 +51,7 @@ Shows collaboration between Task Creator, System, and Assignee with clear respon
 ---
 
 ### 4. Sequence Diagram - Task Creation with Reminder
-**File:** [`task-sequence.mermaid`](./task-sequence.mermaid)
+**File:** [`dia/task-sequence.mermaid`](./dia/task-sequence.mermaid)
 
 Sequence of interactions for creating a task with optional reminder scheduling.
 
@@ -64,7 +66,7 @@ Sequence of interactions for creating a task with optional reminder scheduling.
 ---
 
 ### 5. State Machine - Task Status Flow
-**File:** [`task-state-machine.mermaid`](./task-state-machine.mermaid)
+**File:** [`dia/task-state-machine.mermaid`](./dia/task-state-machine.mermaid)
 
 Task lifecycle from creation to completion with all valid state transitions.
 
@@ -75,7 +77,7 @@ Task lifecycle from creation to completion with all valid state transitions.
 ---
 
 ### 6. Component Architecture - Task Module
-**File:** [`task-component-architecture.mermaid`](./task-component-architecture.mermaid)
+**File:** [`dia/task-component-architecture.mermaid`](./dia/task-component-architecture.mermaid)
 
 Internal structure of task.module showing sub-modules and external dependencies.
 
@@ -89,7 +91,7 @@ Internal structure of task.module showing sub-modules and external dependencies.
 ## Project Level Diagrams
 
 ### 7. System Architecture - Task Management Ecosystem
-**File:** [`task-system-architecture.mermaid`](./task-system-architecture.mermaid)
+**File:** [`dia/task-system-architecture.mermaid`](./dia/task-system-architecture.mermaid)
 
 High-level system architecture showing frontend, API gateway, backend services, async processing, and data layer.
 
@@ -103,7 +105,7 @@ High-level system architecture showing frontend, API gateway, backend services, 
 ---
 
 ### 8. Data Flow - End-to-End Task Notification
-**File:** [`task-data-flow.mermaid`](./task-data-flow.mermaid)
+**File:** [`dia/task-data-flow.mermaid`](./dia/task-data-flow.mermaid)
 
 Data flow from trigger events through processing, delivery, and tracking.
 
@@ -116,7 +118,7 @@ Data flow from trigger events through processing, delivery, and tracking.
 ---
 
 ### 9. Deployment Architecture
-**File:** [`task-deployment.mermaid`](./task-deployment.mermaid)
+**File:** [`dia/task-deployment.mermaid`](./dia/task-deployment.mermaid)
 
 Production deployment architecture with Kubernetes, managed services, and external providers.
 

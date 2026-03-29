@@ -1,0 +1,68 @@
+erDiagram
+    User ||--o{ Session : "has sessions"
+    User ||--o{ Token : "owns tokens"
+    User ||--o{ OTP : "receives OTPs"
+    User ||--o{ OAuthAccount : "links accounts"
+
+    Session {
+        ObjectId _id PK
+        ObjectId userId FK
+        String refreshToken
+        String deviceId
+        String ipAddress
+        String userAgent
+        Date expiresAt
+        Boolean isRevoked
+        Date createdAt
+        Date updatedAt
+    }
+
+    Token {
+        ObjectId _id PK
+        ObjectId userId FK
+        String accessToken
+        String refreshToken
+        String tokenType
+        Date expiresAt
+        Boolean isBlacklisted
+        Date createdAt
+    }
+
+    OTP {
+        ObjectId _id PK
+        String email
+        String otp
+        String type
+        Date expiresAt
+        Boolean isUsed
+        Date createdAt
+    }
+
+    OAuthAccount {
+        ObjectId _id PK
+        ObjectId userId FK
+        String provider
+        String providerId
+        String email
+        String accessToken
+        String refreshToken
+        Date expiresAt
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    User {
+        ObjectId _id PK
+        String email UK
+        String password
+        String role
+        Boolean isEmailVerified
+        String authProvider
+        Number failedLoginAttempts
+        Date lockUntil
+        Date lastPasswordChange
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }

@@ -1,0 +1,88 @@
+graph TB
+    %% Task Module Component Architecture V2
+    %% Family-Based Structure (No Group Dependencies)
+
+    subgraph "Routes Layer"
+        TASK_ROUTE["task.route.ts<br/>- POST /tasks<br/>- GET /tasks<br/>- GET /tasks/paginate<br/>- GET /tasks/statistics<br/>- GET /tasks/daily-progress<br/>- GET /tasks/:id<br/>- PUT /tasks/:id<br/>- PUT /tasks/:id/status<br/>- DELETE /tasks/:id"]
+    end
+
+    subgraph "Middleware Layer"
+        AUTH["auth.ts<br/>JWT Verification<br/>Role Check"]
+        PERMISSION["checkSecondaryUserPermission<br/>Family Permission Check<br/>via ChildrenBusinessUser"]
+        VALIDATE["validateTaskTypeConsistency<br/>Task Type Validation"]
+        LIMIT["checkDailyTaskLimit<br/>Max 5 tasks/day"]
+        ACCESS["verifyTaskAccess<br/>Task Ownership Check"]
+        STATUS["validateStatusTransition<br/>State Machine Guard"]
+    end
+
+    subgraph "Controller Layer"
+        TASK_CONTROLLER["task.controller.ts<br/>GenericController&lt;Task&gt;<br/>- create<br/>- getMyTasks<br/>- getMyTasksWithPagination<br/>- getStatistics<br/>- getDailyProgress<br/>- getTaskById<br/>- updateById<br/>- updateStatus<br/>- softDeleteById"]
+    end
+
+    subgraph "Service Layer"
+        TASK_SERVICE["task.service.ts<br/>GenericService&lt;Task&gt;<br/>Business Logic"]
+        CACHE_MGR["Cache Manager<br/>Redis Cache-Aside<br/>- getFromCache<br/>- setInCache<br/>- invalidateCache"]
+        ACTIVITY["Family Activity Tracker<br/>recordFamilyActivity<br/>via ChildrenBusinessUser"]
+        PREFERRED["Preferred Time Calculator<br/>calculateAndUpdatePreferredTime<br/>Async via BullMQ"]
+    end
+
+    subgraph "Data Models"
+        TASK_MODEL["Task Model<br/>- Schema<br/>- Indexes<br/>- Virtuals<br/>- toJSON Transform"]
+        USER_MODEL["User Model<br/>- preferredTime<br/>- Profile Data"]
+        CHILDREN_MODEL["ChildrenBusinessUser<br/>- Family Relationships<br/>- Secondary User Flag"]
+        PROGRESS_MODEL["TaskProgress Model<br/>- Per-user Tracking<br/>- Individual Status"]
+    end
+
+    subgraph "External Services"
+        REDIS[("Redis<br/>Cache Store<br/>TTL: 2-5 min")]
+        MONGODB[("MongoDB<br/>Primary DB<br/>Collections")]
+        BULLMQ[("BullMQ<br/>preferredTimeQueue<br/>Async Jobs")]
+        SOCKET["Socket.io<br/>Real-time Events<br/>Family Broadcast"]
+    end
+
+    TASK_ROUTE --> AUTH
+    TASK_ROUTE --> PERMISSION
+    TASK_ROUTE --> VALIDATE
+    TASK_ROUTE --> LIMIT
+    TASK_ROUTE --> ACCESS
+    TASK_ROUTE --> STATUS
+
+    AUTH --> TASK_CONTROLLER
+    PERMISSION --> TASK_CONTROLLER
+    VALIDATE --> TASK_CONTROLLER
+    LIMIT --> TASK_CONTROLLER
+    ACCESS --> TASK_CONTROLLER
+    STATUS --> TASK_CONTROLLER
+
+    TASK_CONTROLLER --> TASK_SERVICE
+    TASK_SERVICE --> CACHE_MGR
+    TASK_SERVICE --> ACTIVITY
+    TASK_SERVICE --> PREFERRED
+
+    CACHE_MGR --> REDIS
+    TASK_SERVICE --> TASK_MODEL
+    TASK_SERVICE --> USER_MODEL
+    TASK_SERVICE --> CHILDREN_MODEL
+    TASK_SERVICE --> PROGRESS_MODEL
+
+    TASK_MODEL --> MONGODB
+    USER_MODEL --> MONGODB
+    CHILDREN_MODEL --> MONGODB
+    PROGRESS_MODEL --> MONGODB
+
+    PREFERRED --> BULLMQ
+    ACTIVITY --> SOCKET
+
+    classDef route fill:#000,stroke:#1976d2
+    classDef middleware fill:#000,stroke:#f57c00
+    classDef controller fill:#000,stroke:#388e3c
+    classDef service fill:#000,stroke:#c2185b
+    classDef model fill:#000,stroke:#7b1fa2
+    classDef external fill:#000,stroke:#c62828
+
+    class TASK_ROUTE route
+    class AUTH,PERMISSION,VALIDATE,LIMIT,ACCESS,STATUS middleware
+    class TASK_CONTROLLER controller
+    class TASK_SERVICE,CACHE_MGR,ACTIVITY,PREFERRED service
+    class TASK_MODEL,USER_MODEL,CHILDREN_MODEL,PROGRESS_MODEL model
+    class REDIS,MONGODB,BULLMQ,SOCKET external

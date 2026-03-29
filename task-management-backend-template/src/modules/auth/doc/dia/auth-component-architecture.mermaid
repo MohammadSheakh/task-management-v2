@@ -1,0 +1,96 @@
+flowchart TB
+    subgraph AuthModule["Auth Module"]
+        direction TB
+
+        subgraph AuthCore["Auth Core"]
+            AuthRoute[auth.routes.ts]
+            AuthController[auth.controller.ts]
+            AuthService[auth.service.ts]
+            AuthInterface[auth.interface.ts]
+            AuthConstants[auth.constants.ts]
+            AuthValidations[auth.validations.ts]
+        end
+    end
+
+    subgraph UserIntegration["User Module Integration"]
+        UserModule[user.module]
+        UserModel[user.model.ts]
+        UserService[user.service.ts]
+        UserProfileModel[userProfile.model.ts]
+    end
+
+    subgraph OTPIntegration["OTP Module Integration"]
+        OTPModule[otp.module]
+        OTPService[otp.service.ts]
+        OTPModel[otp.model.ts]
+    end
+
+    subgraph TokenIntegration["Token Module Integration"]
+        TokenModule[token.module]
+        TokenService[token.service.ts]
+        TokenModel[token.model.ts]
+    end
+
+    subgraph WalletIntegration["Wallet Module Integration"]
+        WalletModule[wallet.module]
+        WalletService[wallet.service.ts]
+        WalletModel[wallet.model.ts]
+    end
+
+    subgraph Shared["Shared Components"]
+        GenericController[generic.controller.ts]
+        GenericService[generic.service.ts]
+        AuthMiddleware[auth.middleware.ts]
+        RateLimitMiddleware[rateLimit.middleware.ts]
+        ValidateRequest[validateRequest.ts]
+    end
+
+    subgraph Queue["BullMQ Queues"]
+        EmailQueue[email.queue.ts]
+        NotificationQueue[notification.queue.ts]
+    end
+
+    subgraph External["External Dependencies"]
+        Redis[Redis Cache]
+        MongoDB[MongoDB]
+        GoogleOAuth[Google OAuth 2.0]
+        AppleOAuth[Apple OAuth]
+        EmailProvider[Email Service]
+        FCM[Firebase Cloud Messaging]
+    end
+
+    AuthRoute --> AuthController
+    AuthController --> GenericController
+    GenericController --> AuthService
+
+    AuthRoute --> RateLimitMiddleware
+    AuthRoute --> ValidateRequest
+
+    AuthService --> UserModule
+    AuthService --> OTPModule
+    AuthService --> TokenModule
+    AuthService --> WalletModule
+
+    AuthService --> Redis
+    AuthService --> MongoDB
+
+    OTPService --> Redis
+    OTPService --> EmailProvider
+
+    TokenService --> Redis
+    TokenService --> MongoDB
+
+    AuthService --> EmailQueue
+    AuthService --> NotificationQueue
+
+    EmailQueue --> EmailProvider
+    NotificationQueue --> FCM
+
+    AuthService --> GoogleOAuth
+    AuthService --> AppleOAuth
+
+    UserModel --> MongoDB
+    UserProfileModel --> MongoDB
+    OTPModel --> MongoDB
+    TokenModel --> MongoDB
+    WalletModel --> MongoDB

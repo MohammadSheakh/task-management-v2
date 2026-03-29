@@ -1,0 +1,215 @@
+flowchart TB
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE ARCHITECTURE
+    %% ===========================================
+    
+    subgraph Frontend["🖥️ Frontend Layer"]
+        FLUTTER["📱 Flutter App<br/>(Individual & Group Users)"]
+        WEB["💻 Website Dashboard<br/>(Teacher/Parent)"]
+        ADMIN["👨‍💼 Admin Dashboard<br/>(System Admin)"]
+    end
+    
+    subgraph APIGateway["🔌 API Gateway"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT)"]
+        RATE["Rate Limiter"]
+        CORS["CORS"]
+    end
+    
+    subgraph Backend["⚙️ Backend Services<br/>(Node.js + Express)"]
+        
+        subgraph TaskModule["📋 task.module"]
+            TASK_ROUTE["task.route.ts"]
+            TASK_CTRL["task.controller.ts"]
+            TASK_SVC["task.service.ts"]
+            TASK_MODEL["task.model.ts"]
+            SUBTASK_SVC["subtask.service.ts"]
+        end
+        
+        subgraph GroupModule["👥 group.module"]
+            GROUP_ROUTE["group.route.ts"]
+            GROUP_CTRL["group.controller.ts"]
+            GROUP_SVC["group.service.ts"]
+            GROUP_MODEL["group.model.ts"]
+            MEMBER_SVC["groupMember.service.ts"]
+            INVITE_SVC["groupInvitation.service.ts"]
+        end
+        
+        subgraph NotificationModule["🔔 notification.module"]
+            NOTIF_ROUTE["notification.route.ts"]
+            NOTIF_CTRL["notification.controller.ts"]
+            NOTIF_SVC["notification.service.ts"]
+            NOTIF_MODEL["notification.model.ts"]
+            REMINDER_SVC["taskReminder.service.ts"]
+        end
+        
+        subgraph AnalyticsModule["📊 analytics.module"]
+            ANALYTICS_ROUTE["analytics.route.ts"]
+            USER_ANALYTICS["userAnalytics.service.ts"]
+            TASK_ANALYTICS["taskAnalytics.service.ts"]
+            GROUP_ANALYTICS["groupAnalytics.service.ts"]
+            ADMIN_ANALYTICS["adminAnalytics.service.ts"]
+        end
+        
+        subgraph SubscriptionModule["💳 subscription.module"]
+            SUB_PLAN_ROUTE["subscriptionPlan.route.ts"]
+            SUB_PLAN_SVC["subscriptionPlan.service.ts"]
+            USER_SUB_ROUTE["userSubscription.route.ts"]
+            USER_SUB_SVC["userSubscription.service.ts"]
+            SUB_CRON["userSubscription.cron.ts"]
+        end
+        
+        subgraph PaymentModule["💰 payment.module"]
+            PAYMENT_SVC["payment.service.ts"]
+            PAYMENT_TXN_ROUTE["paymentTransaction.route.ts"]
+            PAYMENT_TXN_SVC["paymentTransaction.service.ts"]
+            WEBHOOK_CTRL["webhook.controller.ts"]
+            STRIPE_GW["stripe.gateway.ts"]
+        end
+        
+        subgraph UserModule["👤 user.module"]
+            USER_ROUTE["user.route.ts"]
+            USER_SVC["user.service.ts"]
+            USER_MODEL["user.model.ts"]
+            PROFILE_SVC["userProfile.service.ts"]
+        end
+        
+        subgraph AuthModule["🔐 auth.module"]
+            AUTH_ROUTE["auth.routes.ts"]
+            AUTH_SVC["auth.service.ts"]
+            OTP_SVC["otp.service.ts"]
+        end
+    end
+    
+    subgraph AsyncProcessing["🔄 Async Processing"]
+        BULLMQ["🐂 BullMQ Queues"]
+        NOTIF_QUEUE["notification-queue"]
+        EMAIL_QUEUE["email-queue"]
+        ANALYTICS_QUEUE["analytics-queue"]
+        EXPORT_QUEUE["export-queue"]
+        
+        WORKERS["👷 Workers"]
+        NOTIF_WORKER["Notification Worker"]
+        EMAIL_WORKER["Email Worker"]
+        ANALYTICS_WORKER["Analytics Worker"]
+    end
+    
+    subgraph DataLayer["💾 Data Layer"]
+        MONGODB["🍃 MongoDB<br/>(Primary Database)"]
+        REDIS["🔴 Redis<br/>(Cache & Sessions)"]
+        FILE_STORAGE["📁 File Storage<br/>(S3/Local)"]
+    end
+    
+    subgraph External["🌐 External Services"]
+        STRIPE["💳 Stripe API<br/>(Payments)"]
+        EMAIL["📧 Email Service<br/>(SendGrid/SES)"]
+        PUSH["📱 Push Notification<br/>(FCM)"]
+        SMS["📱 SMS Service<br/>(Twilio)"]
+    end
+    
+    %% Frontend to API Gateway
+    FLUTTER --> LB
+    WEB --> LB
+    ADMIN --> LB
+    
+    LB --> AUTH
+    AUTH --> RATE
+    RATE --> CORS
+    
+    %% API Gateway to Backend
+    CORS --> TASK_ROUTE
+    CORS --> GROUP_ROUTE
+    CORS --> NOTIF_ROUTE
+    CORS --> ANALYTICS_ROUTE
+    CORS --> SUB_PLAN_ROUTE
+    CORS --> USER_SUB_ROUTE
+    CORS --> PAYMENT_TXN_ROUTE
+    CORS --> WEBHOOK_CTRL
+    CORS --> USER_ROUTE
+    CORS --> AUTH_ROUTE
+    
+    %% Internal Module Communication
+    TASK_ROUTE --> TASK_CTRL
+    TASK_CTRL --> TASK_SVC
+    TASK_SVC --> TASK_MODEL
+    TASK_SVC --> SUBTASK_SVC
+    
+    GROUP_ROUTE --> GROUP_CTRL
+    GROUP_CTRL --> GROUP_SVC
+    GROUP_SVC --> GROUP_MODEL
+    GROUP_SVC --> MEMBER_SVC
+    GROUP_SVC --> INVITE_SVC
+    
+    NOTIF_ROUTE --> NOTIF_CTRL
+    NOTIF_CTRL --> NOTIF_SVC
+    NOTIF_SVC --> NOTIF_MODEL
+    NOTIF_SVC --> REMINDER_SVC
+    
+    ANALYTICS_ROUTE --> USER_ANALYTICS
+    ANALYTICS_ROUTE --> TASK_ANALYTICS
+    ANALYTICS_ROUTE --> GROUP_ANALYTICS
+    ANALYTICS_ROUTE --> ADMIN_ANALYTICS
+    
+    SUB_PLAN_ROUTE --> SUB_PLAN_SVC
+    USER_SUB_ROUTE --> USER_SUB_SVC
+    USER_SUB_SVC --> SUB_CRON
+    
+    PAYMENT_TXN_ROUTE --> PAYMENT_TXN_SVC
+    PAYMENT_TXN_SVC --> PAYMENT_SVC
+    PAYMENT_SVC --> STRIPE_GW
+    WEBHOOK_CTRL --> PAYMENT_TXN_SVC
+    
+    USER_ROUTE --> USER_SVC
+    USER_SVC --> USER_MODEL
+    USER_SVC --> PROFILE_SVC
+    
+    AUTH_ROUTE --> AUTH_SVC
+    AUTH_SVC --> OTP_SVC
+    
+    %% Backend to Async Processing
+    NOTIF_SVC --> NOTIF_QUEUE
+    INVITE_SVC --> EMAIL_QUEUE
+    ANALYTICS_ROUTE --> ANALYTICS_QUEUE
+    PAYMENT_TXN_SVC --> EXPORT_QUEUE
+    
+    NOTIF_QUEUE --> NOTIF_WORKER
+    EMAIL_QUEUE --> EMAIL_WORKER
+    ANALYTICS_QUEUE --> ANALYTICS_WORKER
+    
+    %% Backend to Data Layer
+    TASK_MODEL --> MONGODB
+    GROUP_MODEL --> MONGODB
+    NOTIF_MODEL --> MONGODB
+    USER_MODEL --> MONGODB
+    PAYMENT_TXN_SVC --> MONGODB
+    
+    TASK_SVC -.->|Cache| REDIS
+    GROUP_SVC -.->|Cache| REDIS
+    ANALYTICS_ROUTE -.->|Cache| REDIS
+    USER_SVC -.->|Cache| REDIS
+    
+    %% Async to External
+    EMAIL_WORKER --> EMAIL
+    NOTIF_WORKER --> PUSH
+    NOTIF_WORKER --> SMS
+    STRIPE_GW --> STRIPE
+    
+    %% Webhook from External
+    STRIPE --> WEBHOOK_CTRL
+    
+    %% Styling
+    style Frontend fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style Backend fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style AsyncProcessing fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style DataLayer fill:#fce4ec,stroke:#c2185b,color:#000
+    style External fill:#fff8e1,stroke:#f57f17,color:#000
+    
+    style TaskModule fill:#c8e6c9,stroke:#2e7d32
+    style GroupModule fill:#c8e6c9,stroke:#2e7d32
+    style NotificationModule fill:#c8e6c9,stroke:#2e7d32
+    style AnalyticsModule fill:#c8e6c9,stroke:#2e7d32
+    style SubscriptionModule fill:#c8e6c9,stroke:#2e7d32
+    style PaymentModule fill:#c8e6c9,stroke:#2e7d32
+    style UserModule fill:#c8e6c9,stroke:#2e7d32
+    style AuthModule fill:#c8e6c9,stroke:#2e7d32

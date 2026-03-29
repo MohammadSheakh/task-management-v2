@@ -1,0 +1,93 @@
+flowchart TB
+    subgraph Client["Client Layer"]
+        Flutter[Flutter App]
+        Web[Task Management Website]
+    end
+
+    subgraph LB["Load Balancer"]
+        NGINX[NGINX Reverse Proxy]
+    end
+
+    subgraph AppServer["Application Servers - Stateless"]
+        subgraph AuthModule["Auth Module"]
+            AuthRoute[auth.routes.ts]
+            AuthController[auth.controller.ts]
+            AuthService[auth.service.ts]
+        end
+
+        subgraph UserModule["User Module Integration"]
+            UserService[user.service.ts]
+            UserModel[user.model.ts]
+        end
+
+        subgraph OTPModule["OTP Module Integration"]
+            OTPService[otp.service.ts]
+        end
+
+        subgraph TokenModule["Token Module Integration"]
+            TokenService[token.service.ts]
+        end
+    end
+
+    subgraph Cache["Redis Cache Layer"]
+        SessionCache[Session Cache<br/>TTL: 7 days]
+        OTPCache[OTP Cache<br/>TTL: 10 min]
+        TokenBlacklist[Token Blacklist<br/>TTL: 24 hours]
+        RateLimitCache[Rate Limit Counters]
+        LockCache[Account Lock Cache<br/>TTL: 15 min]
+    end
+
+    subgraph Queue["Message Queue"]
+        EmailQueue[Email Queue<br/>BullMQ]
+        NotificationQueue[Notification Queue<br/>BullMQ]
+    end
+
+    subgraph DB["Database Layer"]
+        MongoDB[(MongoDB Atlas)]
+        UserCol[User Collection]
+        SessionCol[Session Collection]
+        TokenCol[Token Collection]
+        OTPOtpCol[OTP Collection]
+    end
+
+    subgraph External["External Services"]
+        Google[Google OAuth 2.0]
+        Apple[Apple Sign-In]
+        EmailProvider[Email Service<br/>SendGrid/SES]
+        FCM[Firebase Cloud Messaging]
+    end
+
+    Flutter --> NGINX
+    Web --> NGINX
+    NGINX --> AuthRoute
+
+    AuthRoute --> AuthController
+    AuthController --> AuthService
+
+    AuthService --> UserService
+    AuthService --> OTPService
+    AuthService --> TokenService
+
+    UserService --> UserModel
+    UserService --> SessionCache
+    UserService --> UserCol
+
+    OTPService --> OTPCache
+    OTPService --> OTPOtpCol
+
+    TokenService --> SessionCache
+    TokenService --> TokenBlacklist
+    TokenService --> TokenCol
+
+    AuthService --> EmailQueue
+    AuthService --> NotificationQueue
+
+    EmailQueue --> EmailProvider
+    NotificationQueue --> FCM
+
+    AuthService --> Google
+    AuthService --> Apple
+
+    SessionCache <--> MongoDB
+    OTPCache <--> MongoDB
+    TokenBlacklist <--> MongoDB

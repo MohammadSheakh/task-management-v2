@@ -1,0 +1,291 @@
+flowchart TB
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Frontend["🖥️ Frontend Layer"]
+        FLUTTER["📱 Flutter App<br/>(Children & Group Members)"]
+        WEB["💻 Website Dashboard<br/>(Teacher/Parent)"]
+        ADMIN["👨‍💼 Admin Dashboard<br/>(System Admin)"]
+    end
+
+    subgraph APIGateway["🔌 API Gateway"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT)"]
+        RATE["Rate Limiter"]
+        CORS["CORS"]
+    end
+
+    subgraph Backend["⚙️ Backend Services<br/>(Node.js + Express)"]
+
+        subgraph TaskModule["📋 task.module"]
+            TASK_ROUTE["task.route.ts"]
+            TASK_CTRL["task.controller.ts"]
+            TASK_SVC["task.service.ts"]
+            TASK_MODEL["task.model.ts"]
+            SUBTASK_SVC["subtask.service.ts"]
+        end
+
+        subgraph TaskProgressModule["📊 taskProgress.module<br/>(NEW!)"]
+            TASKPROG_ROUTE["taskProgress.route.ts"]
+            TASKPROG_CTRL["taskProgress.controller.ts"]
+            TASKPROG_SVC["taskProgress.service.ts"]
+            TASKPROG_MODEL["taskProgress.model.ts"]
+        end
+
+        subgraph ChildrenBusinessUserModule["👨‍👩‍👧‍👦 childrenBusinessUser.module<br/>(NEW!)"]
+            CBU_ROUTE["childrenBusinessUser.route.ts"]
+            CBU_CTRL["childrenBusinessUser.controller.ts"]
+            CBU_SVC["childrenBusinessUser.service.ts"]
+            CBU_MODEL["childrenBusinessUser.model.ts"]
+        end
+
+        subgraph NotificationModule["🔔 notification.module"]
+            NOTIF_ROUTE["notification.route.ts"]
+            NOTIF_CTRL["notification.controller.ts"]
+            NOTIF_SVC["notification.service.ts"]
+            NOTIF_MODEL["notification.model.ts"]
+            REMINDER_SVC["taskReminder.service.ts"]
+        end
+
+        subgraph AnalyticsModule["📊 analytics.module"]
+            ANALYTICS_ROUTE["analytics.route.ts"]
+            USER_ANALYTICS["userAnalytics.service.ts"]
+            TASK_ANALYTICS["taskAnalytics.service.ts"]
+            GROUP_ANALYTICS["groupAnalytics.service.ts"]
+            ADMIN_ANALYTICS["adminAnalytics.service.ts"]
+            CHART_AGG["chartAggregation.service.ts<br/>(NEW!)"]
+        end
+
+        subgraph SubscriptionModule["💳 subscription.module"]
+            SUB_PLAN_ROUTE["subscriptionPlan.route.ts"]
+            SUB_PLAN_SVC["subscriptionPlan.service.ts"]
+            USER_SUB_ROUTE["userSubscription.route.ts"]
+            USER_SUB_SVC["userSubscription.service.ts"]
+            SUB_CRON["userSubscription.cron.ts"]
+        end
+
+        subgraph PaymentModule["💰 payment.module"]
+            PAYMENT_SVC["payment.service.ts"]
+            PAYMENT_TXN_ROUTE["paymentTransaction.route.ts"]
+            PAYMENT_TXN_SVC["paymentTransaction.service.ts"]
+            WEBHOOK_CTRL["webhook.controller.ts"]
+            STRIPE_GW["stripe.gateway.ts"]
+        end
+
+        subgraph UserModule["👤 user.module"]
+            USER_ROUTE["user.route.ts"]
+            USER_SVC["user.service.ts"]
+            USER_MODEL["user.model.ts"]
+            PROFILE_SVC["userProfile.service.ts"]
+            DEVICES_SVC["userDevices.service.ts"]
+        end
+
+        subgraph AuthModule["🔐 auth.module"]
+            AUTH_ROUTE["auth.routes.ts"]
+            AUTH_SVC["auth.service.ts"]
+            OTP_SVC["otp.service.ts"]
+        end
+
+        subgraph ChatModule["💬 chatting.module"]
+            CONV_ROUTE["conversation.route.ts"]
+            CONV_SVC["conversation.service.ts"]
+            MSG_SVC["message.service.ts"]
+            MSG_PART_SVC["conversationParticipents.service.ts"]
+        end
+
+        subgraph SettingsModule["⚙️ settings.module"]
+            SETTINGS_ROUTE["settings.route.ts"]
+            SETTINGS_SVC["settings.service.ts"]
+        end
+    end
+
+    subgraph AsyncProcessing["🔄 Async Processing"]
+        BULLMQ["🐂 BullMQ Queues"]
+        NOTIF_QUEUE["notification-queue<br/>(critical)"]
+        EMAIL_QUEUE["email-queue<br/>(standard)"]
+        TASK_REMINDER_QUEUE["task-reminders-queue<br/>(critical)"]
+        PREFERRED_TIME_QUEUE["preferredTimeQueue<br/>(low)"]
+        NOTIFY_PARTICIPANTS_QUEUE["notify-participants-queue<br/>(standard)"]
+
+        WORKERS["👷 Workers"]
+        NOTIF_WORKER["Notification Worker"]
+        EMAIL_WORKER["Email Worker"]
+        REMINDER_WORKER["Task Reminder Worker"]
+        PREFERRED_TIME_WORKER["Preferred Time Worker"]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer<br/>(NEW!)"]
+        SOCKET_IO["Socket.IO Server"]
+        REDIS_ADAPTER["Redis Adapter"]
+        ROOMS["Rooms"]
+        USER_ROOMS["User Rooms"]
+        FAMILY_ROOMS["Family Rooms"]
+        TASK_ROOMS["Task Rooms"]
+        SOCKET_EVENTS["Events"]
+        TASK_EVENTS["task:assigned<br/>task-progress:*"]
+        GROUP_EVENTS["group:activity"]
+    end
+
+    subgraph DataLayer["💾 Data Layer"]
+        MONGODB["🍃 MongoDB<br/>(Primary Database)"]
+        REDIS["🔴 Redis<br/>(Cache & Sessions)"]
+        REDIS_CACHE["Cache"]
+        REDIS_STATE["Socket.IO State"]
+        REDIS_ACTIVITY["Activity Feeds"]
+        FILE_STORAGE["📁 File Storage<br/>(S3/Local)"]
+    end
+
+    subgraph External["🌐 External Services"]
+        STRIPE["💳 Stripe API<br/>(Payments)"]
+        EMAIL["📧 Email Service<br/>(SendGrid/SES)"]
+        PUSH["📱 Push Notification<br/>(FCM)"]
+        SMS["📱 SMS Service<br/>(Twilio)"]
+    end
+
+    %% Frontend to API Gateway
+    FLUTTER --> LB
+    WEB --> LB
+    ADMIN --> LB
+
+    LB --> AUTH
+    AUTH --> RATE
+    RATE --> CORS
+
+    %% API Gateway to Backend
+    CORS --> TASK_ROUTE
+    CORS --> TASKPROG_ROUTE
+    CORS --> CBU_ROUTE
+    CORS --> NOTIF_ROUTE
+    CORS --> ANALYTICS_ROUTE
+    CORS --> SUB_PLAN_ROUTE
+    CORS --> USER_SUB_ROUTE
+    CORS --> PAYMENT_TXN_ROUTE
+    CORS --> WEBHOOK_CTRL
+    CORS --> USER_ROUTE
+    CORS --> AUTH_ROUTE
+    CORS --> CONV_ROUTE
+    CORS --> SETTINGS_ROUTE
+
+    %% Socket.IO Connection
+    FLUTTER -.->|WebSocket| SOCKET_IO
+    WEB -.->|WebSocket| SOCKET_IO
+    SOCKET_IO --> REDIS_ADAPTER
+    REDIS_ADAPTER --> ROOMS
+    ROOMS --> USER_ROOMS
+    ROOMS --> FAMILY_ROOMS
+    ROOMS --> TASK_ROOMS
+    SOCKET_IO --> SOCKET_EVENTS
+    SOCKET_EVENTS --> TASK_EVENTS
+    SOCKET_EVENTS --> GROUP_EVENTS
+
+    %% Internal Module Communication
+    TASK_ROUTE --> TASK_CTRL
+    TASK_CTRL --> TASK_SVC
+    TASK_SVC --> TASK_MODEL
+    TASK_SVC --> SUBTASK_SVC
+    TASK_SVC -.->|Real-time| SOCKET_IO
+
+    TASKPROG_ROUTE --> TASKPROG_CTRL
+    TASKPROG_CTRL --> TASKPROG_SVC
+    TASKPROG_SVC --> TASKPROG_MODEL
+    TASKPROG_SVC -.->|Parent Notifications| SOCKET_IO
+
+    CBU_ROUTE --> CBU_CTRL
+    CBU_CTRL --> CBU_SVC
+    CBU_SVC --> CBU_MODEL
+
+    NOTIF_ROUTE --> NOTIF_CTRL
+    NOTIF_CTRL --> NOTIF_SVC
+    NOTIF_SVC --> NOTIF_MODEL
+    NOTIF_SVC --> REMINDER_SVC
+    NOTIF_SVC -.->|Real-time| SOCKET_IO
+
+    ANALYTICS_ROUTE --> USER_ANALYTICS
+    ANALYTICS_ROUTE --> TASK_ANALYTICS
+    ANALYTICS_ROUTE --> GROUP_ANALYTICS
+    ANALYTICS_ROUTE --> ADMIN_ANALYTICS
+    ANALYTICS_ROUTE --> CHART_AGG
+
+    SUB_PLAN_ROUTE --> SUB_PLAN_SVC
+    USER_SUB_ROUTE --> USER_SUB_SVC
+    USER_SUB_SVC --> SUB_CRON
+
+    PAYMENT_TXN_ROUTE --> PAYMENT_TXN_SVC
+    PAYMENT_TXN_SVC --> PAYMENT_SVC
+    PAYMENT_SVC --> STRIPE_GW
+    WEBHOOK_CTRL --> PAYMENT_TXN_SVC
+
+    USER_ROUTE --> USER_SVC
+    USER_SVC --> USER_MODEL
+    USER_SVC --> PROFILE_SVC
+    USER_SVC --> DEVICES_SVC
+
+    AUTH_ROUTE --> AUTH_SVC
+    AUTH_SVC --> OTP_SVC
+
+    CONV_ROUTE --> CONV_SVC
+    CONV_SVC --> MSG_SVC
+    MSG_SVC --> MSG_PART_SVC
+
+    %% Backend to Async Processing
+    NOTIF_SVC --> NOTIF_QUEUE
+    REMINDER_SVC --> TASK_REMINDER_QUEUE
+    TASKPROG_SVC --> PREFERRED_TIME_QUEUE
+    MSG_SVC --> NOTIFY_PARTICIPANTS_QUEUE
+
+    NOTIF_QUEUE --> NOTIF_WORKER
+    EMAIL_QUEUE --> EMAIL_WORKER
+    TASK_REMINDER_QUEUE --> REMINDER_WORKER
+    PREFERRED_TIME_QUEUE --> PREFERRED_TIME_WORKER
+
+    %% Backend to Data Layer
+    TASK_MODEL --> MONGODB
+    TASKPROG_MODEL --> MONGODB
+    CBU_MODEL --> MONGODB
+    NOTIF_MODEL --> MONGODB
+    USER_MODEL --> MONGODB
+    PAYMENT_TXN_SVC --> MONGODB
+
+    TASK_SVC -.->|Cache| REDIS_CACHE
+    TASKPROG_SVC -.->|Cache| REDIS_CACHE
+    GROUP_ANALYTICS -.->|Cache| REDIS_CACHE
+    USER_SVC -.->|Cache| REDIS_CACHE
+    NOTIF_SVC -.->|Cache| REDIS_CACHE
+
+    SOCKET_IO -.->|State| REDIS_STATE
+    SOCKET_IO -.->|Activity Feeds| REDIS_ACTIVITY
+
+    %% Async to External
+    EMAIL_WORKER --> EMAIL
+    NOTIF_WORKER --> PUSH
+    NOTIF_WORKER --> SMS
+    STRIPE_GW --> STRIPE
+
+    %% Webhook from External
+    STRIPE --> WEBHOOK_CTRL
+
+    %% Styling
+    style Frontend fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style Backend fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style AsyncProcessing fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style DataLayer fill:#fce4ec,stroke:#c2185b,color:#000
+    style External fill:#fff8e1,stroke:#f57f17,color:#000
+
+    style TaskModule fill:#c8e6c9,stroke:#2e7d32
+    style TaskProgressModule fill:#c8e6c9,stroke:#2e7d32
+    style ChildrenBusinessUserModule fill:#c8e6c9,stroke:#2e7d32
+    style NotificationModule fill:#c8e6c9,stroke:#2e7d32
+    style AnalyticsModule fill:#c8e6c9,stroke:#2e7d32
+    style SubscriptionModule fill:#c8e6c9,stroke:#2e7d32
+    style PaymentModule fill:#c8e6c9,stroke:#2e7d32
+    style UserModule fill:#c8e6c9,stroke:#2e7d32
+    style AuthModule fill:#c8e6c9,stroke:#2e7d32
+    style ChatModule fill:#c8e6c9,stroke:#2e7d32
+    style SettingsModule fill:#c8e6c9,stroke:#2e7d32
+
+    style SOCKET_IO fill:#fff176,color:#000
+    style REDIS_ADAPTER fill:#fff176,color:#000

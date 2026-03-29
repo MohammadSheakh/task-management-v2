@@ -1,0 +1,133 @@
+flowchart TB
+    %% ===========================================
+    %% NOTIFICATION MODULE - SWIMLANE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph User["👤 User Layer<br/>(Parent/Child/Admin)"]
+        U1[Parent: View Notifications]
+        U2[Child: Complete Task]
+        U3[Admin: Send Bulk]
+    end
+
+    subgraph Frontend["💻 Frontend Layer<br/>(Flutter/Web)"]
+        F1[Notification Screen]
+        F2[Activity Feed]
+        F3[Socket.IO Client]
+    end
+
+    subgraph API["🔌 API Layer<br/>(Express + Middleware)"]
+        A1[Routes]
+        A2[Authentication]
+        A3[Rate Limiting]
+    end
+
+    subgraph Backend["⚙️ Backend Layer<br/>(Controllers + Services)"]
+        B1[notification.controller]
+        B2[notification.service<br/>with Socket.IO ⭐]
+        B3[taskReminder.controller]
+        B4[taskReminder.service]
+    end
+
+    subgraph Database["💾 Database Layer<br/>(MongoDB)"]
+        D1[NOTIFICATION Collection]
+        D2[TASK_REMINDER Collection]
+        D3[USER Collection]
+        D4[TASK Collection]
+    end
+
+    subgraph Cache["🔴 Cache Layer<br/>(Redis)"]
+        C1[Unread Cache<br/>60s TTL]
+        C2[Notification List<br/>300s TTL]
+        C3[Socket.IO State ⭐<br/>60s TTL]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        R1[Socket.IO Server]
+        R2[Redis Adapter]
+        R3[User Rooms]
+        R4[Family Rooms]
+        R5[Events]
+    end
+
+    subgraph Queue["🔄 Queue Layer<br/>(BullMQ)"]
+        Q1[notification-queue]
+        Q2[task-reminders-queue]
+        Q3[Workers]
+    end
+
+    subgraph External["🌐 External Layer"]
+        E1[FCM Push<br/>Notifications]
+        E2[Email Service<br/>SendGrid/SES]
+        E3[Twilio SMS]
+    end
+
+    %% User to Frontend
+    U1 --> F1
+    U2 --> F1
+    U3 --> F1
+    F3 --> R1
+
+    %% Frontend to API
+    F1 --> A1
+    A1 --> A2
+    A2 --> A3
+
+    %% API to Backend
+    A3 --> B1
+    A3 --> B3
+    B1 --> B2
+    B3 --> B4
+
+    %% Backend to Database
+    B2 --> D1
+    B2 --> D3
+    B4 --> D2
+    B4 --> D4
+
+    %% Backend to Cache
+    B2 -.->|Check| C1
+    B2 -.->|Check| C2
+    C1 -->|Hit| B2
+    C2 -->|Hit| B2
+    C1 -->|Miss| D1
+    C2 -->|Miss| D1
+
+    %% Real-Time Integration ⭐
+    B2 -.->|Emit| R1
+    B4 -.->|Broadcast| R1
+    R1 --> R2
+    R2 --> R3
+    R2 --> R4
+    R2 --> R5
+    R1 -.->|State| C3
+    R1 -.->|Push| F3
+
+    %% Queue Flow
+    B2 --> Q1
+    B4 --> Q2
+    Q3 --> Q1
+    Q3 --> Q2
+    Q3 --> E1
+    Q3 --> E2
+    Q3 --> E3
+
+    %% External Flow
+    E1 --> U1
+    E2 --> U1
+    E3 --> U1
+
+    %% Styling
+    style User fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Frontend fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#fff3e0,stroke:#e65100,color:#000
+    style Backend fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style Queue fill:#e0f7fa,stroke:#006064,color:#000
+    style External fill:#fff8e1,stroke:#f57f17,color:#000
+
+    style B2 fill:#c8e6c9,stroke:#2e7d32
+    style R1 fill:#fff176,color:#000
+    style C3 fill:#ffcc80,color:#000

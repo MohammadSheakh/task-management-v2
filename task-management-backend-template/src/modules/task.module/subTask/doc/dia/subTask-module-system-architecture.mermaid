@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph "Client Layer"
+        A1[Parent Dashboard]
+        A2[Child Mobile App]
+        A3[Individual User App]
+    end
+    
+    subgraph "API Gateway"
+        B1[Express.js]
+        B2[Auth Middleware]
+        B3[Rate Limiter]
+    end
+    
+    subgraph "Application Layer"
+        C1[SubTask Controller]
+        C2[SubTask Service]
+    end
+    
+    subgraph "Cache Layer"
+        D1[Redis Cache]
+        D2[SubTask List Cache]
+        D3[SubTask Detail Cache]
+    end
+    
+    subgraph "Database Layer"
+        E1[MongoDB]
+        E2[SubTask Collection]
+        E3[Task Collection]
+    end
+    
+    subgraph "External"
+        F1[Notification Service]
+        F2[TaskProgress Module]
+    end
+    
+    A1 & A2 & A3 --> B1 --> B2 --> B3
+    B3 --> C1
+    C1 --> C2
+    C2 --> D1 & E1
+    D1 --> D2 & D3
+    E1 --> E2 & E3
+    C2 --> F1 & F2

@@ -1,0 +1,51 @@
+sequenceDiagram
+    participant U as User (Child/Parent)
+    participant FE as Frontend (Flutter)
+    participant API as Task API
+    participant DB as MongoDB
+    participant Redis as Redis Cache
+    participant BullMQ as BullMQ Queue
+    participant Notif as Notification Service
+    participant PrefWorker as Preferred Time Worker
+    participant UserDB as User Collection
+
+    Note over U,UserDB: 📅 SCENARIO 1: Get Suggestion (Before Task Creation)
+    U->>FE: Tap "Scheduled Time" field
+    FE->>API: GET /tasks/suggest-preferred-time?assignedUserId=XXX
+    API->>UserDB: Get user's preferredTime
+    UserDB-->>API: preferredTime: "08:17"
+    API-->>FE: Suggestion: { time: "08:17", explanation: "..." }
+    FE->>U: Show suggestion dialog
+    U->>FE: Accept or choose custom time
+
+    Note over U,UserDB: 📝 SCENARIO 2: Create Task with Scheduled Time
+    U->>FE: Fill task form with scheduledTime
+    FE->>API: POST /tasks { scheduledTime: "08:17", ... }
+    API->>DB: Validate & create task
+    DB-->>API: Task created
+    API->>Redis: Invalidate cache
+    Redis-->>API: Cache invalidated
+    API-->>FE: Task created ✓
+
+    Note over U,UserDB: ✅ SCENARIO 3: Complete Task (Triggers Calculation)
+    U->>API: PUT /tasks/:id/status (complete task)
+    API->>DB: Validate & update task status
+    DB-->>API: Task completed
+    API->>Redis: Invalidate task cache
+    Redis-->>API: Cache invalidated
+    API-->>U: Task completed ✓
+
+    Note over API,BullMQ: Trigger preferred time calculation
+    API->>BullMQ: Add job: calculatePreferredTime
+    BullMQ-->>API: Job queued
+
+    Note over BullMQ: Async processing
+    BullMQ->>PrefWorker: Process job
+    PrefWorker->>DB: Get last 10 completed tasks
+    DB-->>PrefWorker: Tasks with startTime
+    PrefWorker->>PrefWorker: Calculate average start time
+    PrefWorker->>UserDB: Update user.preferredTime
+    UserDB-->>PrefWorker: Preferred time updated
+    PrefWorker-->>BullMQ: Job completed
+
+    Note over U,UserDB: 🔄 Next task scheduled at updated preferred time

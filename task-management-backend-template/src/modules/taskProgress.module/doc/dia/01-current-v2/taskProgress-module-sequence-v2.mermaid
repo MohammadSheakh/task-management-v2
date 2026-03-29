@@ -1,0 +1,86 @@
+sequenceDiagram
+    %% ===========================================
+    %% TASK PROGRESS MODULE - SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant C as Child
+    participant P as Parent
+    participant FE as Frontend
+    participant API as API Gateway
+    participant TP as taskProgress.service
+    participant SUBTASK as subtask.service
+    participant REDIS as Redis Cache
+    participant DB as MongoDB
+    participant SOCKET as Socket.IO
+
+    %% SCENARIO 1: Child Updates Progress
+    Note over C,DB: Scenario 1: Child Updates Progress
+
+    C->>FE: Update Progress
+    FE->>API: PUT /task-progress/:taskId/status
+    API->>TP: updateProgressStatus()
+    TP->>DB: Update TASK_PROGRESS
+    DB-->>TP: Updated
+    TP->>SOCKET: broadcastProgressUpdate()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>P: Real-time notification
+    P->>FE: Dashboard updates
+    TP->>REDIS: Invalidate caches
+    TP-->>API: Success
+    API-->>FE: Progress updated
+    FE-->>C: Success
+
+    %% SCENARIO 2: Child Completes Subtask → Real-Time Parent Update ⭐ NEW!
+    Note over C,DB: Scenario 2: Child Completes Subtask → Real-Time Parent Update ⭐ NEW!
+
+    C->>FE: Complete Subtask
+    FE->>API: PUT /task-progress/:taskId/subtasks/:index/complete
+    API->>TP: completeSubtask()
+    TP->>DB: Update completedSubtaskIndexes
+    DB-->>TP: Updated
+    TP->>DB: Recalculate progressPercentage
+    DB-->>TP: New percentage
+    TP->>SOCKET: broadcastSubtaskCompletion()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>P: group:activity event
+    P->>FE: Progress bar updates
+    TP->>REDIS: Invalidate caches
+    TP-->>API: Success
+    API-->>FE: Subtask completed
+    FE-->>C: Success + Celebration
+
+    %% SCENARIO 3: Parent Views Child Progress (Cached)
+    Note over P,DB: Scenario 3: Parent Views Child Progress (Cached)
+
+    P->>FE: View Child Progress
+    FE->>API: GET /task-progress/:taskId/children
+    API->>TP: getAllChildrenProgress()
+    TP->>REDIS: Check cache
+    REDIS-->>TP: Cache hit
+    TP-->>API: Cached progress
+    API-->>FE: Progress data
+    FE-->>P: Display progress
+
+    %% SCENARIO 4: Child Completes Task → Real-Time Celebration ⭐ NEW!
+    Note over C,DB: Scenario 4: Child Completes Task → Real-Time Celebration ⭐ NEW!
+
+    C->>FE: Complete Task
+    FE->>API: PUT /task-progress/:taskId/status
+    API->>TP: updateProgressStatus(completed)
+    TP->>DB: Update TASK_PROGRESS status
+    DB-->>TP: Completed
+    TP->>SOCKET: broadcastTaskCompletion()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>P: task-progress:completed event
+    P->>FE: Celebration animation
+    FE-->>P: Show celebration
+    TP->>REDIS: Invalidate caches
+    TP-->>API: Task completed
+    API-->>FE: Success
+    FE-->>C: Success + Celebration
+
+    %% Styling
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer ⭐
+    end

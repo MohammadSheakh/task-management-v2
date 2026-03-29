@@ -1,0 +1,64 @@
+flowchart TB
+    subgraph SubscriptionModule["subscription.module"]
+        subgraph SubscriptionPlan["SubscriptionPlan Sub-Module"]
+            SP_IFACE[subscriptionPlan.interface.ts]
+            SP_CONST[subscriptionPlan.constant.ts]
+            SP_MODEL[subscriptionPlan.model.ts]
+            SP_SVC[subscriptionPlan.service.ts]
+            SP_CTRL[subscriptionPlan.controller.ts]
+            SP_ROUTE[subscriptionPlan.route.ts]
+            SP_VALID[subscriptionPlan.validation.ts]
+        end
+
+        subgraph UserSubscription["UserSubscription Sub-Module"]
+            US_IFACE[userSubscription.interface.ts]
+            US_CONST[userSubscription.constant.ts]
+            US_MODEL[userSubscription.model.ts]
+            US_SVC[userSubscription.service.ts]
+            US_CTRL[userSubscription.controller.ts]
+            US_ROUTE[userSubscription.route.ts]
+            US_CRON[userSubscription.cron.ts]
+        end
+
+        DOC[doc/ folder]
+        DOC_DIA[doc/dia/ - 8 diagrams]
+        DOC_PERF[doc/perf/ - performance report]
+    end
+
+    subgraph External["External Dependencies"]
+        PAYMENT[payment.module]
+        STRIPE[Stripe API]
+        MONGODB[(MongoDB)]
+        REDIS[(Redis Cache)]
+        USER[user.module]
+    end
+
+    %% Internal Flow
+    SP_ROUTE --> SP_CTRL
+    SP_CTRL --> SP_SVC
+    SP_SVC --> SP_MODEL
+
+    US_ROUTE --> US_CTRL
+    US_CTRL --> US_SVC
+    US_SVC --> US_MODEL
+
+    US_CRON --> US_SVC
+
+    %% External Dependencies
+    SP_SVC --> STRIPE
+    SP_SVC --> MONGODB
+    US_SVC --> PAYMENT
+    US_SVC --> MONGODB
+    US_SVC --> REDIS
+    US_SVC --> USER
+
+    %% Documentation
+    DOC --> DOC_DIA
+    DOC --> DOC_PERF
+
+    %% Styling
+    style SubscriptionPlan fill:#42a5f5,color:#fff
+    style UserSubscription fill:#66bb6a,color:#fff
+    style STRIPE fill:#ffca28,color:#000
+    style MONGODB fill:#4db33d,color:#fff
+    style REDIS fill:#ff7043,color:#fff

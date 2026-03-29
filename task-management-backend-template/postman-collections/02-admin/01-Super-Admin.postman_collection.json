@@ -1,0 +1,420 @@
+{
+  "info": {
+    "_postman_id": "task-management-super-admin-v2",
+    "name": "01 - Super Admin Role",
+    "description": "System Administrator - Platform Management\n\n## Responsibilities\n- Manage all users (students, teachers, parents)\n- View platform analytics & reports\n- Manage subscription plans\n- System-wide settings\n- Monitor income & revenue\n\n## Figma Reference\n- Main Admin Dashboard\n- User List & Management\n- Subscription Management\n- Earnings Dashboard\n\n## Variables\n- BASE_URL: http://localhost:5000/api/v1\n- ADMIN_TOKEN: Your admin JWT token\n\n## Last Updated\n- Date: 15-03-26\n- Version: 2.0 - Fixed paths, removed deprecated endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "variable": [
+    {"key": "BASE_URL", "value": "http://localhost:5000", "type": "string"},
+    {"key": "ADMIN_TOKEN", "value": "", "type": "string"},
+    {"key": "USER_ID", "value": "", "type": "string"},
+    {"key": "SUBSCRIPTION_ID", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "00 - Authentication",
+      "item": [
+        {
+          "name": "Login as Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"ADMIN_TOKEN\", jsonData.data.tokens.accessToken);",
+                  "    pm.environment.set(\"ADMIN_ID\", jsonData.data.user._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with admin credentials and save the token to ADMIN_TOKEN variable\n\n**Rate Limit**: 5 attempts per 15 minutes"
+          },
+          "response": []
+        },
+        {
+          "name": "Register Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"ADMIN_EMAIL\", jsonData.data.user.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"System Admin\",\n  \"email\": \"newadmin@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/register",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new admin user\n\n**Rate Limit**: 10 per hour\n**Note**: Admin role should be set manually in database for security"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Dashboard & Analytics",
+      "item": [
+        {
+          "name": "Get Dashboard Overview",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/analytics/admin/dashboard",
+              "host": ["{{BASE_URL}}"],
+              "path": ["analytics", "admin", "dashboard"]
+            },
+            "description": "Get complete dashboard overview with all statistics\n\n**Response includes:**\n- Platform overview (total users, groups, tasks)\n- User growth analytics\n- Revenue metrics\n- Task metrics\n- Engagement metrics\n\n**Cache**: 5 minutes"
+          }
+        },
+        {
+          "name": "Get User Growth Analytics",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/analytics/admin/user-growth",
+              "host": ["{{BASE_URL}}"],
+              "path": ["analytics", "admin", "user-growth"]
+            },
+            "description": "Get detailed user growth statistics\n\n**Response includes:**\n- Today/week/month new user counts\n- Growth rates (daily/weekly/monthly)\n- 30-day historical trend\n\n**Cache**: 10 minutes"
+          }
+        },
+        {
+          "name": "Get Revenue Analytics",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/analytics/admin/revenue",
+              "host": ["{{BASE_URL}}"],
+              "path": ["analytics", "admin", "revenue"]
+            },
+            "description": "Get revenue and subscription analytics\n\n**Response includes:**\n- MRR (Monthly Recurring Revenue)\n- ARR (Annual Recurring Revenue)\n- Revenue by subscription type\n- Historical revenue trends\n\n**Cache**: 15 minutes"
+          }
+        },
+        {
+          "name": "Get Task Metrics",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/analytics/admin/task-metrics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["analytics", "admin", "task-metrics"]
+            },
+            "description": "Get platform-wide task statistics\n\n**Response includes:**\n- Tasks created/completed today\n- Overall completion rate\n- Tasks by status and type\n- Trend analysis\n\n**Cache**: 5 minutes"
+          }
+        },
+        {
+          "name": "Get Engagement Metrics",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/analytics/admin/engagement",
+              "host": ["{{BASE_URL}}"],
+              "path": ["analytics", "admin", "engagement"]
+            },
+            "description": "Get user engagement analytics\n\n**Response includes:**\n- DAU/MAU (Daily/Monthly Active Users)\n- Stickiness ratio (DAU/MAU)\n- Average session duration\n- Retention rates (Day 1, 7, 30)\n\n**Cache**: 10 minutes"
+          }
+        },
+        {
+          "name": "Get User Ratio Chart Data",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/analytics/admin/user-ratio?type=monthly",
+              "host": ["{{BASE_URL}}"],
+              "path": ["analytics", "admin", "user-ratio"],
+              "query": [{"key": "type", "value": "monthly", "description": "Type: daily, weekly, monthly, yearly"}]
+            },
+            "description": "Get user ratio data for dashboard charts\n\n**Query Parameters:**\n- type: daily | weekly | monthly | yearly (default: monthly)\n\n**Response includes:**\n- Time-series data with active/inactive users\n- Activity rates\n- Summary statistics with trend analysis\n\n**Use Case**: Dashboard visualization charts\n**Cache**: 10 minutes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - User Management",
+      "item": [
+        {
+          "name": "Get All Users (Paginated)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/users/paginate?page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "users", "paginate"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"},
+                {"key": "role", "value": "", "description": "Filter: user, provider, admin"},
+                {"key": "name", "value": "", "description": "Search by name"}
+              ]
+            },
+            "description": "Get all users with pagination and filtering\n\n**Backend Route**: `GET /users/paginate`"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/users/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "users", "{{USER_ID}}"]
+            },
+            "description": "Get detailed information about a specific user\n\n**Backend Route**: `GET /users/:id`"
+          }
+        },
+        {
+          "name": "Send Invitation to Sub-Admin",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"subadmin@example.com\",\n  \"name\": \"Sub Admin\",\n  \"role\": \"subAdmin\",\n  \"phoneNumber\": \"+1234567890\",\n  \"password\": \"TempPass123!\",\n  \"message\": \"You are invited to join as sub-admin\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/users/send-invitation-link-to-admin-email",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "users", "send-invitation-link-to-admin-email"]
+            },
+            "description": "Send invitation email to new sub-admin with login credentials\n\n**Backend Route**: `POST /users/send-invitation-link-to-admin-email`\n\n**Note**: This is the correct endpoint for creating sub-admins. Direct creation is not supported for security."
+          }
+        },
+        {
+          "name": "Remove Sub-Admin",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/users/remove-sub-admin/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "users", "remove-sub-admin", "{{USER_ID}}"]
+            },
+            "description": "Remove/deactivate a sub-admin (soft delete)\n\n**Backend Route**: `PUT /users/remove-sub-admin/:id`"
+          }
+        },
+        {
+          "name": "Soft Delete User",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/users/softDelete/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "users", "softDelete", "{{USER_ID}}"]
+            },
+            "description": "Soft delete a user (can be restored)\n\n**Backend Route**: `PUT /users/softDelete/:id`"
+          }
+        },
+        {
+          "name": "Permanently Delete User",
+          "request": {
+            "method": "DELETE",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/users/delete/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "users", "delete", "{{USER_ID}}"]
+            },
+            "description": "Permanently delete a user (cannot be restored)\n\n**Backend Route**: `DELETE /users/delete/:id`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Subscription Plans Management",
+      "item": [
+        {
+          "name": "Get All Subscription Plans",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/subscription-plans/paginate?page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "subscription-plans", "paginate"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "description": "Get all subscription plans with pagination\n\n**Backend Route**: `GET /subscription-plans/paginate`"
+          }
+        },
+        {
+          "name": "Get Subscription Plan by ID",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/subscription-plans/{{SUBSCRIPTION_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "subscription-plans", "{{SUBSCRIPTION_ID}}"]
+            },
+            "description": "Get details of a specific subscription plan\n\n**Backend Route**: `GET /subscription-plans/:id`"
+          }
+        },
+        {
+          "name": "Create Subscription Plan",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionName\": \"Group Plan\",\n  \"subscriptionPrice\": 29.99,\n  \"duration\": \"monthly\",\n  \"description\": \"Premium monthly package for teams and families\",\n  \"features\": [\n    \"Up to 5 users per group\",\n    \"1 Primary account\",\n    \"Up to 4 Secondary accounts\",\n    \"Task management\",\n    \"Live activity feed\",\n    \"Permission controls\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/subscription-plans",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "subscription-plans"]
+            },
+            "description": "Create a new subscription plan (Individual or Group)\n\n**Backend Route**: `POST /subscription-plans`"
+          }
+        },
+        {
+          "name": "Update Subscription Plan",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionPrice\": 24.99,\n  \"description\": \"Updated description with new features\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/subscription-plans/{{SUBSCRIPTION_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "subscription-plans", "{{SUBSCRIPTION_ID}}"]
+            },
+            "description": "Update an existing subscription plan\n\n**Backend Route**: `PUT /subscription-plans/:id`"
+          }
+        },
+        {
+          "name": "Delete Subscription Plan",
+          "request": {
+            "method": "DELETE",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/subscription-plans/delete/{{SUBSCRIPTION_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "subscription-plans", "delete", "{{SUBSCRIPTION_ID}}"]
+            },
+            "description": "Delete a subscription plan\n\n**Backend Route**: `DELETE /subscription-plans/delete/:id`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - System Settings",
+      "item": [
+        {
+          "name": "Get System Settings",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/v1/settings?type=system",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "settings"],
+              "query": [
+                {"key": "type", "value": "system", "description": "Settings type: system, email, notification, etc."}
+              ]
+            },
+            "description": "Get current system-wide settings\n\n**Backend Route**: `GET /settings/?type=system`"
+          }
+        },
+        {
+          "name": "Update System Settings",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"system\",\n  \"dailyTaskLimit\": 10,\n  \"maxGroupSize\": 10,\n  \"enableNotifications\": true,\n  \"maintenanceMode\": false\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/settings",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "settings"]
+            },
+            "description": "Update system-wide settings (task limits, group size, etc.)\n\n**Backend Route**: `POST /settings`\n\n**Note**: Use POST method (not PUT) as per backend implementation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Notifications (Admin)",
+      "item": [
+        {
+          "name": "Send Bulk Notification",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{ADMIN_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"System Maintenance\",\n  \"subTitle\": \"Scheduled maintenance on Sunday\",\n  \"type\": \"system\",\n  \"priority\": \"high\",\n  \"channels\": [\"in_app\", \"email\"],\n  \"receiverRole\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/bulk",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "bulk"]
+            },
+            "description": "Send bulk notification to all users or specific role"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": ["// Pre-request scripts can be added here"]
+      }
+    }
+  ]
+}

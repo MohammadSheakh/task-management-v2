@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant U as User
+    participant API as Payment API
+    participant PAY as Payment Service
+    participant STRIPE as Stripe API
+    participant WH as Webhook Handler
+    participant DB as MongoDB
+
+    U->>API: POST /subscription-plans/purchase/:id
+    API->>PAY: Process payment
+    
+    PAY->>STRIPE: checkout.sessions.create()
+    STRIPE-->>PAY: checkout_url
+    
+    PAY-->>U: Redirect to Stripe
+    
+    U->>STRIPE: Enter payment details
+    STRIPE->>STRIPE: Process payment
+    
+    STRIPE->>WH: payment_intent.succeeded webhook
+    WH->>WH: Verify signature
+    
+    WH->>DB: Create PaymentTransaction
+    WH->>DB: Update UserSubscription status
+    
+    DB-->>WH: Success
+    
+    WH-->>STRIPE: 200 OK
+    
+    STRIPE->>U: Payment successful
+    U->>API: GET /user-subscriptions/paginate
+    API-->>U: Return active subscription

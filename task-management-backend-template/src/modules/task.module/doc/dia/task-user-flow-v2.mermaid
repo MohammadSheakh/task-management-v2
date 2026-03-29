@@ -1,0 +1,128 @@
+flowchart TD
+    %% ===========================================
+    %% TASK MODULE - USER FLOW (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Parent["👨‍👩‍👧 Parent User Flow"]
+        P1[Open Dashboard]
+        P2[Create Task]
+        P3[View Task Statistics]
+        P4[View Daily Progress]
+        P5[Monitor Child Progress]
+        P6[Receive Real-Time Update]
+    end
+
+    subgraph Child["👶 Child User Flow"]
+        C1[Open App]
+        C2[View My Tasks]
+        C3[Start Task]
+        C4[Complete Subtask]
+        C5[Complete Task]
+        C6[View Progress]
+    end
+
+    subgraph API["🔌 API Layer"]
+        API1[POST /tasks/]
+        API2[GET /tasks/statistics]
+        API3[GET /tasks/daily-progress]
+        API4[PUT /tasks/:id/status]
+        API5[POST /subtasks/]
+        API6[PUT /subtasks/:id/toggle-status]
+    end
+
+    subgraph Cache["🔴 Redis Cache"]
+        CACHE1[Check Task Cache]
+        CACHE2[Check Statistics Cache]
+        CACHE3[Cache Hit?]
+    end
+
+    subgraph Database["💾 MongoDB"]
+        DB1[Create Task]
+        DB2[Get Tasks]
+        DB3[Update Task Status]
+        DB4[Create Subtask]
+        DB5[Toggle Subtask]
+    end
+
+    subgraph TaskProgress["📊 TaskProgress ⭐ NEW!"]
+        TP1[Create TaskProgress]
+        TP2[Update Progress]
+        TP3[Get Child Progress]
+    end
+
+    subgraph RealTime["⚡ Real-Time ⭐ NEW!"]
+        RT1[Socket.IO Broadcast]
+        RT2[Family Room]
+        RT3[Parent Receives]
+        RT4[Dashboard Updates]
+    end
+
+    %% Parent Flow
+    P1 --> API1
+    P1 --> API2
+    P1 --> API3
+    API1 --> CACHE1
+    API2 --> CACHE2
+    API3 --> CACHE2
+    CACHE1 --> CACHE3
+    CACHE2 --> CACHE3
+    CACHE3 -->|Hit| API1
+    CACHE3 -->|Miss| DB1
+    CACHE3 -->|Miss| DB2
+    DB1 --> API1
+    DB2 --> API1
+    API1 --> P2
+    API2 --> P3
+    API3 --> P4
+    P4 --> P5
+    P5 --> RT3
+    RT3 --> RT4
+    RT4 --> P6
+
+    %% Child Flow
+    C1 --> API2
+    API2 --> CACHE1
+    CACHE1 --> CACHE3
+    CACHE3 -->|Hit| API2
+    CACHE3 -->|Miss| DB2
+    DB2 --> API2
+    API2 --> C2
+    C2 --> C3
+    C3 --> API4
+    API4 --> DB3
+    DB3 --> TP2
+    TP2 --> RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    RT3 --> RT4
+    API4 --> C6
+    C6 --> C4
+    C4 --> API6
+    API6 --> DB5
+    DB5 --> TP2
+    DB5 --> RT1
+    API6 --> C6
+    C6 --> C5
+    C5 --> API4
+
+    %% TaskProgress Flow ⭐
+    API1 --> TP1
+    TP1 --> DB1
+
+    %% Real-Time Flow ⭐
+    RT1 -->|task:created| RT2
+    RT1 -->|task:completed| RT2
+    RT1 -->|subtask:completed| RT2
+    RT2 -->|Broadcast| RT3
+    RT3 --> RT4
+    RT4 --> P6
+
+    %% Styling
+    style Parent fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Child fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style TaskProgress fill:#c8e6c9,stroke:#2e7d32,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000

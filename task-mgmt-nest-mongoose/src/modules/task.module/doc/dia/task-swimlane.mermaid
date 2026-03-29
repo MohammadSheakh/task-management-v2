@@ -1,0 +1,67 @@
+sequenceDiagram
+    participant U as User
+    participant TC as TaskController
+    participant TS as TaskService
+    participant STS as SubTaskService
+    participant DB as MongoDB
+    participant R as Redis
+    participant SG as SocketGateway
+
+    Note over U,SG: Create Task
+    U->>TC: POST /tasks
+    TC->>TS: create(taskDto, userId)
+    TS->>DB: insert(task)
+    TS->>R: cache task details
+    TS-->>TC: created task
+    TC-->>U: 201 Created
+
+    Note over U,SG: Get My Tasks
+    U->>TC: GET /tasks/my
+    TC->>TS: getTasksByUserId(userId)
+    TS->>R: check cache
+    alt Cache Miss
+        TS->>DB: find with filters
+        DB-->>TS: tasks
+        TS->>R: cache results
+    end
+    TS-->>TC: tasks
+    TC-->>U: 200 OK + tasks
+
+    Note over U,SG: Add Subtask
+    U->>TC: POST /tasks/:id/subtasks
+    TC->>TS: addSubtask(taskId, title, order, userId)
+    TS->>STS: createSubTask(dto, userId)
+    STS->>DB: insert(subTask)
+    STS->>DB: update task counts
+    STS->>SG: emit('subtask-created')
+    STS->>R: invalidate task cache
+    STS-->>TS: subTask
+    TS-->>TC: subTask
+    TC-->>U: 201 Created
+
+    Note over U,SG: Toggle Subtask
+    U->>TC: PUT /subtasks/:id/toggle
+    TC->>STS: toggleSubTaskStatus(id, userId)
+    STS->>DB: update subTask.isCompleted
+    STS->>DB: recalculate task stats
+    STS->>SG: emit('subtask-toggled')
+    STS->>R: invalidate cache
+    STS-->>TC: updated subTask
+    TC-->>U: 200 OK
+
+    Note over U,SG: Get Daily Progress
+    U->>TC: GET /tasks/daily-progress?date=2026-03-18
+    TC->>TS: getDailyProgress(userId, date)
+    TS->>DB: find tasks by date range
+    TS->>DB: aggregate subTask stats
+    DB-->>TS: progress data
+    TS-->>TC: daily progress
+    TC-->>U: 200 OK + progress
+
+    Note over U,SG: Get Statistics
+    U->>TC: GET /tasks/statistics
+    TC->>TS: getTaskStatistics(userId)
+    TS->>DB: count by status (parallel)
+    DB-->>TS: stats
+    TS-->>TC: statistics
+    TC-->>U: 200 OK + stats

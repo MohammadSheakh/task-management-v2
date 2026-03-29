@@ -1,0 +1,94 @@
+erDiagram
+    TASK ||--o{ USER : "creator"
+    TASK ||--o{ USER : "assignee"
+    TASK ||--o{ SUBTASK : "contains"
+    TASK ||--o{ GROUP : "belongs to"
+    TASK ||--o{ TASK_REMINDER : "has reminders"
+    TASK ||--o{ NOTIFICATION : "triggers"
+    TASK ||--o{ ATTACHMENT : "has attachments"
+    USER ||--o{ TASK : "tracks start time for preferred time"
+    USER ||--o| TASK : "provides suggestion for scheduledTime"
+
+    TASK {
+        ObjectId _id PK
+        String title
+        String description
+        ObjectId groupId FK "Reference to group"
+        ObjectId createdById FK "Task creator"
+        ObjectId ownerUserId FK "Task owner"
+        String taskType "personal|singleAssignment|collaborative"
+        ObjectId[] assignedUserIds FK "Assigned users"
+        String status "pending|inProgress|completed"
+        String priority "low|medium|high"
+        DateTime startTime "When task was actually started"
+        String scheduledTime "When task was scheduled for (suggested)"
+        DateTime completedTime "When completed"
+        DateTime dueDate "Task deadline"
+        Boolean isDeleted "Soft delete"
+        DateTime createdAt "Creation timestamp"
+        DateTime updatedAt "Update timestamp"
+    }
+
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK "Parent task"
+        String title
+        Boolean isCompleted
+        String duration
+        DateTime completedAt
+        Int order "Display order"
+    }
+
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "child|business|admin"
+        String profileImage
+        String preferredTime "Auto-calculated HH:mm format"
+        Boolean isDeleted
+    }
+
+    GROUP {
+        ObjectId _id PK
+        String name
+        String description
+        ObjectId ownerId FK
+        String visibility
+        Int memberCount
+    }
+
+    TASK_REMINDER {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        DateTime reminderTime
+        String triggerType
+        String status
+    }
+
+    NOTIFICATION {
+        ObjectId _id PK
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String title
+        String type
+        String status
+    }
+
+    ATTACHMENT {
+        ObjectId _id PK
+        ObjectId taskId FK
+        String fileName
+        String fileType
+        String fileUrl
+        Int fileSize
+    }
+
+    %% Indexes
+    %% createdById_1_status_1_isDeleted_1_startTime_-1
+    %% ownerUserId_1_status_1_isDeleted_1_startTime_-1
+    %% assignedUserIds_1_status_1_isDeleted_1
+    %% groupId_1_status_1_isDeleted_1
+    %% startTime_1_isDeleted_1
+    %% preferredTime_1_isDeleted_1 (User collection)

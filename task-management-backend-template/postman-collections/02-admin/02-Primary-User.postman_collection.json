@@ -1,0 +1,605 @@
+{
+  "info": {
+    "_postman_id": "task-management-primary-user-v1-deprecated",
+    "name": "02 - Primary User Role (Teacher/Parent) [DEPRECATED]",
+    "description": "⚠️ **DEPRECATED - DO NOT USE** ⚠️\n\n## This Collection is Deprecated\n\nThe Groups module referenced in this collection has been **REMOVED** from the backend and replaced with the **ChildrenBusinessUser** module.\n\n## What Changed?\n\n**Old Architecture (Groups Module):**\n- Primary users created \"groups\" (families, classrooms)\n- Members were added to groups\n- Tasks were assigned to groups\n\n**New Architecture (ChildrenBusinessUser Module):**\n- Business users (parents/teachers) create \"children\" accounts\n- Children are linked directly to business users\n- Tasks are assigned collaboratively\n- Simpler hierarchy, better for family/classroom management\n\n## Migration Guide\n\n| Old Endpoint (Groups) | New Endpoint (ChildrenBusinessUser) |\n|----------------------|-------------------------------------|\n| `GET /groups/my` | `GET /children-business-users/my-children` |\n| `POST /groups` | `POST /children-business-users/children` |\n| `GET /groups/:id/members` | Use task progress endpoints |\n| `POST /groups/:id/members` | `PUT /children-business-users/children/:childId/secondary-user` |\n\n## Use This Instead\n\nRefer to the following collections for updated endpoints:\n- **01-User-Common-Part2-Charts-Progress.postman_collection.json** - ChildrenBusinessUser endpoints\n- **03-Secondary-User-UPDATED-v2.postman_collection.json** - Secondary user (child) endpoints\n\n## Original Purpose (Historical Reference)\n\nGroup Owner - Manage Team & Assign Tasks\n\n### Responsibilities\n- Create and manage groups (families, classrooms)\n- Add/remove team members (children, students)\n- Create and assign tasks to members\n- Monitor task progress and activity\n- Set permissions for secondary users\n- View live activity feed\n\n### Figma Reference\n- Teacher/Parent Dashboard\n- Team Overview\n- Task Monitoring\n- Team Members Management\n- Settings → Permissions\n\n### Variables\n- BASE_URL: http://localhost:5000/api/v1\n- PRIMARY_USER_TOKEN: Your JWT token\n- GROUP_ID: Your test group ID\n- USER_ID: Team member ID\n- TASK_ID: Test task ID\n\n---\n\n**Deprecated:** 15-03-26\n**Reason:** Groups module replaced with ChildrenBusinessUser module\n**Migration:** Use ChildrenBusinessUser endpoints instead",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0-deprecated"
+  },
+  "variable": [
+    {"key": "BASE_URL", "value": "http://localhost:5000", "type": "string"},
+    {"key": "PRIMARY_USER_TOKEN", "value": "", "type": "string"},
+    {"key": "GROUP_ID", "value": "", "type": "string"},
+    {"key": "USER_ID", "value": "", "type": "string"},
+    {"key": "TASK_ID", "value": "", "type": "string"}
+  ],
+  "item": [
+    {
+      "name": "00 - Authentication",
+      "item": [
+        {
+          "name": "Register Primary User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"PRIMARY_USER_EMAIL\", jsonData.data.user.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Parent\",\n  \"email\": \"parent@example.com\",\n  \"password\": \"ParentPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/register",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new primary user (parent/teacher)\n\n**Rate Limit**: 10 per hour"
+          }
+        },
+        {
+          "name": "Login as Primary User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.environment.set(\"PRIMARY_USER_TOKEN\", jsonData.data.tokens.accessToken);",
+                  "    pm.environment.set(\"PRIMARY_USER_ID\", jsonData.data.user._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"ParentPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login and save token to PRIMARY_USER_TOKEN variable\n\n**Rate Limit**: 5 attempts per 15 minutes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Dashboard (Team Overview)",
+      "item": [
+        {
+          "name": "Get Team Overview",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/my?populate=members",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "my"],
+              "query": [{"key": "populate", "value": "members"}]
+            },
+            "description": "Get all groups with member details (Team Overview dashboard)"
+          }
+        },
+        {
+          "name": "Get Group Details",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}"]
+            },
+            "description": "Get detailed information about a specific group"
+          }
+        },
+        {
+          "name": "Get Group Statistics",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/statistics",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "statistics"]
+            },
+            "description": "Get group statistics (total tasks, completion rate, etc.)"
+          }
+        },
+        {
+          "name": "Get Live Activity Feed",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/notifications/my?type=task&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["notifications", "my"],
+              "query": [
+                {"key": "type", "value": "task"},
+                {"key": "limit", "value": "10"}
+              ]
+            },
+            "description": "Get real-time activity feed (task completions, updates)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Task Management",
+      "item": [
+        {
+          "name": "Create Single Assignment Task",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"singleAssignment\",\n  \"title\": \"Complete Math Homework\",\n  \"description\": \"Finish exercises 1-10 from chapter 5\",\n  \"groupId\": \"{{GROUP_ID}}\",\n  \"assignedUserIds\": [\"{{USER_ID}}\"],\n  \"startTime\": \"2026-03-08T10:30:00.000Z\",\n  \"scheduledTime\": \"10:30 AM\",\n  \"priority\": \"high\",\n  \"subtasks\": [\n    {\n      \"title\": \"Exercise 1-5\",\n      \"duration\": \"30 min\"\n    },\n    {\n      \"title\": \"Exercise 6-10\",\n      \"duration\": \"30 min\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"]
+            },
+            "description": "Create task assigned to one family member"
+          }
+        },
+        {
+          "name": "Create Collaborative Task",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskType\": \"collaborative\",\n  \"title\": \"Group Project\",\n  \"description\": \"Complete group assignment together\",\n  \"groupId\": \"{{GROUP_ID}}\",\n  \"assignedUserIds\": [\"{{USER_ID}}\", \"<user-id-2>\"],\n  \"startTime\": \"2026-03-08T14:00:00.000Z\",\n  \"scheduledTime\": \"2:00 PM\",\n  \"priority\": \"medium\",\n  \"subtasks\": [\n    {\n      \"title\": \"Research\",\n      \"duration\": \"1 hour\"\n    },\n    {\n      \"title\": \"Write Report\",\n      \"duration\": \"2 hours\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"]
+            },
+            "description": "Create task assigned to multiple members (collaborative)"
+          }
+        },
+        {
+          "name": "Get All Group Tasks",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks?groupId={{GROUP_ID}}&page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"],
+              "query": [
+                {"key": "groupId", "value": "{{GROUP_ID}}"},
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "description": "Get all tasks for a specific group"
+          }
+        },
+        {
+          "name": "Get Task Monitoring Overview",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/statistics?groupId={{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "statistics"],
+              "query": [{"key": "groupId", "value": "{{GROUP_ID}}"}]
+            },
+            "description": "Get task monitoring statistics (Not Started, In Progress, Completed counts)"
+          }
+        },
+        {
+          "name": "Get Tasks by Status (Not Started)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks?groupId={{GROUP_ID}}&status=pending",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"],
+              "query": [
+                {"key": "groupId", "value": "{{GROUP_ID}}"},
+                {"key": "status", "value": "pending"}
+              ]
+            },
+            "description": "Filter tasks by Not Started status"
+          }
+        },
+        {
+          "name": "Get Tasks by Status (In Progress)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks?groupId={{GROUP_ID}}&status=inProgress",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"],
+              "query": [
+                {"key": "groupId", "value": "{{GROUP_ID}}"},
+                {"key": "status", "value": "inProgress"}
+              ]
+            },
+            "description": "Filter tasks by In Progress status"
+          }
+        },
+        {
+          "name": "Get Tasks by Status (Completed)",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks?groupId={{GROUP_ID}}&status=completed",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"],
+              "query": [
+                {"key": "groupId", "value": "{{GROUP_ID}}"},
+                {"key": "status", "value": "completed"}
+              ]
+            },
+            "description": "Filter tasks by Completed status"
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Task Title\",\n  \"description\": \"Updated description with more details\",\n  \"priority\": \"high\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}"]
+            },
+            "description": "Update task details (title, description, priority)"
+          }
+        },
+        {
+          "name": "Update Task Status",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"inProgress\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}/status",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}", "status"]
+            },
+            "description": "Update task status (pending → inProgress → completed)"
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks/{{TASK_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks", "{{TASK_ID}}"]
+            },
+            "description": "Soft delete a task"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Team Members Management",
+      "item": [
+        {
+          "name": "Get All Team Members",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members?page=1&limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            },
+            "description": "Get all members of a group (Team Members page)"
+          }
+        },
+        {
+          "name": "Get Member Details",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members", "{{USER_ID}}"]
+            },
+            "description": "Get detailed information about a specific member"
+          }
+        },
+        {
+          "name": "Get Member's All Tasks",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/tasks?assignedUserIds={{USER_ID}}&groupId={{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["tasks"],
+              "query": [
+                {"key": "assignedUserIds", "value": "{{USER_ID}}"},
+                {"key": "groupId", "value": "{{GROUP_ID}}"}
+              ]
+            },
+            "description": "Get all tasks assigned to a specific member"
+          }
+        },
+        {
+          "name": "Add Member to Group",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"<user-id>\",\n  \"role\": \"member\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members"]
+            },
+            "description": "Add a new member to the group"
+          }
+        },
+        {
+          "name": "Update Member Role",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}/role",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members", "{{USER_ID}}", "role"]
+            },
+            "description": "Promote/demote member role (member → admin → owner)"
+          }
+        },
+        {
+          "name": "Remove Member from Group",
+          "request": {
+            "method": "DELETE",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/members/{{USER_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "members", "{{USER_ID}}"]
+            },
+            "description": "Remove a member from the group"
+          }
+        },
+        {
+          "name": "Get Team Size Count",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/count",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "count"]
+            },
+            "description": "Get total member count for the group"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Permissions (Figma: Settings)",
+      "item": [
+        {
+          "name": "Get Group Permissions",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "permissions"]
+            },
+            "description": "Get current permissions (which secondary users can create tasks)"
+          }
+        },
+        {
+          "name": "Update Group Permissions (Bulk)",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberPermissions\": [\n    {\n      \"userId\": \"<user-id-1>\",\n      \"canCreateTasks\": true,\n      \"canInviteMembers\": false\n    },\n    {\n      \"userId\": \"<user-id-2>\",\n      \"canCreateTasks\": false\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "permissions"]
+            },
+            "description": "Update permissions for multiple members at once (Manage Permission modal)"
+          }
+        },
+        {
+          "name": "Toggle Task Creation Permission",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"<member-id>\",\n  \"canCreateTasks\": true\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}/permissions/toggle",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}", "permissions", "toggle"]
+            },
+            "description": "Quick toggle for task creation permission (single member)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Group Management",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Family Group\",\n  \"description\": \"Manage family tasks and activities\",\n  \"visibility\": \"private\",\n  \"maxMembers\": 5\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups"]
+            },
+            "description": "Create a new group (family, classroom, team)"
+          }
+        },
+        {
+          "name": "Update Group Settings",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Group Name\",\n  \"description\": \"Updated description\",\n  \"maxMembers\": 10\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}"]
+            },
+            "description": "Update group settings (name, description, max members)"
+          }
+        },
+        {
+          "name": "Delete Group",
+          "request": {
+            "method": "DELETE",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/groups/{{GROUP_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["groups", "{{GROUP_ID}}"]
+            },
+            "description": "Delete a group (soft delete)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Profile & Subscription",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Get current user profile"
+          }
+        },
+        {
+          "name": "Get Profile Info",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile-info",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile-info"]
+            },
+            "description": "Get detailed profile information"
+          }
+        },
+        {
+          "name": "Update Profile Info",
+          "request": {
+            "method": "PUT",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Parent Updated\",\n  \"phoneNumber\": \"+1234567890\",\n  \"location\": \"New York\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/users/profile-info",
+              "host": ["{{BASE_URL}}"],
+              "path": ["users", "profile-info"]
+            },
+            "description": "Update profile information"
+          }
+        },
+        {
+          "name": "Get My Subscription",
+          "request": {
+            "method": "GET",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{PRIMARY_USER_TOKEN}}"}]},
+            "url": {
+              "raw": "{{BASE_URL}}/subscriptions/my",
+              "host": ["{{BASE_URL}}"],
+              "path": ["subscriptions", "my"]
+            },
+            "description": "Get current subscription status and plan"
+          }
+        }
+      ]
+    }
+  ]
+}

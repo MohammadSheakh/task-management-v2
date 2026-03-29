@@ -1,0 +1,49 @@
+flowchart LR
+    subgraph AuthRequest["Authentication Request Flow"]
+        LoginReq[Login Request] --> RateLimit{Rate Limit OK?}
+        RateLimit -->|No| Reject429[429 Too Many Requests]
+        RateLimit -->|Yes| ValidateCreds[Validate Credentials]
+        ValidateCreds --> CheckLock{Account Locked?}
+        CheckLock -->|Yes| ReturnLock[Return Lock Error]
+        CheckLock -->|No| VerifyPass[Verify Password]
+        VerifyPass --> PassValid{Password Valid?}
+        PassValid -->|No| IncFailed[Increment Failed Count]
+        IncFailed --> CheckThreshold{Threshold Met?}
+        CheckThreshold -->|Yes| LockAccount[Lock Account 15min]
+        CheckThreshold -->|No| Return401[401 Unauthorized]
+        PassValid -->|Yes| ResetFailed[Reset Failed Count]
+        ResetFailed --> GenTokens[Generate JWT Tokens]
+    end
+
+    subgraph TokenFlow["Token Generation Flow"]
+        GenTokens --> CreateAccess[Create Access Token 15min]
+        GenTokens --> CreateRefresh[Create Refresh Token 7d]
+        CreateAccess --> StoreSession[Store in Redis Session]
+        CreateRefresh --> StoreSession
+        StoreSession --> ReturnTokens[Return Tokens to Client]
+    end
+
+    subgraph RefreshFlow["Token Refresh Flow"]
+        RefreshReq[Refresh Request] --> VerifyRefresh[Verify Refresh Token]
+        VerifyRefresh --> RefreshValid{Token Valid?}
+        RefreshValid -->|No| Return401Refresh[401 Unauthorized]
+        RefreshValid -->|Yes| CheckSession{Session Exists?}
+        CheckSession -->|No| Return401Session[401 Unauthorized]
+        CheckSession -->|Yes| RotateToken[Rotate Refresh Token]
+        RotateToken --> GenNewAccess[Generate New Access Token]
+        GenNewAccess --> ReturnNewTokens[Return New Tokens]
+    end
+
+    subgraph LogoutFlow["Logout Flow"]
+        LogoutReq[Logout Request] --> RevokeRefresh[Revoke Refresh Token]
+        RevokeRefresh --> DelSession[Delete Redis Session]
+        DelSession --> BlacklistAccess[Blacklist Access Token]
+        BlacklistAccess --> ReturnLogout[Return Logout Success]
+    end
+
+    subgraph CacheOps["Cache Operations"]
+        StoreSession --> RedisWrite[Redis SET TTL=7d]
+        DelSession --> RedisDel[Redis DEL]
+        BlacklistAccess --> RedisBlacklist[Redis SET TTL=24h]
+        CheckSession --> RedisRead[Redis GET]
+    end

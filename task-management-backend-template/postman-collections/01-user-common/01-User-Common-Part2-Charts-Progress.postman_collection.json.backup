@@ -1,0 +1,654 @@
+{
+	"info": {
+		"_postman_id": "01-user-common-part2-v3-charts-progress",
+		"name": "01 - User Common (Part 2: Charts + TaskProgress + Family)",
+		"description": "Part 2: Chart Analytics, Task Progress Tracking, and Family Management\n\n**NEW Endpoints**:\n- 10 Chart aggregation endpoints for dashboards\n- 6 TaskProgress endpoints for collaborative task tracking\n- 8 ChildrenBusinessUser endpoints for family management\n- 5 TaskReminder endpoints for task notifications\n\n**Authentication Required**: Yes\n**Header**: Authorization: Bearer {{accessToken}}\n\n**Base URL**: {{baseUrl}}/v1\n\n**Figma References**:\n- main-admin-dashboard/dashboard-section-flow.png (Admin charts)\n- teacher-parent-dashboard/dashboard/ (Parent dashboard)\n- teacher-parent-dashboard/team-members/ (Family management)\n- teacher-parent-dashboard/task-monitoring/ (Progress tracking)\n- app-user/group-children-user/home-flow.png (Child home)\n\n**Last Updated**: 15-03-26\n**Version**: 3.0 - Fixed paths, added task reminders",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "taskId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "businessUserId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "childUserId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "reminderId",
+			"value": "",
+			"type": "string",
+			"description": "Task reminder ID for testing"
+		}
+	],
+	"item": [
+		{
+			"name": "01 - Chart Aggregation (Admin Dashboard)",
+			"item": [
+				{
+					"name": "User Growth Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/user-growth?days=30",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "user-growth"],
+							"query": [
+								{
+									"key": "days",
+									"value": "30",
+									"description": "Number of days (default: 30)"
+								}
+							]
+						},
+						"description": "Get user growth data for line chart (last N days)\n\n**Figma**: main-admin-dashboard/dashboard-section-flow.png\n\n**Response Format**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"labels\": [\"Jan 01\", \"Jan 02\", ...],\n    \"datasets\": [{\n      \"label\": \"New Users\",\n      \"data\": [5, 8, 12, ...],\n      \"color\": \"#4F46E5\"\n    }]\n  }\n}\n```\n\n**Chart.js Type**: Line Chart"
+					},
+					"response": []
+				},
+				{
+					"name": "Task Status Distribution",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/task-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "task-status"]
+						},
+						"description": "Get task status distribution for pie/donut chart\n\n**Response Format**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total\": 150,\n    \"distribution\": [\n      {\"status\": \"pending\", \"count\": 45, \"percentage\": 30},\n      {\"status\": \"inProgress\", \"count\": 55, \"percentage\": 36.67},\n      {\"status\": \"completed\", \"count\": 50, \"percentage\": 33.33}\n    ]\n  }\n}\n```\n\n**Chart.js Type**: Pie/Doughnut Chart"
+					},
+					"response": []
+				},
+				{
+					"name": "Monthly Income Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/monthly-income?months=12",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "monthly-income"],
+							"query": [
+								{
+									"key": "months",
+									"value": "12"
+								}
+							]
+						},
+						"description": "Get monthly revenue data for bar chart\n\n**Note**: Requires payment/subscription transaction data"
+					},
+					"response": []
+				},
+				{
+					"name": "User Ratio Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/user-ratio",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "user-ratio"]
+						},
+						"description": "Get Individual vs Business user ratio for pie chart\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total\": 500,\n    \"distribution\": [\n      {\"status\": \"Individual\", \"count\": 350, \"percentage\": 70},\n      {\"status\": \"Business\", \"count\": 150, \"percentage\": 30}\n    ]\n  }\n}\n```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Chart Aggregation (Parent Dashboard)",
+			"item": [
+				{
+					"name": "Family Task Activity Chart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/family-activity/{{businessUserId}}?days=7",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "family-activity", "{{businessUserId}}"],
+							"query": [
+								{
+									"key": "days",
+									"value": "7",
+									"description": "Number of days (default: 7)"
+								}
+							]
+						},
+						"description": "Get family task completion data for bar chart (last N days)\n\n**Figma**: teacher-parent-dashboard/dashboard/dashboard-flow-01.png\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"labels\": [\"Jan 01\", \"Jan 02\", ...],\n    \"datasets\": [{\n      \"label\": \"Tasks Completed\",\n      \"data\": [3, 5, 2, 7, ...],\n      \"color\": \"#3B82F6\"\n    }]\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Child Progress Comparison",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/child-progress/{{businessUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "child-progress", "{{businessUserId}}"]
+						},
+						"description": "Compare all children's completion rates for radar/bar chart\n\n**Figma**: dashboard-flow-02.png\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"labels\": [\"John\", \"Jane\", \"Bob\"],\n    \"datasets\": [{\n      \"label\": \"Completion Rate (%)\",\n      \"data\": [85, 72, 90],\n      \"color\": \"#8B5CF6\"\n    }]\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Task Status by Child",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/status-by-child/{{businessUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "status-by-child", "{{businessUserId}}"]
+						},
+						"description": "Get task status distribution by child for stacked bar chart\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"labels\": [\"John\", \"Jane\"],\n    \"datasets\": [\n      {\"label\": \"pending\", \"data\": [2, 1], \"color\": \"#F59E0B\"},\n      {\"label\": \"inProgress\", \"data\": [3, 2], \"color\": \"#3B82F6\"},\n      {\"label\": \"completed\", \"data\": [5, 7], \"color\": \"#10B981\"}\n    ]\n  }\n}\n```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - Chart Aggregation (Task Monitoring)",
+			"item": [
+				{
+					"name": "Task Completion Trend",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/completion-trend/{{userId}}?days=30",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "completion-trend", "{{userId}}"],
+							"query": [
+								{
+									"key": "days",
+									"value": "30"
+								}
+							]
+						},
+						"description": "Get cumulative task completion trend for line chart\n\n**Figma**: task-monitoring-flow-01.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Activity Heatmap",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/activity-heatmap/{{userId}}?days=30",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "activity-heatmap", "{{userId}}"],
+							"query": [
+								{
+									"key": "days",
+									"value": "30"
+								}
+							]
+						},
+						"description": "Get task activity heatmap by day and hour\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"days\": [\"Sun\", \"Mon\", ...],\n    \"hours\": [0, 1, 2, ..., 23],\n    \"activity\": [\n      {\"day\": \"Mon\", \"hour\": 10, \"count\": 5},\n      {\"day\": \"Tue\", \"hour\": 14, \"count\": 8}\n    ]\n  }\n}\n```\n\n**Visualization**: Calendar heatmap"
+					},
+					"response": []
+				},
+				{
+					"name": "Collaborative Task Progress",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/analytics/charts/collaborative-progress/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "analytics", "charts", "collaborative-progress", "{{taskId}}"]
+						},
+						"description": "Get each child's progress on collaborative task\n\n**Figma**: task-details-with-subTasks.png\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"taskId\": \"task123\",\n    \"children\": [\n      {\n        \"childId\": \"child1\",\n        \"childName\": \"John\",\n        \"status\": \"completed\",\n        \"progressPercentage\": 100,\n        \"completedSubtasks\": 3\n      },\n      {\n        \"childId\": \"child2\",\n        \"childName\": \"Jane\",\n        \"status\": \"inProgress\",\n        \"progressPercentage\": 33,\n        \"completedSubtasks\": 1\n      }\n    ]\n  }\n}\n```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "04 - TaskProgress (Real-Time Parent Monitoring)",
+			"item": [
+				{
+					"name": "Get My Task Progress",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/task-progress/{{taskId}}/user/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "task-progress", "{{taskId}}", "user", "{{userId}}"]
+						},
+						"description": "Get child's progress on a specific task\n\n**For**: Child viewing own progress"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Children's Progress (Parent View)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/task-progress/{{taskId}}/children",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "task-progress", "{{taskId}}", "children"]
+						},
+						"description": "Get all children's progress on a collaborative task\n\n**For**: Parent dashboard\n\n**Figma**: dashboard-flow-01.png\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"taskId\": \"task123\",\n    \"taskTitle\": \"Clean the house\",\n    \"totalSubtasks\": 3,\n    \"childrenProgress\": [\n      {\n        \"childId\": \"child1\",\n        \"childName\": \"John\",\n        \"status\": \"completed\",\n        \"progressPercentage\": 100,\n        \"completedSubtaskCount\": 3\n      },\n      {\n        \"childId\": \"child2\",\n        \"childName\": \"Jane\",\n        \"status\": \"inProgress\",\n        \"progressPercentage\": 33.33,\n        \"completedSubtaskCount\": 1\n      }\n    ],\n    \"summary\": {\n      \"totalChildren\": 2,\n      \"notStarted\": 0,\n      \"inProgress\": 1,\n      \"completed\": 1,\n      \"completionRate\": 50,\n      \"averageProgress\": 66.67\n    }\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Child's All Tasks",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/task-progress/child/{{childUserId}}/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "task-progress", "child", "{{childUserId}}", "tasks"]
+						},
+						"description": "Get all tasks progress for a specific child\n\n**For**: Parent viewing child's task history"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Progress Status (Start Task)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{childUserId}}\",\n  \"status\": \"inProgress\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/task-progress/{{taskId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "task-progress", "{{taskId}}", "status"]
+						},
+						"description": "Update task progress status\n\n**For**: Child starting a task\n\n**Status Options**:\n- notStarted\n- inProgress\n- completed\n\n**Real-Time**: Parent receives Socket.IO event 'task-progress:started'"
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Subtask",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"{{childUserId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/task-progress/{{taskId}}/subtasks/0/complete",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "task-progress", "{{taskId}}", "subtasks", "0", "complete"]
+						},
+						"description": "Mark a specific subtask as complete for a child\n\n**For**: Child completing subtask\n\n**Real-Time**: Parent receives Socket.IO event 'task-progress:subtask-completed'\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"progressPercentage\": 33.33,\n    \"message\": \"Child completed subtask 0 (33.33% done)\"\n  }\n}\n```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "05 - Children Business User (Family Management)",
+			"item": [
+				{
+					"name": "Get My Children",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/children-business-user/children?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "children-business-user", "children"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get all children of a business user (parent/teacher)\n\n**Figma**: team-members/team-member-flow-01.png\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"docs\": [\n      {\n        \"_id\": \"rel1\",\n        \"childUserId\": \"child1\",\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"status\": \"active\",\n        \"isSecondaryUser\": false\n      }\n    ],\n    \"totalPages\": 1,\n    \"page\": 1,\n    \"limit\": 10\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Child Account",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"childUserId\", jsonData.data.childUser._id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Alex Child\",\n  \"email\": \"alex@example.com\",\n  \"password\": \"ChildPass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/children-business-user/create-child",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "children-business-user", "create-child"]
+						},
+						"description": "Create a child account (adds to family)\n\n**Figma**: team-members/create-child-flow.png\n\n**Requirements**:\n- Active business subscription\n- Within subscription limit (max 5 users: 1 Primary + 4 Secondary)\n\n**Response**:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"childUser\": {\n      \"_id\": \"child1\",\n      \"name\": \"Alex Child\",\n      \"email\": \"alex@example.com\"\n    },\n    \"relationship\": {\n      \"_id\": \"rel1\",\n      \"parentBusinessUserId\": \"parent1\",\n      \"childUserId\": \"child1\",\n      \"status\": \"active\"\n    }\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Secondary User Permission",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"childUserId\": \"{{childUserId}}\",\n  \"isSecondaryUser\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/children-business-user/set-secondary-user",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "children-business-user", "set-secondary-user"]
+						},
+						"description": "Set/unset child as Secondary User\n\n**Figma**: settings-permission-section/permission-flow.png\n\n**Important**: Only ONE child per business user can be Secondary User\n\n**Secondary User Can**:\n- Create tasks for family\n- Assign tasks to parent/teacher/other children\n- Act as \"Task Manager\""
+					},
+					"response": []
+				},
+				{
+					"name": "Update Child",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"note\": \"Updated note\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/children-business-user/{{childUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "children-business-user", "{{childUserId}}"]
+						},
+						"description": "Update child information\n\n**Figma**: team-members/edit-child-flow.png"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Child",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/children-business-user/{{childUserId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["v1", "children-business-user", "{{childUserId}}"]
+						},
+						"description": "Remove child from family (soft delete)\n\n**Note**: Sets status to 'removed' and isDeleted to true"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

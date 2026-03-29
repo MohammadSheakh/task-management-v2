@@ -1,0 +1,150 @@
+sequenceDiagram
+    %% ===========================================
+    %% CHILDREN BUSINESS USER MODULE - SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant P as Parent
+    participant C as Child
+    participant FE as Frontend
+    participant API as API Gateway
+    participant CBU as childrenBusinessUser
+    participant SUB as subscription.module
+    participant USER as user.module
+    participant TASK as task.module
+    participant REDIS as Redis Cache
+    participant DB as MongoDB
+    participant SOCKET as Socket.IO
+
+    %% ===========================================
+    %% SCENARIO 1: Parent Creates Child Account
+    %% ===========================================
+    Note over P,DB: Scenario 1: Parent Creates Child Account
+
+    P->>FE: Create Child Account
+    FE->>API: POST /children-business-user/create-child
+    API->>CBU: createChildAccount()
+    CBU->>SUB: Check subscription limit
+    SUB->>DB: Get subscription plan
+    DB-->>SUB: Plan with maxChildren
+    SUB-->>CBU: Limit OK
+    CBU->>DB: Check existing children count
+    DB-->>CBU: Count < limit
+    CBU->>USER: Create child user account
+    USER->>DB: Create USER
+    DB-->>USER: childUserId
+    CBU->>DB: Create CHILDREN_BUSINESS_USER relationship
+    DB-->>CBU: relationshipId
+    CBU->>REDIS: Invalidate family cache
+    CBU->>SOCKET: Auto-join family room
+    SOCKET->>SOCKET: Join family room
+    CBU-->>API: Child created
+    API-->>FE: Success
+    FE-->>P: Child account created
+
+    %% ===========================================
+    %% SCENARIO 2: Parent Sets Secondary User
+    %% ===========================================
+    Note over P,DB: Scenario 2: Parent Sets Secondary User ⭐ NEW!
+
+    P->>FE: Set Secondary User
+    FE->>API: PUT /children-business-user/set-secondary-user
+    API->>CBU: setSecondaryUser()
+    CBU->>DB: Check only one secondary user
+    DB-->>CBU: OK (no other secondary)
+    CBU->>DB: Update isSecondaryUser = true
+    DB-->>CBU: Updated
+    CBU->>REDIS: Del family cache
+    CBU->>REDIS: Del secondary cache
+    CBU->>SOCKET: broadcastGroupActivity()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>C: Real-time notification
+    C->>FE: Dashboard updates
+    CBU-->>API: Success
+    API-->>FE: Secondary User set
+    FE-->>P: Success
+
+    %% ===========================================
+    %% SCENARIO 3: Child Creates Task (Permission Check)
+    %% ===========================================
+    Note over C,DB: Scenario 3: Child Creates Task (Permission Check)
+
+    C->>FE: Create Collaborative Task
+    FE->>API: POST /tasks
+    API->>TASK: createTask()
+    TASK->>CBU: Check Secondary User status
+    CBU->>DB: Find relationship
+    DB-->>CBU: isSecondaryUser = true
+    CBU-->>TASK: Permission granted
+    TASK->>DB: Create TASK
+    DB-->>TASK: taskId
+    TASK->>SOCKET: Broadcast to family
+    SOCKET->>P: Real-time notification
+    TASK-->>API: Task created
+    API-->>FE: Success
+    FE-->>C: Task created
+
+    %% ===========================================
+    %% SCENARIO 4: Child Completes Task → Real-Time Parent Update
+    %% ===========================================
+    Note over C,DB: Scenario 4: Child Completes Task → Real-Time Parent Update ⭐ NEW!
+
+    C->>FE: Complete Task
+    FE->>API: PUT /task-progress/:id/status
+    API->>TP: updateProgressStatus()
+    TP->>DB: Update TASK_PROGRESS
+    DB-->>TP: Completed
+    TP->>REDIS: Invalidate analytics cache
+    TP->>SOCKET: broadcastGroupActivity()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>P: group:activity event
+    P->>FE: Dashboard updates automatically
+    FE-->>P: Show real-time update
+    TP-->>API: Success
+    API-->>FE: Task completed
+    FE-->>C: Success + Celebration
+
+    %% ===========================================
+    %% SCENARIO 5: Parent Views Family Children
+    %% ===========================================
+    Note over P,DB: Scenario 5: Parent Views Family Children
+
+    P->>FE: View Children List
+    FE->>API: GET /children-business-user/children
+    API->>CBU: getChildrenOfBusinessUser()
+    CBU->>REDIS: Check cache
+    REDIS-->>CBU: Cache hit
+    CBU-->>API: Cached data
+    API-->>FE: Children list
+    FE-->>P: Display children
+
+    %% ===========================================
+    %% SCENARIO 6: Child Views Parent Information
+    %% ===========================================
+    Note over C,DB: Scenario 6: Child Views Parent Information
+
+    C->>FE: View Parent Info
+    FE->>API: GET /children-business-user/parent
+    API->>CBU: getParentBusinessUser()
+    CBU->>DB: Find relationship
+    DB-->>CBU: parentBusinessUserId
+    CBU->>USER: Get parent info
+    USER->>DB: Get USER
+    DB-->>USER: Parent data
+    USER-->>CBU: Parent info
+    CBU-->>API: Parent data
+    API-->>FE: Parent info
+    FE-->>C: Display parent
+
+    %% Styling
+    rect rgb(227, 242, 253)
+        Note over P: Parent User
+    end
+    
+    rect rgb(232, 245, 233)
+        Note over C: Child User
+    end
+    
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer ⭐
+    end

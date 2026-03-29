@@ -1,0 +1,42 @@
+stateDiagram-v2
+    [*] --> Draft: Plan Created
+    
+    Draft --> Active: Admin Activates
+    Active --> Inactive: Admin Deactivates
+    Inactive --> Active: Admin Reactivates
+    
+    Active --> Subscribed: User Purchases
+    Subscribed --> Trial: Start Free Trial
+    Trial --> Subscribed: Trial Ends
+    
+    Subscribed --> Cancelled: User Cancels
+    Subscribed --> Expired: Payment Failed
+    Subscribed --> Active: Subscription Ends
+    
+    Cancelled --> [*]: End of Life
+    Expired --> [*]: End of Life
+    Inactive --> [*]: Plan Deleted
+    
+    note right of Draft
+        Draft: Plan created but not visible
+    end note
+    
+    note right of Active
+        Active: Available for purchase
+    end note
+    
+    note right of Subscribed
+        Subscribed: User has active subscription
+    end note
+    
+    note right of Trial
+        Trial: Free trial period (14 days)
+    end note
+    
+    note right of Cancelled
+        Cancelled: User cancelled, valid until period end
+    end note
+    
+    note right of Expired
+        Expired: Payment failed, access revoked
+    end note

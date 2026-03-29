@@ -1,0 +1,58 @@
+stateDiagram-v2
+    [*] --> Pending: Create Task
+
+    state Pending {
+        [*] --> AwaitingStart: Wait for startTime
+        AwaitingStart --> ReadyToStart: startTime reached
+    }
+
+    Pending --> InProgress: User starts task
+    Pending --> Completed: Auto-complete (0 subtasks)
+
+    state InProgress {
+        [*] --> ActiveWork
+        ActiveWork --> WaitingFeedback: Need review
+        WaitingFeedback --> ActiveWork: Feedback received
+    }
+
+    InProgress --> Completed: All subtasks done
+    InProgress --> Pending: User pauses task
+
+    state Completed {
+        [*] --> Done
+        Done --> Archived: After 30 days
+    }
+
+    Completed --> InProgress: Reopen task
+
+    state SubTask {
+        [*] --> Pending: Create subtask
+        Pending --> Completed: Toggle complete
+        Completed --> Pending: Toggle incomplete
+        Pending --> [*]: Delete subtask
+        Completed --> [*]: Delete subtask
+    }
+
+    note right of Pending
+        Task stays in Pending
+        until startTime or
+        user manually starts
+    end note
+
+    note right of InProgress
+        Task is active
+        Subtasks can be
+        added/updated
+    end note
+
+    note right of Completed
+        Task is done
+        Read-only mode
+        Auto-archived after TTL
+    end note
+
+    note left of SubTask
+        Subtasks are in
+        separate collection
+        Virtual populate
+    end note

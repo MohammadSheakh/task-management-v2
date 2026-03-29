@@ -1,0 +1,178 @@
+flowchart TB
+    %% ===========================================
+    %% TASK MODULE - COMPONENT ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Presentation["🖥️ Presentation Layer"]
+        subgraph Flutter["📱 Flutter App"]
+            F1[Task List Screen]
+            F2[Task Details Widget]
+            F3[Progress Bar Widget]
+            F4[Subtask Checklist]
+        end
+
+        subgraph Web["💻 Web Dashboard"]
+            W1[Task Dashboard]
+            W2[Statistics Component]
+            W3[Daily Progress Widget]
+            W4[Real-Time Feed]
+        end
+
+        subgraph Admin["👨‍💼 Admin Dashboard"]
+            A1[Platform Overview]
+            A2[Task Analytics]
+        end
+    end
+
+    subgraph API["🔌 API Layer"]
+        subgraph Routes["Routes"]
+            R1[task.route.ts]
+            R2[subtask.route.ts]
+        end
+
+        subgraph Middleware["Middleware"]
+            M1[Authentication<br/>JWT]
+            M2[Rate Limiting]
+            M3[Authorization<br/>Role-based]
+            M4[Validation<br/>Zod]
+        end
+    end
+
+    subgraph Business["⚙️ Business Logic Layer"]
+        subgraph Controllers["Controllers"]
+            C1[task.controller]
+            C2[subtask.controller]
+        end
+
+        subgraph Services["Services"]
+            S1[task.service<br/>with Socket.IO ⭐]
+            S2[subtask.service]
+        end
+
+        subgraph Helpers["Helpers"]
+            H1[Task Statistics Calculator]
+            H2[Daily Progress Calculator]
+            H3[Socket.IO Broadcaster ⭐]
+            H4[Cache Manager]
+        end
+    end
+
+    subgraph Data["💾 Data Layer"]
+        subgraph MongoDB["MongoDB Collections"]
+            D1[TASK]
+            D2[SUBTASK]
+            D3[TASK_PROGRESS ⭐]
+            D4[USER]
+        end
+
+        subgraph Redis["Redis Cache"]
+            DC1[Task Cache<br/>2-5 min TTL]
+            DC2[Statistics Cache<br/>5 min TTL]
+            DC3[Socket.IO State ⭐<br/>1 min TTL]
+        end
+
+        subgraph Queue["BullMQ Queues"]
+            Q1[notification-queue]
+            Q2[Workers]
+        end
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        RT1[Socket.IO Server]
+        RT2[Redis Adapter]
+        RT3[Task Rooms]
+        RT4[Family Rooms]
+        RT5[Events<br/>task:created<br/>task:completed]
+    end
+
+    subgraph TaskProgress["📊 TaskProgress ⭐ NEW!"]
+        TP1[taskProgress.service]
+        TP2[taskProgress.model]
+    end
+
+    subgraph Related["🔗 Related Modules"]
+        REL1[childrenBusinessUser<br/>Family relationships]
+        REL2[notification<br/>Activity feed]
+        REL3[analytics<br/>Charts]
+    end
+
+    %% Presentation to API
+    F1 --> R1
+    F2 --> R1
+    F3 --> R1
+    W1 --> R1
+    W2 --> R1
+    W3 --> R1
+    A1 --> R1
+    A2 --> R1
+
+    %% API Internal Flow
+    R1 --> M1
+    R2 --> M1
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+
+    %% API to Business
+    M4 --> C1
+    M4 --> C2
+    C1 --> S1
+    C2 --> S2
+
+    %% Services to Helpers
+    S1 --> H1
+    S1 --> H2
+    S1 --> H3
+    S1 --> H4
+    S2 --> H3
+    S2 --> H4
+
+    %% Business to Data
+    S1 --> D1
+    S1 --> D2
+    S1 --> D4
+    S2 --> D2
+    S2 --> D1
+    S1 -.->|Cache| DC1
+    S1 -.->|Cache| DC2
+
+    %% Real-Time Integration ⭐
+    S1 -.->|Broadcast| RT1
+    S2 -.->|Broadcast| RT1
+    TP1 -.->|Broadcast| RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    RT2 --> RT4
+    RT2 --> RT5
+    RT1 -.->|State| DC3
+    RT1 -.->|Push| W4
+
+    %% TaskProgress Flow ⭐
+    S1 --> TP1
+    TP1 --> TP2
+    TP2 --> D3
+
+    %% Related Modules
+    S1 --> REL1
+    S1 --> REL2
+    S1 --> REL3
+    TP1 --> REL2
+
+    %% Queue Flow
+    REL2 --> Q1
+    Q2 --> Q1
+
+    %% Styling
+    style Presentation fill:#e3f2fd,stroke:#1565c0,color:#000
+    style API fill:#fff3e0,stroke:#e65100,color:#000
+    style Business fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Data fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style TaskProgress fill:#c8e6c9,stroke:#2e7d32,color:#000
+    style Related fill:#e0f7fa,stroke:#006064,color:#000
+
+    style S1 fill:#c8e6c9,stroke:#2e7d32
+    style H3 fill:#c8e6c9,stroke:#2e7d32
+    style RT1 fill:#fff176,color:#000
+    style DC3 fill:#ffcc80,color:#000

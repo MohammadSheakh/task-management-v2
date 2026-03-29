@@ -1,0 +1,55 @@
+flowchart TB
+    subgraph User Analytics Flow
+        UA_START[User Opens App] --> UA1[Request User Overview]
+        UA1 --> UA2{Cache Hit?}
+        UA2 -->|Yes| UA3[Return Cached Data]
+        UA2 -->|No| UA4[Aggregate Task Data]
+        UA4 --> UA5[Calculate Streak]
+        UA5 --> UA6[Calculate Productivity Score]
+        UA6 --> UA7[Cache Results]
+        UA7 --> UA8[Return Analytics]
+        UA3 --> UA_END[Display to User]
+        UA8 --> UA_END
+    end
+
+    subgraph Task Analytics Flow
+        TA_START[Request Task Stats] --> TA1[Get Status Distribution]
+        TA1 --> TA2{Group Filter?}
+        TA2 -->|Yes| TA3[Filter by Group ID]
+        TA2 -->|No| TA4[Global Aggregation]
+        TA3 --> TA5[Aggregate by Status]
+        TA4 --> TA5
+        TA5 --> TA6[Calculate Percentages]
+        TA6 --> TA7[Cache Results]
+        TA7 --> TA_END[Return Distribution]
+    end
+
+    subgraph Group Analytics Flow
+        GA_START[Group Owner Views Dashboard] --> GA1[Get Group Overview]
+        GA1 --> GA2[Fetch Member Count]
+        GA2 --> GA3[Get Task Stats per Member]
+        GA3 --> GA4[Calculate Leaderboard]
+        GA4 --> GA5[Get Recent Activity]
+        GA5 --> GA6[Cache All Data]
+        GA6 --> GA_END[Display Dashboard]
+    end
+
+    subgraph Admin Analytics Flow
+        AA_START[Admin Opens Dashboard] --> AA1[Get Platform Overview]
+        AA1 --> AA2[Get User Growth Data]
+        AA2 --> AA3[Get Revenue Metrics]
+        AA3 --> AA4[Get Task Metrics]
+        AA4 --> AA5[Get Engagement Stats]
+        AA5 --> AA6[Aggregate All Data]
+        AA6 --> AA7[Cache Dashboard]
+        AA7 --> AA_END[Display Complete Dashboard]
+    end
+
+    style UA_START fill:#42a5f5,color:#fff
+    style UA_END fill:#66bb6a,color:#fff
+    style TA_START fill:#42a5f5,color:#fff
+    style TA_END fill:#66bb6a,color:#fff
+    style GA_START fill:#42a5f5,color:#fff
+    style GA_END fill:#66bb6a,color:#fff
+    style AA_START fill:#ef5350,color:#fff
+    style AA_END fill:#66bb6a,color:#fff

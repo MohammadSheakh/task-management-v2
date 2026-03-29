@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant U as User/Flutter App
+    participant A as Analytics Routes
+    participant M as Auth Middleware
+    participant C as Analytics Controller
+    participant S as Analytics Service
+    participant R as Redis Cache
+    participant DB as MongoDB
+
+    U->>A: GET /analytics/user/my/overview
+    A->>M: Authenticate request
+    M->>C: Forward if valid
+
+    C->>S: getUserOverview(userId)
+    
+    S->>R: Get cache (analytics:user:{id}:overview)
+    alt Cache Hit
+        R-->>S: Return cached data
+        S-->>C: Return analytics
+    else Cache Miss
+        S->>DB: Aggregate task data
+        DB-->>S: Return aggregated data
+        S->>S: Calculate streak
+        S->>S: Calculate productivity score
+        S->>R: Cache result (TTL: 5m)
+        R-->>S: Cached
+        S-->>C: Return analytics
+    end
+
+    C->>U: Send response with data

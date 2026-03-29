@@ -1,0 +1,172 @@
+flowchart TB
+    %% ===========================================
+    %% NOTIFICATION MODULE - COMPONENT ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Presentation["🖥️ Presentation Layer"]
+        subgraph Flutter["📱 Flutter App"]
+            F1[Notification Screen]
+            F2[Activity Feed Widget]
+            F3[Unread Badge]
+            F4[Reminder Settings]
+        end
+
+        subgraph Web["💻 Web Dashboard"]
+            W1[Notification Component]
+            W2[Real-Time Feed]
+            W3[Reminder Manager]
+        end
+
+        subgraph Admin["👨‍💼 Admin Dashboard"]
+            A1[Bulk Notification]
+            A2[Analytics Charts]
+        end
+    end
+
+    subgraph API["🔌 API Layer"]
+        subgraph Routes["Routes"]
+            R1[notification.route.ts]
+            R2[taskReminder.route.ts]
+        end
+
+        subgraph Middleware["Middleware"]
+            M1[Authentication<br/>JWT]
+            M2[Rate Limiting]
+            M3[Authorization<br/>Role-based]
+            M4[Validation<br/>Zod]
+        end
+    end
+
+    subgraph Business["⚙️ Business Logic Layer"]
+        subgraph Controllers["Controllers"]
+            C1[notification.controller]
+            C2[taskReminder.controller]
+        end
+
+        subgraph Services["Services"]
+            S1[notification.service<br/>with Socket.IO ⭐]
+            S2[taskReminder.service<br/>BullMQ]
+        end
+
+        subgraph Helpers["Helpers"]
+            H1[Multi-Channel Delivery]
+            H2[Socket.IO Broadcaster ⭐]
+            H3[Cache Manager]
+            H4[BullMQ Scheduler]
+        end
+    end
+
+    subgraph Data["💾 Data Layer"]
+        subgraph MongoDB["MongoDB Collections"]
+            D1[NOTIFICATION]
+            D2[TASK_REMINDER]
+            D3[USER]
+            D4[TASK]
+        end
+
+        subgraph Redis["Redis Cache"]
+            DC1[Unread Cache<br/>60s TTL]
+            DC2[Notification List<br/>300s TTL]
+            DC3[Socket.IO State ⭐<br/>60s TTL]
+        end
+
+        subgraph Queue["BullMQ Queues"]
+            Q1[notification-queue]
+            Q2[task-reminders-queue]
+            Q3[email-queue]
+            Q4[Workers]
+        end
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        RT1[Socket.IO Server]
+        RT2[Redis Adapter]
+        RT3[User Rooms]
+        RT4[Family Rooms]
+        RT5[Events<br/>notification:new<br/>group:activity]
+    end
+
+    subgraph External["🌐 External Services"]
+        E1[FCM Push<br/>Notifications]
+        E2[Email Service<br/>SendGrid/SES]
+        E3[Twilio SMS]
+    end
+
+    %% Presentation to API
+    F1 --> R1
+    F2 --> R1
+    F3 --> R1
+    W1 --> R1
+    W2 --> R1
+    A1 --> R1
+    A2 --> R1
+
+    %% API Internal Flow
+    R1 --> M1
+    R2 --> M1
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+
+    %% API to Business
+    M4 --> C1
+    M4 --> C2
+    C1 --> S1
+    C2 --> S2
+
+    %% Services to Helpers
+    S1 --> H1
+    S1 --> H2
+    S1 --> H3
+    S2 --> H4
+    S2 --> H1
+
+    %% Business to Data
+    S1 --> D1
+    S1 --> D3
+    S2 --> D2
+    S2 --> D4
+    S1 -.->|Cache| DC1
+    S1 -.->|Cache| DC2
+
+    %% Real-Time Integration ⭐
+    S1 -.->|Emit| RT1
+    S2 -.->|Broadcast| RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    RT2 --> RT4
+    RT2 --> RT5
+    RT1 -.->|State| DC3
+    RT1 -.->|Push| F3
+    RT1 -.->|Push| W2
+
+    %% Queue Flow
+    S1 --> Q1
+    S2 --> Q2
+    S1 --> Q3
+    Q4 --> Q1
+    Q4 --> Q2
+    Q4 --> Q3
+    Q4 --> E1
+    Q4 --> E2
+    Q4 --> E3
+
+    %% External Flow
+    E1 --> F1
+    E1 --> W1
+    E2 --> F1
+    E2 --> W1
+
+    %% Styling
+    style Presentation fill:#e3f2fd,stroke:#1565c0,color:#000
+    style API fill:#fff3e0,stroke:#e65100,color:#000
+    style Business fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Data fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style External fill:#fff8e1,stroke:#f57f17,color:#000
+
+    style S1 fill:#c8e6c9,stroke:#2e7d32
+    style H2 fill:#c8e6c9,stroke:#2e7d32
+    style RT1 fill:#fff176,color:#000
+    style DC3 fill:#ffcc80,color:#000

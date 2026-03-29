@@ -1,0 +1,119 @@
+stateDiagram-v2
+    %% ===========================================
+    %% SUBTASK MODULE - STATE MACHINE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% SUBTASK STATUS STATES
+    state SubtaskStatus {
+        [*] --> Pending: Created
+        Pending --> InProgress: Started
+        Pending --> Completed: Completed
+        InProgress --> Completed: Completed
+        Completed --> Pending: Reopened
+        Completed --> [*]
+        Deleted --> [*]
+        
+        note right of Completed
+            Auto-Update Parent Task:
+            - Increment completedSubtasks
+            - Recalculate completionPercentage
+            - Broadcast to family
+        end note
+    }
+
+    %% PARENT TASK UPDATE STATES ⭐ NEW!
+    state ParentTaskUpdate {
+        [*] --> SubtaskCreated: Subtask Added
+        SubtaskCreated --> UpdateTotal: Increment totalSubtasks
+        UpdateTotal --> RecalculatePercent: Recalculate %
+        RecalculatePercent --> Broadcast: Broadcast Update
+        Broadcast --> [*]
+        
+        SubtaskCompleted --> UpdateCompleted: Increment completedSubtasks
+        UpdateCompleted --> RecalculatePercent
+    }
+
+    %% TASK PROGRESS UPDATE STATES ⭐ NEW!
+    state TaskProgressUpdate {
+        [*] --> SubtaskToggled: Child Toggles Subtask
+        SubtaskToggled --> UpdateIndexes: Update completedSubtaskIndexes
+        UpdateIndexes --> CalcProgress: Calculate progressPercentage
+        CalcProgress --> CheckComplete: All subtasks done?
+        CheckComplete --> MarkComplete: Yes
+        CheckComplete --> StillInProgress: No
+        MarkComplete --> Broadcast: Broadcast Completion
+        StillInProgress --> Broadcast: Broadcast Progress
+        Broadcast --> [*]
+        
+        note right of CalcProgress
+            Progress Calculation:
+            progressPercentage = (completedSubtasks / totalSubtasks) * 100
+        end note
+    }
+
+    %% REAL-TIME BROADCAST STATES ⭐ NEW!
+    state RealTimeBroadcast {
+        [*] --> SubtaskEvent: Subtask Created/Completed/Deleted
+        SubtaskEvent --> InvalidateCache: Clear Caches
+        InvalidateCache --> BroadcastFamily: Socket.IO Family Room
+        BroadcastFamily --> FamilyReceives: Family Dashboard Updates
+        FamilyReceives --> [*]: Real-Time Complete
+        
+        note right of BroadcastFamily
+            Events:
+            - subtask:created
+            - subtask:completed
+            - subtask:deleted
+            - progress:updated
+        end note
+    }
+
+    %% CACHE STATES
+    state CacheStates {
+        [*] --> CheckCache: Request
+        CheckCache --> Valid: Cache Hit
+        CheckCache --> Expired: Cache Miss
+        Valid --> Return: Return Data
+        Expired --> QueryDB: Query MongoDB
+        QueryDB --> Store: Store in Redis
+        Store --> Return: Return Data
+        Return --> [*]
+
+        note right of CheckCache
+            Cache TTLs:
+            - SubTask list: 2 min
+            - SubTask detail: 5 min
+            - Socket.IO state: 1 min
+        end note
+    }
+
+    %% SUBTASK CREATION PERMISSION STATES ⭐ NEW!
+    state SubtaskCreationPermission {
+        [*] --> CheckUser: Check User Role
+        CheckUser --> BusinessUser: Business User
+        CheckUser --> ChildUser: Child User
+        BusinessUser --> CreateSubtask: Can Create
+        ChildUser --> CheckAssigned: Assigned to Task?
+        CheckAssigned --> IsAssigned: Yes
+        CheckAssigned --> NotAssigned: No
+        IsAssigned --> CreateSubtask: Can Create
+        NotAssigned --> Denied: Permission Denied
+        CreateSubtask --> [*]
+        Denied --> [*]
+    }
+
+    %% Styling
+    state SubtaskStatus {
+        style Pending fill:#fff9c4
+        style InProgress fill:#ffe0b2
+        style Completed fill:#81c784
+        style Deleted fill:#e57373
+    }
+    
+    style SubtaskStatus fill:#e3f2fd,stroke:#1565c0
+    style ParentTaskUpdate fill:#e8f5e9,stroke:#2e7d32
+    style TaskProgressUpdate fill:#c8e6c9,stroke:#2e7d32
+    style RealTimeBroadcast fill:#fff9c4,stroke:#f9a825
+    style CacheStates fill:#ffe0b2,stroke:#e65100
+    style SubtaskCreationPermission fill:#e0f7fa,stroke:#006064

@@ -1,0 +1,54 @@
+stateDiagram-v2
+    [*] --> Anonymous: Initial State
+
+    Anonymous --> Registering: Start Registration
+    Registering --> EmailVerificationPending: Submit Registration
+    EmailVerificationPending --> EmailVerificationPending: Resend OTP
+    EmailVerificationPending --> EmailVerified: Verify Email
+    EmailVerified --> Authenticated: Complete Login
+
+    Anonymous --> LoginPending: Enter Credentials
+    LoginPending --> AccountLocked: Too Many Failed Attempts
+    AccountLocked --> LoginPending: After 15min Cooldown
+    AccountLocked --> LoginPending: Admin Unlock
+
+    LoginPending --> MFARequired: MFA Enabled
+    MFARequired --> MFAVerified: Enter MFA Code
+    MFARequired --> LoginFailed: Invalid MFA
+
+    LoginPending --> Authenticated: Valid Credentials
+    LoginPending --> LoginFailed: Invalid Credentials
+
+    LoginFailed --> LoginPending: Retry
+    LoginFailed --> AccountLocked: Multiple Failures
+
+    Authenticated --> TokenRefreshing: Access Token Expired
+    TokenRefreshing --> Authenticated: Refresh Valid
+    TokenRefreshing --> SessionExpired: Refresh Invalid
+
+    Authenticated --> LoggingOut: User Logout
+    LoggingOut --> SessionRevoked: Revoke Tokens
+    SessionRevoked --> Anonymous: Clear Session
+
+    Authenticated --> PasswordResetting: Forgot Password
+    PasswordResetting --> ResetTokenSent: Create Reset Token
+    ResetTokenSent --> ResetTokenExpired: Token Expired
+    ResetTokenSent --> PasswordResetVerified: Verify Token
+    PasswordResetVerified --> PasswordUpdated: Update Password
+    PasswordUpdated --> SessionRevoked: Invalidate Sessions
+
+    state AccountLocked {
+        [*] --> LockedState
+        LockedState --> LockedState: Wait 15min
+    }
+
+    state Authenticated {
+        [*] --> ActiveSession
+        ActiveSession --> ActiveSession: Normal Operations
+        ActiveSession --> TokenExpiring: Token < 5min
+    }
+
+    state SessionRevoked {
+        [*] --> Blacklisting
+        Blacklisting --> Blacklisted: Add to Blacklist
+    }

@@ -1,0 +1,99 @@
+erDiagram
+    %% ===========================================
+    %% TASK REMINDER - SCHEMA (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% MAIN TASK REMINDER COLLECTION
+    TASK_REMINDER {
+        ObjectId _id PK
+        ObjectId taskId FK "Task to remind about"
+        ObjectId userId FK "User to notify"
+        ObjectId createdByUserId FK "Who created"
+        DateTime reminderTime "When to send"
+        String triggerType "before_deadline|at_deadline|after_deadline|custom_time|recurring"
+        String frequency "once|daily|weekly|monthly"
+        Number occurrences "Max 10"
+        Number sentCount "Times sent"
+        Boolean isSent "Was sent?"
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% NOTIFICATION COLLECTION (Created by Reminder)
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String type "reminder|task|deadline"
+        String priority "low|normal|high|urgent"
+        String[] channels "in_app|email|push|sms"
+        String status "pending|sent|delivered|read|failed"
+        DateTime scheduledFor
+        Object data "Reminder metadata"
+        Boolean isDeleted
+    }
+
+    %% TASK COLLECTION (Referenced)
+    TASK {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        DateTime startTime
+        DateTime dueDate
+        Boolean isDeleted
+    }
+
+    %% USER COLLECTION (Referenced)
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String role "business|child|admin"
+        String profileImage
+        Boolean isEmailVerified
+        Boolean isDeleted
+    }
+
+    %% BULLMQ JOB (Virtual - Queue State)
+    BULLMQ_JOB {
+        String jobId "reminder:{reminderId}"
+        String queueName "task-reminders-queue"
+        Object data "reminderId, reminderTime"
+        String status "pending|active|completed|failed"
+        Number attempts "Max 3"
+        Number backoff "Exponential, 2000ms"
+        DateTime scheduledAt
+        DateTime processedAt
+    }
+
+    %% RELATIONSHIPS
+
+    TASK_REMINDER }o--|| TASK : "reminds_about"
+    TASK_REMINDER }o--|| USER : "for_user"
+    TASK_REMINDER }o--|| USER : "created_by"
+
+    TASK ||--o{ TASK_REMINDER : "has"
+    USER ||--o{ TASK_REMINDER : "creates"
+    USER ||--o{ TASK_REMINDER : "receives"
+
+    TASK_REMINDER ||--o{ NOTIFICATION : "triggers"
+    NOTIFICATION }o--|| USER : "sent_to"
+
+    TASK_REMINDER ||--o| BULLMQ_JOB : "scheduled_as"
+    BULLMQ_JOB }o--|| TASK_REMINDER : "processes"
+
+    note on TASK_REMINDER "Constraints: Max 10 occurrences, Max 5/task, Min 15min between. Indexes: taskId, userId+reminderTime, scheduledFor"
+
+    %% STYLING
+    style TASK_REMINDER fill:#ffca28,color:#000
+    style NOTIFICATION fill:#ffca28,color:#000
+    style TASK fill:#66bb6a,color:#fff
+    style USER fill:#42a5f5,color:#fff
+    style BULLMQ_JOB fill:#bdbdbd,color:#000

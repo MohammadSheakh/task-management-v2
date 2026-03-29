@@ -1,3 +1,21 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * Auth Service - Authentication & Authorization Business Logic
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * OTP Implementation: ✅ Using Redis-based OtpV2WithRedis
+ * 
+ * Features:
+ * - User registration with email verification
+ * - Login with JWT tokens (access + refresh)
+ * - OAuth integration (Google, Apple)
+ * - Password management (reset, change)
+ * - Session management (Redis caching)
+ * - Token rotation and blacklisting
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 //@ts-ignore
 import moment from 'moment';
 //@ts-ignore
@@ -5,21 +23,21 @@ import mongoose from "mongoose";
 import ApiError from '../../errors/ApiError';
 //@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-import eventEmitterForOTPCreateAndSendMail, { OtpService } from '../otp/otp.service';
 //@ts-ignore
 import bcryptjs from 'bcryptjs';
 import { config } from '../../config';
 import { TokenService } from '../token/token.service';
 import { TokenType } from '../token/token.interface';
-import { OtpType } from '../otp/otp.interface';
-import { WalletService } from '../wallet.module/wallet/wallet.service';
-import { TCurrency } from '../../enums/payment';
+import { OtpV2WithRedis } from '../otp/otp-v2.service';
+
 //@ts-ignore
 import { OAuth2Client } from 'google-auth-library';
 //@ts-ignore
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 //@ts-ignore
 import appleSignin from 'apple-signin-auth';
+//@ts-ignore
+import jwt, { Secret } from 'jsonwebtoken';
 
 //@ts-ignore
 import EventEmitter from 'events';
@@ -33,14 +51,24 @@ import { IUserDevices } from '../user.module/userDevices/userDevices.interface';
 import { UserRoleDataService } from '../user.module/userRoleData/userRoleData.service';
 import { IUser } from '../user.module/user/user.interface';
 import { ICreateUser, IGoogleLoginPayload } from './auth.interface';
-import { IMentorProfile } from '../mentor.module/mentorProfile/mentorProfile.interface';
-import { MentorProfile } from '../mentor.module/mentorProfile/mentorProfile.model';
 import { OAuthAccount } from '../user.module/oauthAccount/oauthAccount.model';
 import { TAuthProvider } from './auth.constants';
+import { redisClient } from '../../helpers/redis/redis';
+import { logger, errorLogger } from '../../shared/logger';
+import { AUTH_SESSION_CONFIG } from './auth.constants';
+import { OAuthAccountService } from '../user.module/oauthAccount/oauthAccount.service';
+import { Token } from '../token/token.model';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Service Instances
+// ═══════════════════════════════════════════════════════════════════════════════
+const oAuthAccountService = new OAuthAccountService();
+const otpService = new OtpV2WithRedis(); // ✅ Redis-based OTP service
+
 const eventEmitterForUpdateUserProfile = new EventEmitter(); // functional way
 const eventEmitterForCreateWallet = new EventEmitter();
 
-let walletService = new WalletService();
+
 let userRoleDataService = new UserRoleDataService();
 
 eventEmitterForUpdateUserProfile.on('eventEmitterForUpdateUserProfile', async (valueFromRequest: any) => {
@@ -59,18 +87,6 @@ eventEmitterForCreateWallet.on('eventEmitterForCreateWallet', async (valueFromRe
   try {
       const { userId } = valueFromRequest;
       
-      const wallet =  await walletService.create({
-        userId: userId,
-        amount: 0, //  default 0
-        currency: TCurrency.bdt,
-      });
-
-      await User.findByIdAndUpdate(
-        userId,
-        { walletId: wallet._id },
-        { new: true }
-      )
-
     }catch (error) {
       console.error('Error occurred while handling token creation and deletion:', error);
     }
@@ -87,9 +103,9 @@ const validateUserStatus = (user: IUser) => {
 
 // 💎✨🔍 -> V2 Found
 const createUser = async (userData: ICreateUser, userProfileId:string) => {
-  
+
   const existingUser = await User.findOne({ email: userData.email });
-  
+
   if (existingUser) {
     if (existingUser.isEmailVerified) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already taken');
@@ -99,8 +115,10 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
       //create verification email token
       const verificationToken =
         await TokenService.createVerifyEmailToken(existingUser);
-      //create verification email otp
-      await OtpService.createVerificationEmailOtp(existingUser.email);
+      
+      // ✅ Create verification email OTP (Redis-based)
+      await otpService.sendVerificationOtp(existingUser.email);
+      
       return { verificationToken };
     }
   }
@@ -109,62 +127,23 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
 
   const user = await User.create(userData);
 
-
-  // 📈⚙️ OPTIMIZATION: with event emmiter 
-  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', { 
+  // 📈⚙️ OPTIMIZATION: with event emitter
+  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', {
     userProfileId,
     userId : user._id
   });
 
-  const [verificationToken, otp] = await Promise.all([
-      TokenService.createVerifyEmailToken(user),
-      OtpService.createVerificationEmailOtp(user.email)
+  // ✅ Create verification token and OTP in parallel (Redis-based)
+  const [verificationToken] = await Promise.all([
+    TokenService.createVerifyEmailToken(user),
+    otpService.sendVerificationOtp(user.email)
   ]);
 
-  if(userData.role === TRole.mentor){
-    /*-─────────────────────────────────
-    | Mentor must have wallet
-    | TODO : use redis bullmq to create wallet in stead of event emitter .. 
-    └──────────────────────────────────*/
-  
-    // 📈⚙️ OPTIMIZATION: with event emmiter 
-    eventEmitterForCreateWallet.emit('eventEmitterForCreateWallet', { 
-      userId : user._id
-    });
-
-  
-    /*-─────────────────────────────────
-    |  TODO : MUST
-    | Lets send notification to admin that new Provider registered
-    └──────────────────────────────────*/
-    await enqueueWebNotification(
-      `A ${userData.role} registered successfully . verify document to activate account`,
-      null, // senderId
-      null, // receiverId 
-      TRole.admin, // receiverRole
-      TNotificationType.newUser, // type
-      /**********
-       * In UI there is no details page for specialist's schedule
-       * **** */
-      // '', // linkFor
-      // existingWorkoutClass._id // linkId
-    );
-
-    //--------- Lets create UserRole Data 
-    await userRoleDataService.create({
-      userId: user._id,
-    })
-    
-    return { user, verificationToken };
-  }
-
-  // eventEmitterForOTPCreateAndSendMail.emit('eventEmitterForOTPCreateAndSendMail', { email: user.email });
-
-  return { user, verificationToken , otp  }; // FIXME  : otp remove korte hobe ekhan theke .. 
+  return { user, verificationToken };
 };
 
  /*-─────────────────────────────────
-  |  
+  |
   └──────────────────────────────────*/
   /*-------------------------------
 
@@ -175,22 +154,22 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
   3. create the User
   4. use eventEmitter to add userProfileId to User Table [🎯Optimized]
 
-  5. if not patient 
+  5. if not patient
       |-> use eventEmitter to create wallet
       |-> send notification to admin
       |-> return user
 
   6.  if patient [🐛]
       |->  create verificationEmailToken(createdUser)
-      |-> create otp and send mail by eventEmitter 
+      |-> create otp and send mail by eventEmitter
           [🎯Optimized]
       |-> return user
 
   ---------------------------------*/
 const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
-  
+
   const existingUser = await User.findOne({ email: userData.email });
-  
+
   if (existingUser) {
     if (existingUser.isEmailVerified) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already taken');
@@ -200,8 +179,10 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
       //create verification email token
       const verificationToken =
         await TokenService.createVerifyEmailToken(existingUser);
-      //create verification email otp
-      await OtpService.createVerificationEmailOtp(existingUser.email);
+      
+      // ✅ Create verification email OTP (Redis-based)
+      await otpService.sendVerificationOtp(existingUser.email);
+      
       return { verificationToken };
     }
   }
@@ -211,66 +192,25 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
   const user = await User.create(userData);
 
   /*-─────────────────────────────────
-  | TODO : use redis bullmq 
+  | TODO : use redis bullmq
   └──────────────────────────────────*/
-  // 📈⚙️ OPTIMIZATION: with event emmiter 
-  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', { 
+  // 📈⚙️ OPTIMIZATION: with event emitter
+  eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', {
     userProfileId,
     userId : user._id
   });
 
-  const [verificationToken, otp] = await Promise.all([
-      TokenService.createVerifyEmailToken(user),
-      OtpService.createVerificationEmailOtp(user.email)
+  // ✅ Create verification token and OTP in parallel (Redis-based)
+  const [verificationToken] = await Promise.all([
+    TokenService.createVerifyEmailToken(user),
+    otpService.sendVerificationOtp(user.email)
   ]);
 
-  if(userData.role === TRole.mentor){
-    /*-─────────────────────────────────
-    | Mentor must have wallet
-    | TODO : use redis bullmq to create wallet in stead of event emitter .. 
-    └──────────────────────────────────*/
-  
-    // 📈⚙️ OPTIMIZATION: with event emmiter 
-    eventEmitterForCreateWallet.emit('eventEmitterForCreateWallet', { 
-      userId : user._id
-    });
-
-    const createMentorProfile : IMentorProfile = await MentorProfile.create({
-      userId : user._id
-    });
-
-    /*-─────────────────────────────────
-    |  TODO : MUST
-    | Lets send notification to admin that new Provider registered
-    └──────────────────────────────────*/
-    await enqueueWebNotification(
-      `A ${userData.role} registered successfully `,
-      null, // senderId
-      null, // receiverId 
-      TRole.admin, // receiverRole
-      TNotificationType.newUser, // type
-      /**********
-       * In UI there is no details page for specialist's schedule
-       * **** */
-      // '', // linkFor
-      // existingWorkoutClass._id // linkId
-    );
-
-    //--------- Lets create UserRole Data 
-    await userRoleDataService.create({
-      userId: user._id,
-    })
-    
-    return { user, verificationToken };
-  }
-
-  // eventEmitterForOTPCreateAndSendMail.emit('eventEmitterForOTPCreateAndSendMail', { email: user.email });
-
-  return { user, verificationToken , otp  }; // FIXME  : otp remove korte hobe ekhan theke .. 
+  return { user, verificationToken };
 };
 
 // local login // 💎✨🔍 -> V2 Found
-const login = async (email: string, 
+const login = async (email: string,
   reqpassword: string,
   fcmToken? : string,
   deviceInfo?: { deviceType?: string, deviceName?: string }
@@ -286,25 +226,19 @@ const login = async (email: string,
 
   validateUserStatus(user);
 
-  // if (!user.isEmailVerified) {
-  //   //create verification email token
-  //   const verificationToken = await TokenService.createVerifyEmailToken(user);
-  //   //create verification email otp
-  //   await OtpService.createVerificationEmailOtp(user.email);
-  //   return { verificationToken };
+  // ✅ Enforce email verification before login
+  if (!user.isEmailVerified) {
+    // ✅ Create verification token and OTP for user to verify email (Redis-based)
+    await Promise.all([
+      TokenService.createVerifyEmailToken(user),
+      otpService.sendVerificationOtp(user.email)
+    ]);
 
-  //   throw new ApiError(
-  //     StatusCodes.BAD_REQUEST,
-  //     'User not verified, Please verify your email, Check your email.'
-  //   );
-  // }
-
-  // if (user.lockUntil && user.lockUntil > new Date()) {
-  //   throw new ApiError(
-  //     StatusCodes.TOO_MANY_REQUESTS,
-  //     `Account is locked. Try again after ${config.auth.lockTime} minutes`,
-  //   );
-  // }
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Please verify your email before logging in. A verification OTP has been sent to your email.',
+    );
+  }
 
   const isPasswordValid = await bcryptjs.compare(reqpassword, user.password);
 
@@ -392,12 +326,14 @@ const login = async (email: string,
     - access token and refresh token
 
 -------------------*/
-const loginV2 = async (email: string, 
+const loginV2 = async (email: string,
   reqpassword: string,
   fcmToken? : string,
   deviceInfo?: { deviceType?: string, deviceName?: string }
 ) => {
   const user:IUser = await User.findOne({ email }).select('+password');
+
+  console.log(user)
   if (!user) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
   }
@@ -408,55 +344,25 @@ const loginV2 = async (email: string,
 
   validateUserStatus(user);
 
-  // if (!user.isEmailVerified) {
-  //   //create verification email token
-  //   const verificationToken = await TokenService.createVerifyEmailToken(user);
-  //   //create verification email otp
-  //   await OtpService.createVerificationEmailOtp(user.email);
-  //   return { verificationToken };
+  // ✅ Enforce email verification before login
+  if (!user.isEmailVerified) {
+    // ✅ Create verification token and OTP for user to verify email (Redis-based)
+    await Promise.all([
+      TokenService.createVerifyEmailToken(user),
+      otpService.sendVerificationOtp(user.email)
+    ]);
 
-  //   throw new ApiError(
-  //     StatusCodes.BAD_REQUEST,
-  //     'User not verified, Please verify your email, Check your email.'
-  //   );
-  // }
-
-  // if (user.lockUntil && user.lockUntil > new Date()) {
-  //   throw new ApiError(
-  //     StatusCodes.TOO_MANY_REQUESTS,
-  //     `Account is locked. Try again after ${config.auth.lockTime} minutes`,
-  //   );
-  // }
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Please verify your email before logging in. A verification OTP has been sent to your email.',
+    );
+  }
 
   const isPasswordValid = await bcryptjs.compare(reqpassword, user.password);
 
   if (!isPasswordValid) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
   }
-
-  /*---------------------------------------
-  if (!isPasswordValid) {
-    user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-    if (user.failedLoginAttempts >= config.auth.maxLoginAttempts) {
-      user.lockUntil = moment().add(config.auth.lockTime, 'minutes').toDate();
-      await user.save();
-      throw new ApiError(
-        423,
-        `Account locked for ${config.auth.lockTime} minutes due to too many failed attempts`,
-      );
-    }
-
-    await user.save();
-    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
-  }
-
-  if (user.failedLoginAttempts > 0) {
-    user.failedLoginAttempts = 0;
-    user.lockUntil = undefined;
-    await user.save();
-  }
-
-  -------------------------------------------*/
 
   const tokens = await TokenService.accessAndRefreshToken(user);
 
@@ -486,6 +392,33 @@ const loginV2 = async (email: string,
     }
   }
 
+  // 🔒 REDIS SESSION CACHING
+  // Cache user session for faster subsequent requests
+  try {
+    const sessionKey = `session:${user._id}:${fcmToken || 'web'}`;
+    const sessionData = {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      fcmToken,
+      deviceType: deviceInfo?.deviceType || 'web',
+      deviceName: deviceInfo?.deviceName || 'Unknown Device',
+      loginAt: new Date(),
+    };
+    
+    // Cache session for 7 days (matches refresh token expiry)
+    await redisClient.setEx(
+      sessionKey,
+      AUTH_SESSION_CONFIG.SESSION_TTL,
+      JSON.stringify(sessionData)
+    );
+    
+    logger.info(`Session cached for user ${user._id} (${sessionKey})`);
+  } catch (error) {
+    errorLogger.error('Failed to cache session:', error);
+    // Don't throw - login should succeed even if caching fails
+  }
+
   const { password, ...userWithoutPassword } = user.toObject();
 
   return {
@@ -504,15 +437,11 @@ const verifyEmail = async (email: string, token: string, otp: string) => {
   await TokenService.verifyToken(
     token,
     config.token.TokenSecret,
-    user?.isResetPassword ? TokenType.RESET_PASSWORD : TokenType.VERIFY,
+    TokenType.VERIFY,
   );
 
-  //verify otp
-  await OtpService.verifyOTP(
-    user.email,
-    otp,
-    user?.isResetPassword ? OtpType.RESET_PASSWORD : OtpType.VERIFY,
-  );
+  // ✅ Verify OTP (Redis-based)
+  await otpService.verifyOtp(user.email, otp);
 
   user.isEmailVerified = true;
   await user.save();
@@ -526,12 +455,29 @@ const forgotPassword = async (email: string) => {
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
-  //create reset password token
+
+  // ✅ Invalidate all sessions when password reset is requested (security)
+  try {
+    const sessionPattern = `session:${user._id}:*`;
+    const keys = await redisClient.keys(sessionPattern);
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      logger.info(`All sessions invalidated for user ${user._id} after forgot password request`);
+    }
+  } catch (error) {
+    errorLogger.error('Session invalidation error in forgotPassword:', error);
+    // Don't throw - forgot password should succeed even if session cleanup fails
+  }
+
+  // ✅ Create reset password token and OTP (Redis-based)
   const resetPasswordToken = await TokenService.createResetPasswordToken(user);
-  const otp = await OtpService.createResetPasswordOtp(user.email);
+  await otpService.sendResetPasswordOtp(user.email);
+  
   user.isResetPassword = true;
+  user.lastPasswordChange = new Date();  // ✅ Track password change request
   await user.save();
-  return { resetPasswordToken, otp }; // TODO : MUST : REMOVE THIS
+
+  return { resetPasswordToken };
 };
 
 const resendOtp = async (email: string) => {
@@ -543,11 +489,11 @@ const resendOtp = async (email: string) => {
   if (user?.isResetPassword) {
     const resetPasswordToken =
       await TokenService.createResetPasswordToken(user);
-    await OtpService.createResetPasswordOtp(user.email);
+    await otpService.sendResetPasswordOtp(user.email);
     return { resetPasswordToken };
   }
   const verificationToken = await TokenService.createVerifyEmailToken(user);
-  await OtpService.createVerificationEmailOtp(user.email);
+  await otpService.sendVerificationOtp(user.email);
   return { verificationToken };
 };
 
@@ -560,15 +506,28 @@ const resetPassword = async (
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
-  await OtpService.verifyOTP(
-    user.email,
-    otp,
-    user?.isResetPassword ? OtpType.RESET_PASSWORD : OtpType.VERIFY,
-  );
+  
+  // ✅ Verify reset password OTP (Redis-based)
+  await otpService.verifyResetPasswordOtp(user.email, otp);
+  
   user.password =  await bcryptjs.hash(newPassword, 12);
-
+  user.lastPasswordChange = new Date();  // ✅ Track password change
   user.isResetPassword = false;
   await user.save();
+
+  // ✅ Invalidate all sessions after password reset (security)
+  try {
+    const sessionPattern = `session:${user._id}:*`;
+    const keys = await redisClient.keys(sessionPattern);
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      logger.info(`All sessions invalidated for user ${user._id} after password reset`);
+    }
+  } catch (error) {
+    errorLogger.error('Session invalidation error in resetPassword:', error);
+    // Don't throw - password reset should succeed even if session cleanup fails
+  }
+
   const { password, ...userWithoutPassword } = user.toObject();
   return userWithoutPassword;
 };
@@ -589,19 +548,216 @@ const changePassword = async (
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Password is incorrect');
   }
 
-  user.password = await bcryptjs.hash(newPassword, 12) ;
+  user.password = await bcryptjs.hash(newPassword, 12);
+  user.lastPasswordChange = new Date();  // ✅ Track password change
   await user.save();
+  
+  // ✅ Invalidate all sessions after password change (security)
+  try {
+    const sessionPattern = `session:${user._id}:*`;
+    const keys = await redisClient.keys(sessionPattern);
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      logger.info(`All sessions invalidated for user ${user._id} after password change`);
+    }
+    
+    // Also blacklist all refresh tokens
+    await Token.deleteMany({ user: userId, type: TokenType.REFRESH });
+    logger.info(`All refresh tokens revoked for user ${user._id}`);
+  } catch (error) {
+    errorLogger.error('Session invalidation error in changePassword:', error);
+    // Don't throw - password change should succeed even if session cleanup fails
+  }
+  
   const { password, ...userWithoutPassword } = user.toObject();
   return userWithoutPassword;
 };
-const logout = async (refreshToken: string) => {};
+/**
+ * Logout user
+ * - Blacklist the refresh token
+ * - Remove user session from Redis cache
+ * - Optionally clear all user devices (for "logout from all devices")
+ */
+const logout = async (
+  refreshToken: string,
+  userId?: string,
+  fcmToken?: string,
+  logoutFromAllDevices: boolean = false
+) => {
+  try {
+    // Step 1: Verify the refresh token and add to blacklist
+    if (refreshToken) {
+      const decoded = jwt.verify(
+        refreshToken,
+        config.jwt.refreshSecret as Secret
+      ) as jwt.JwtPayload;
 
-const refreshAuth = async (refreshToken: string) => {};
+      // Blacklist the refresh token in Redis
+      const blacklistKey = `blacklist:${refreshToken}`;
+      const tokenExpiry = decoded.exp ? decoded.exp - Math.floor(Date.now() / 1000) : AUTH_SESSION_CONFIG.TOKEN_BLACKLIST_TTL;
+      
+      await redisClient.setEx(
+        blacklistKey,
+        Math.min(tokenExpiry, AUTH_SESSION_CONFIG.TOKEN_BLACKLIST_TTL),
+        'blacklisted'
+      );
+
+      logger.info(`Token blacklisted for user ${decoded.userId}`);
+    }
+
+    // Step 2: Remove user session from Redis cache
+    if (userId) {
+      // Remove session cache for this user
+      const sessionPattern = fcmToken 
+        ? `session:${userId}:${fcmToken}`
+        : `session:${userId}:*`;
+      
+      const keys = await redisClient.keys(sessionPattern);
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        logger.info(`Session cache cleared for user ${userId}`);
+      }
+    }
+
+    // Step 3: Optionally logout from all devices
+    if (logoutFromAllDevices && userId) {
+      await UserDevices.deleteMany({ userId: new mongoose.Types.ObjectId(userId) });
+      logger.info(`All devices logged out for user ${userId}`);
+    } else if (fcmToken && userId) {
+      // Remove only the current device
+      await UserDevices.deleteOne({ 
+        userId: new mongoose.Types.ObjectId(userId),
+        fcmToken 
+      });
+      logger.info(`Device logged out for user ${userId}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    errorLogger.error('Logout error:', error);
+    // Don't throw - logout should succeed even if blacklist fails
+    return { success: true };
+  }
+};
+
+/**
+ * Refresh access token using refresh token
+ * - Verify refresh token
+ * - Check if token is blacklisted
+ * - Generate new access and refresh token pair
+ * - Blacklist old refresh token (token rotation)
+ */
+const refreshAuth = async (refreshToken: string) => {
+  try {
+    if (!refreshToken) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token is required');
+    }
+
+    // Step 1: Check if token is blacklisted in Redis
+    const blacklistKey = `blacklist:${refreshToken}`;
+    const isBlacklisted = await redisClient.get(blacklistKey);
+    
+    if (isBlacklisted) {
+      throw new ApiError(
+        StatusCodes.UNAUTHORIZED, 
+        'Refresh token has been revoked. Please login again.'
+      );
+    }
+
+    // Step 2: Verify the refresh token
+    const decoded = jwt.verify(
+      refreshToken,
+      config.jwt.refreshSecret as Secret
+    ) as jwt.JwtPayload & { userId: string; email: string; role: string };
+
+    // Step 3: Check if user exists and is active
+    const user = await User.findById(decoded.userId);
+    
+    if (!user) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not found');
+    }
+
+    if (user.isDeleted) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User account is deleted');
+    }
+
+    // Step 4: Verify token type in database
+    const tokenDoc = await Token.findOne({
+      token: refreshToken,
+      user: user._id,
+      type: TokenType.REFRESH,
+    });
+
+    if (!tokenDoc) {
+      throw new ApiError(
+        StatusCodes.UNAUTHORIZED, 
+        'Invalid refresh token. Please login again.'
+      );
+    }
+
+    if (tokenDoc.expiresAt < new Date()) {
+      throw new ApiError(
+        StatusCodes.UNAUTHORIZED, 
+        'Refresh token has expired. Please login again.'
+      );
+    }
+
+    // Step 5: Generate new access and refresh token pair (token rotation)
+    const tokens = await TokenService.accessAndRefreshToken(user);
+
+    // Step 6: Blacklist old refresh token (prevent reuse)
+    const oldTokenExpiry = tokenDoc.expiresAt.getTime() - Date.now();
+    const oldTokenTTL = Math.max(0, Math.floor(oldTokenExpiry / 1000));
+    
+    if (oldTokenTTL > 0) {
+      await redisClient.setEx(
+        blacklistKey,
+        Math.min(oldTokenTTL, AUTH_SESSION_CONFIG.TOKEN_BLACKLIST_TTL),
+        'blacklisted'
+      );
+    }
+
+    // Step 7: Delete old refresh token from database
+    await Token.deleteOne({ token: refreshToken });
+
+    logger.info(`Token refreshed for user ${user._id}`);
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  } catch (error) {
+    errorLogger.error('Refresh token error:', error);
+    
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    if ((error as any).name === 'TokenExpiredError') {
+      throw new ApiError(
+        StatusCodes.UNAUTHORIZED, 
+        'Refresh token has expired. Please login again.'
+      );
+    }
+    
+    if ((error as any).name === 'JsonWebTokenError') {
+      throw new ApiError(
+        StatusCodes.UNAUTHORIZED, 
+        'Invalid refresh token. Please login again.'
+      );
+    }
+    
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'Failed to refresh token'
+    );
+  }
+};
 
 
 // -- we need to move these to OAuth modules
 const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => {
-  
+
   // Step 1: Verify Google token
   const ticket = await googleClient.verifyIdToken({
     idToken,
@@ -629,11 +785,8 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account not found or deleted');
     }
 
-    // Update token (store encrypted in production)
-    await OAuthAccount.findByIdAndUpdate(oAuthAccount._id, {
-      accessToken: idToken,
-      lastUsedAt: new Date(),
-    });
+    // ✅ Update token (encrypted)
+    await oAuthAccountService.updateOAuthTokens(oAuthAccount._id, idToken);
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens };
@@ -650,14 +803,15 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
       user.isEmailVerified = true;
     }
 
-    await OAuthAccount.create({
-      userId: user._id,
-      authProvider: TAuthProvider.google,
+    // ✅ Create OAuth account with encrypted token
+    await oAuthAccountService.createOAuthAccount(
+      user._id,
+      TAuthProvider.google,
       providerId,
       email,
-      accessToken: idToken, // encrypt this!
-      isVerified: true,
-    });
+      idToken,
+      true,
+    );
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens, isLinked: true };
@@ -691,39 +845,15 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
     userId: newUser._id,
   });
 
-  // Create OAuth account
-  await OAuthAccount.create({
-    userId: newUser._id,
-    authProvider: TAuthProvider.google,
+  // ✅ Create OAuth account with encrypted token
+  await oAuthAccountService.createOAuthAccount(
+    newUser._id,
+    TAuthProvider.google,
     providerId,
     email,
-    accessToken: idToken, // encrypt this!
-    isVerified: true,
-  });
-
-  // Handle mentor-specific logic (same as createUserV2)
-  if (role === TRole.mentor) {
-    eventEmitterForCreateWallet.emit('eventEmitterForCreateWallet', { userId: newUser._id });
-    await MentorProfile.create({ userId: newUser._id });
-    await userRoleDataService.create({ userId: newUser._id });
-    
-    /*-─────────────────────────────────
-    |  TODO : MUST
-    | Lets send notification to admin that new Provider registered
-    └──────────────────────────────────*/
-    await enqueueWebNotification(
-      `A ${role} registered via Google`,
-      null, // senderId
-      null, // receiverId 
-      TRole.admin, // receiverRole
-      TNotificationType.newUser, // type
-      /**********
-       * In UI there is no details page for specialist's schedule
-       * **** */
-      // '', // linkFor
-      // existingWorkoutClass._id // linkId
-    );
-  }
+    idToken,
+    true,
+  );
 
   const tokens = TokenService.accessAndRefreshToken(newUser);
   return { user: newUser, ...tokens, isNewUser: true };
@@ -731,7 +861,7 @@ const googleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) =>
 
 
 const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => {
-  
+
   // Apple-specific token verification
   const applePayload = await appleSignin.verifyIdToken(idToken, {
     audience: process.env.APPLE_CLIENT_ID,
@@ -742,29 +872,24 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
   // ⚠️ Apple only sends email on FIRST login — after that it's null
   // So you MUST store it in OAuthAccount on first login
 
-  // ... rest is identical to googleLogin, just swap TAuthProvider.apple
+  if (!email) throw new ApiError(StatusCodes.BAD_REQUEST, 'Email not provided by Apple');
 
-  if (!email) throw new ApiError(StatusCodes.BAD_REQUEST, 'Email not provided by Google');
-
-  // Step 2: Check if OAuth account already exists
+  // Step 2: Check if OAuth account already exists (using Apple provider)
   let oAuthAccount = await OAuthAccount.findOne({
-    authProvider: TAuthProvider.google,
+    authProvider: TAuthProvider.apple,  // ✅ FIXED: Was TAuthProvider.google
     providerId,
     isDeleted: false,
   });
 
   if (oAuthAccount) {
-    // ─── Returning OAuth user ───
+    // ─── Returning Apple OAuth user ───
     const user = await User.findById(oAuthAccount.userId);
     if (!user || user.isDeleted) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'Account not found or deleted');
     }
 
-    // Update token (store encrypted in production)
-    await OAuthAccount.findByIdAndUpdate(oAuthAccount._id, {
-      accessToken: idToken,
-      lastUsedAt: new Date(),
-    });
+    // ✅ Update token (encrypted)
+    await oAuthAccountService.updateOAuthTokens(oAuthAccount._id, idToken);
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens };
@@ -774,29 +899,30 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
   let user = await User.findOne({ email, isDeleted: false });
 
   if (user) {
-    // ─── Existing local user — LINK OAuth account ───
+    // ─── Existing local user — LINK Apple OAuth account ───
     if (!user.isEmailVerified) {
-      // Auto-verify since Google confirmed the email
+      // Auto-verify since Apple confirmed the email
       await User.findByIdAndUpdate(user._id, { isEmailVerified: true });
       user.isEmailVerified = true;
     }
 
-    await OAuthAccount.create({
-      userId: user._id,
-      authProvider: TAuthProvider.google,
+    // ✅ Create OAuth account with encrypted token
+    await oAuthAccountService.createOAuthAccount(
+      user._id,
+      TAuthProvider.apple,
       providerId,
       email,
-      accessToken: idToken, // encrypt this!
-      isVerified: true,
-    });
+      idToken,
+      true,
+    );
 
     const tokens = TokenService.accessAndRefreshToken(user);
     return { user, ...tokens, isLinked: true };
   }
 
-  // Step 4: Brand new user — register via Google
+  // Step 4: Brand new user — register via Apple
   if (!role) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Role is required for new Google signup');
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Role is required for new Apple signup');
   }
   if (!acceptTOC) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'You must accept Terms and Conditions');
@@ -807,13 +933,12 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
 
   // Create user (no password needed)
   const newUser = await User.create({
-    name: name || email.split('@')[0],
+    name: email.split('@')[0], // Apple doesn't provide name in token, use email prefix
     email,
     role,
     profileId: userProfile._id,
-    isEmailVerified: true, // Google already verified
-    authProvider: TAuthProvider.google,
-    profileImage: picture ? { imageUrl: picture } : undefined,
+    isEmailVerified: true, // Apple already verified
+    authProvider: TAuthProvider.apple,  // ✅ FIXED: Was TAuthProvider.google
   });
 
   // Link profile back
@@ -822,43 +947,18 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
     userId: newUser._id,
   });
 
-  // Create OAuth account
-  await OAuthAccount.create({
-    userId: newUser._id,
-    authProvider: TAuthProvider.google,
+  // ✅ Create OAuth account with encrypted token
+  await oAuthAccountService.createOAuthAccount(
+    newUser._id,
+    TAuthProvider.apple,
     providerId,
     email,
-    accessToken: idToken, // encrypt this!
-    isVerified: true,
-  });
-
-  // Handle mentor-specific logic (same as createUserV2)
-  if (role === TRole.mentor) {
-    eventEmitterForCreateWallet.emit('eventEmitterForCreateWallet', { userId: newUser._id });
-    await MentorProfile.create({ userId: newUser._id });
-    await userRoleDataService.create({ userId: newUser._id });
-    /*-─────────────────────────────────
-    |  TODO : MUST
-    | Lets send notification to admin that new Provider registered
-    └──────────────────────────────────*/
-    await enqueueWebNotification(
-      `A ${role} registered via Google`,
-      null, // senderId
-      null, // receiverId 
-      TRole.admin, // receiverRole
-      TNotificationType.newUser, // type
-      /**********
-       * In UI there is no details page for specialist's schedule
-       * **** */
-      // '', // linkFor
-      // existingWorkoutClass._id // linkId
-    );
-  }
+    idToken,
+    true,
+  );
 
   const tokens = TokenService.accessAndRefreshToken(newUser);
   return { user: newUser, ...tokens, isNewUser: true };
-
-
 };
 
 export const AuthService = {

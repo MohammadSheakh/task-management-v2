@@ -1,0 +1,78 @@
+graph TD
+    %% Task Module User Flow V2 (Family-Based)
+    %% Aligned with Figma: app-user/group-children-user/ & teacher-parent-dashboard/
+
+    subgraph Authentication
+        LOGIN[User Login] --> AUTH_CHECK{Role Check}
+        AUTH_CHECK -->|Business User| BUSINESS_DASH[Business Dashboard]
+        AUTH_CHECK -->|Common User Child| CHILD_CHECK{Secondary User?}
+        CHILD_CHECK -->|Yes| SECONDARY_DASH[Secondary User Dashboard]
+        CHILD_CHECK -->|No| BASIC_DASH[Basic Child Dashboard]
+    end
+
+    subgraph "Task Creation Flow"
+        BUSINESS_DASH --> CREATE_TASK_BTN[Click Create Task]
+        SECONDARY_DASH --> CREATE_TASK_BTN
+        BASIC_DASH --> CREATE_TASK_BASIC[Create Personal Task Only]
+
+        CREATE_TASK_BTN --> TASK_TYPE{Select Task Type}
+        TASK_TYPE -->|Personal| PERSONAL_FORM[Personal Task Form]
+        TASK_TYPE -->|Single Assignment| SINGLE_FORM[Single Assignment Form<br/>Select 1 Family Member]
+        TASK_TYPE -->|Collaborative| COLLAB_FORM[Collaborative Task Form<br/>Select Multiple Family Members]
+
+        PERSONAL_FORM --> SUBMIT_TASK[Submit Task]
+        SINGLE_FORM --> SUBMIT_TASK
+        COLLAB_FORM --> SUBMIT_TASK
+        CREATE_TASK_BASIC --> SUBMIT_TASK_PERSONAL[Submit Personal Task]
+    end
+
+    subgraph "Task Management"
+        SUBMIT_TASK --> CACHE_INVALIDATE[Invalidate Redis Cache]
+        SUBMIT_TASK_PERSONAL --> CACHE_INVALIDATE
+
+        CACHE_INVALIDATE --> REALTIME[Real-time Update<br/>Socket.io to Family Members]
+        REALTIME --> ACTIVITY[Record Family Activity]
+        ACTIVITY --> DB_SAVE[(Save to MongoDB)]
+
+        DB_SAVE --> VIEW_TASKS[View My Tasks]
+        VIEW_TASKS --> CACHE_CHECK{Cache Hit?}
+        CACHE_CHECK -->|Yes| RETURN_CACHE[Return Cached Tasks]
+        CACHE_CHECK -->|No| QUERY_DB[Query MongoDB<br/>With Indexes]
+        QUERY_DB --> CACHE_STORE[Store in Redis<br/>TTL: 2 min]
+        CACHE_STORE --> RETURN_DB[Return Tasks]
+    end
+
+    subgraph "Task Status Update"
+        RETURN_DB --> UPDATE_STATUS[Update Task Status]
+        UPDATE_STATUS --> STATUS_CHECK{Status Transition}
+        STATUS_CHECK -->|pending → inProgress| START_TASK[Mark as Started]
+        STATUS_CHECK -->|inProgress → completed| COMPLETE_TASK[Mark as Completed<br/>Set completedTime]
+        STATUS_CHECK -->|Invalid| REJECT_STATUS[Reject Transition]
+
+        COMPLETE_TASK --> PREFERRED_TIME[Queue Preferred Time<br/>Calculation Job]
+        PREFERRED_TIME --> BULLMQ[BullMQ: preferredTimeQueue]
+        BULLMQ --> CALCULATE[Analyze Last 10 Tasks<br/>Calculate Average Start Time]
+        CALCULATE --> UPDATE_USER[Update User.preferredTime]
+
+        START_TASK --> FAMILY_NOTIFY[Notify Family Members<br/>via Socket.io]
+        COMPLETE_TASK --> FAMILY_NOTIFY
+    end
+
+    subgraph "Daily Progress Tracking"
+        VIEW_TASKS --> DAILY_PROGRESS[View Daily Progress]
+        DAILY_PROGRESS --> QUERY_DATE[Query Tasks for Date]
+        QUERY_DATE --> CALC_STATS[Calculate Statistics<br/>Total, Completed, In Progress]
+        CALC_STATS --> SHOW_PROGRESS[Show Progress %<br/>List Today's Tasks]
+    end
+
+    classDef auth fill:#e3f2fd,stroke:#1976d2
+    classDef create fill:#e8f5e9,stroke:#388e3c
+    classDef manage fill:#fff3e0,stroke:#f57c00
+    classDef status fill:#fce4ec,stroke:#c2185b
+    classDef progress fill:#f3e5f5,stroke:#7b1fa2
+
+    class LOGIN,AUTH_CHECK,BUSINESS_DASH,SECONDARY_DASH,BASIC_DASH auth
+    class CREATE_TASK_BTN,TASK_TYPE,PERSONAL_FORM,SINGLE_FORM,COLLAB_FORM,SUBMIT_TASK,CREATE_TASK_BASIC,SUBMIT_TASK_PERSONAL create
+    class CACHE_INVALIDATE,REALTIME,ACTIVITY,DB_SAVE,VIEW_TASKS,CACHE_CHECK,RETURN_CACHE,QUERY_DB,CACHE_STORE,RETURN_DB manage
+    class UPDATE_STATUS,STATUS_CHECK,START_TASK,COMPLETE_TASK,REJECT_STATUS,PREFERRED_TIME,BULLMQ,CALCULATE,UPDATE_USER,FAMILY_NOTIFY status
+    class DAILY_PROGRESS,QUERY_DATE,CALC_STATS,SHOW_PROGRESS progress

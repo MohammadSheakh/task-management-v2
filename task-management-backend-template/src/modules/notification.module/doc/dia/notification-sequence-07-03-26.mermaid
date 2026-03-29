@@ -1,0 +1,202 @@
+---
+title: Notification Module - Sequence Diagram
+description: Detailed sequence of operations for notification and reminder scenarios
+date: 07-03-26
+---
+
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant FE as Frontend
+    participant API as API Gateway
+    participant Ctrl as Controller
+    participant Svc as Service
+    participant DB as MongoDB
+    participant Cache as Redis
+    participant Queue as BullMQ
+    participant Ext as External Service
+    
+    %% Scenario 1: Send Task Assignment Notification
+    
+    note right of U: Send Task Assignment Notification
+    U->>FE: Assign task to member
+    FE->>API: POST /tasks {assignedUserIds}
+    API->>Ctrl: create()
+    Ctrl->>Svc: createTask()
+    Svc->>DB: insertOne(task)
+    DB-->>Svc: task created
+    Svc->>Svc: enqueueNotification()
+    Svc->>Queue: add('send-notification')
+    Queue-->>Queue: Process job
+    Queue->>Svc: processNotification()
+    Svc->>DB: insertOne(notification)
+    DB-->>Svc: notification created
+    Svc->>Queue: add('send-push', 'send-email')
+    Queue->>Ext: sendPush(FCM)
+    Queue->>Ext: sendEmail(SendGrid)
+    Ext-->>Queue: delivered
+    Svc-->>Ctrl: task + notifications
+    Ctrl-->>API: 201 Created
+    API-->>FE: success
+    FE-->>U: Task assigned
+    
+    
+    Note over U,Ext: Create Task Reminder
+
+    %% Scenario 2: Create Task Reminder
+    note right of U: Create Task Reminder
+    
+    U->>FE: Set reminder for task
+    FE->>API: POST /task-reminders {taskId, reminderTime}
+    API->>Ctrl: createReminder()
+    Ctrl->>Svc: validateReminderData()
+    Svc->>DB: find({taskId, userId})
+    DB-->>Svc: task exists
+    Svc->>DB: insertOne(reminder)
+    DB-->>Svc: reminder created
+    Svc->>Queue: add('schedule-reminder', delay)
+    Queue-->>Queue: Scheduled job
+    Svc-->>Ctrl: reminder object
+    Ctrl-->>API: 201 Created
+    API-->>FE: reminder set
+    FE-->>U: Reminder created
+    
+    Note over U,Ext: Reminder Time Arrives
+    %% Scenario 3: Reminder Triggered
+    
+    note right of Queue: Reminder Time Arrives
+    Queue->>Queue: Process scheduled job
+    Queue->>Svc: processReminder()
+    Svc->>DB: findReminder(jobId)
+    DB-->>Svc: reminder object
+    Svc->>DB: findTask(taskId)
+    DB-->>Svc: task details
+    Svc->>DB: insertOne(notification)
+    DB-->>Svc: notification created
+    alt Channel: Push
+        Svc->>Queue: add('send-push')
+        Queue->>Ext: FCM/APNs
+        Ext-->>Queue: delivered
+    else Channel: Email
+        Svc->>Queue: add('send-email')
+        Queue->>Ext: SendGrid
+        Ext-->>Queue: delivered
+    else Channel: SMS
+        Svc->>Queue: add('send-sms')
+        Queue->>Ext: Twilio
+        Ext-->>Queue: delivered
+    end
+    Svc->>DB: updateOne(reminder, {status: sent})
+    Svc-->>Queue: complete
+    
+    Note over U,Ext: View Notifications
+    %% Scenario 4: Get User Notifications
+    
+    note right of U: View Notifications
+    U->>FE: Open notifications
+    FE->>API: GET /notifications/my?page=1&limit=10
+    API->>Ctrl: getMyNotifications()
+    Ctrl->>Cache: get(userId:notifications)
+    alt Cache Hit
+        Cache-->>Ctrl: cached notifications
+        Ctrl-->>API: cached data
+    else Cache Miss
+        Ctrl->>Svc: getNotifications(userId, options)
+        Svc->>DB: find({receiverId}).sort(-createdAt)
+        DB-->>Svc: notifications[]
+        Svc->>Cache: setex(key, 60, notifications)
+        Svc-->>Ctrl: notifications
+    end
+    Ctrl-->>API: 200 OK
+    API-->>FE: notifications
+    FE-->>U: Display notifications
+    
+    Note over U,Ext: Mark as Read
+    %% Scenario 5: Mark Notification as Read
+    
+    note right of U: Mark as Read
+    U->>FE: Click notification
+    FE->>API: POST /notifications/:id/read
+    API->>Ctrl: markAsRead(id)
+    Ctrl->>Svc: markAsRead(userId, id)
+    Svc->>DB: updateOne({_id, receiverId}, {status: read, readAt: now})
+    DB-->>Svc: updated
+    Svc->>Cache: del(userId:notifications)
+    Svc->>Cache: del(userId:unreadCount)
+    Svc-->>Ctrl: 200 OK
+    Ctrl-->>API: success
+    API-->>FE: marked read
+    FE-->>U: Notification opened
+    
+    Note over U,Ext: Check Unread Badge
+    %% Scenario 6: Get Unread Count
+    
+    note right of U: Check Unread Badge
+    U->>FE: Open app
+    FE->>API: GET /notifications/unread-count
+    API->>Ctrl: getUnreadCount()
+    Ctrl->>Cache: get(userId:unreadCount)
+    alt Cache Hit
+        Cache-->>Ctrl: count
+        Ctrl-->>API: cached count
+    else Cache Miss
+        Ctrl->>Svc: countUnread(userId)
+        Svc->>DB: count({receiverId, status: unread})
+        DB-->>Svc: count
+        Svc->>Cache: setex(key, 30, count)
+        Svc-->>Ctrl: count
+    end
+    Ctrl-->>API: 200 OK
+    API-->>FE: count
+    FE-->>U: Show badge
+    
+    Note over U,Ext: Cancel Reminder
+    %% Scenario 7: Cancel Reminder
+    
+    note right of U: Cancel Reminder
+    U->>FE: Click cancel reminder
+    FE->>API: DELETE /task-reminders/:id
+    API->>Ctrl: cancelReminder(id)
+    Ctrl->>Svc: cancelReminder(userId, id)
+    Svc->>DB: find({_id, userId})
+    DB-->>Svc: reminder object
+    alt Is Owner
+        Svc->>Queue: removeJob(jobId)
+        Queue-->>Svc: job removed
+        Svc->>DB: updateOne({status: cancelled})
+        DB-->>Svc: updated
+        Svc-->>Ctrl: 200 OK
+        Ctrl-->>API: success
+        API-->>FE: cancelled
+        FE-->>U: Reminder cancelled
+    else Not Owner
+        Svc-->>Ctrl: 403 Forbidden
+        Ctrl-->>API: 403
+        API-->>FE: error
+        FE-->>U: Permission denied
+    end
+    
+    
+    %% Note over U,Ext: All notifications support multi-channel delivery
+
+    
+    %% Scenario 8: Recurring Reminder
+    
+    note right of Queue: Recurring Reminder
+    Queue->>Queue: Process recurring job
+    Queue->>Svc: processRecurringReminder()
+    Svc->>DB: findReminder(jobId)
+    DB-->>Svc: reminder object
+    alt Has More Occurrences
+        Svc->>Svc: sendNotification()
+        Svc->>DB: increment(sentCount)
+        Svc->>DB: calculateNextOccurrence()
+        Svc->>Queue: add('schedule-reminder', nextTime)
+        Svc-->>Queue: rescheduled
+    else Max Occurrences Reached
+        Svc->>DB: updateOne({status: completed})
+        Svc-->>Queue: complete
+    end
+    
+    
+    Note over U,Ext: All notifications support multi-channel delivery

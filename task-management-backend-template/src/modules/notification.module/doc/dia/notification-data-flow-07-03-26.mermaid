@@ -1,0 +1,142 @@
+---
+title: Notification Module - Data Flow Diagram
+description: Data flow through the notification system showing inputs, processes, and outputs
+date: 07-03-26
+---
+
+flowchart LR
+    subgraph ExternalEntities["External Entities"]
+        User[User/Sender]
+        Receiver[Notification Receiver]
+        Admin[System Admin]
+        TaskSystem[Task System]
+        GroupSystem[Group System]
+        EmailProvider[Email Provider<br/>SendGrid/SES]
+        PushProvider[Push Provider<br/>FCM/APNs]
+        SMSProvider[SMS Provider<br/>Twilio/SNS]
+    end
+    
+    subgraph InputData["Input Data"]
+        NotificationData[Notification Data<br/>title, subTitle,<br/>type, priority, channels]
+        ReminderData[Reminder Data<br/>taskId, reminderTime,<br/>triggerType, frequency]
+        ChannelPrefs[Channel Preferences<br/>email, push, sms,<br/>in_app]
+    end
+    
+    subgraph DataStores["Data Stores"]
+        NotificationDB[(notifications<br/>Collection)]
+        ReminderDB[(taskreminders<br/>Collection)]
+        UserPrefsDB[(userPreferences<br/>Collection)]
+        Cache[(Redis Cache<br/>Unread Counts)]
+        Queue[(BullMQ Queue<br/>Notification Jobs)]
+    end
+    
+    subgraph Processes["Processes"]
+        P1[1. Create Notification]
+        P2[2. Schedule Reminder]
+        P3[3. Process Notification Queue]
+        P4[4. Deliver Notifications]
+        P5[5. Update Notification Status]
+        P6[6. Handle User Actions]
+        P7[7. Process Recurring Reminders]
+        P8[8. Cleanup Old Data]
+    end
+    
+    subgraph OutputData["Output Data"]
+        NotificationRes[Notification Response<br/>_notificationId,<br/>status, channels]
+        ReminderRes[Reminder Response<br/>_reminderId,<br/>scheduledFor, frequency]
+        DeliveryReport[Delivery Report<br/>delivered, failed,<br/>pending counts]
+        ErrorRes[Error Response<br/>message, code,<br/>details]
+    end
+    
+    %% User Actions
+    User -->|Create Notification| P1
+    User -->|Set Reminder| P2
+    User -->|Mark Read| P6
+    User -->|Cancel Reminder| P6
+    
+    %% System Triggers
+    TaskSystem -->|Task Assigned| P1
+    TaskSystem -->|Task Due Soon| P1
+    GroupSystem -->|Member Joined| P1
+    GroupSystem -->|Task Completed| P1
+    
+    %% Admin Actions
+    Admin -->|Send Bulk| P1
+    Admin -->|Cleanup| P8
+    
+    %% Process Flows
+    P1 -->|Insert| NotificationDB
+    P1 -->|Queue Job| Queue
+    P1 -->|Cache| Cache
+    
+    P2 -->|Validate| ReminderDB
+    P2 -->|Insert| ReminderDB
+    P2 -->|Schedule Job| Queue
+    
+    P3 -->|Read| Queue
+    P3 -->|Process| P4
+    P3 -->|Update| NotificationDB
+    
+    P4 -->|Send Email| EmailProvider
+    P4 -->|Send Push| PushProvider
+    P4 -->|Send SMS| SMSProvider
+    P4 -->|In-App| NotificationDB
+    
+    P5 -->|Update Status| NotificationDB
+    P5 -->|Update Cache| Cache
+    P5 -->|Log Delivery| NotificationDB
+    
+    P6 -->|Mark Read| NotificationDB
+    P6 -->|Delete| NotificationDB
+    P6 -->|Cancel| ReminderDB
+    P6 -->|Unsubscribe| UserPrefsDB
+    
+    P7 -->|Check Recurring| ReminderDB
+    P7 -->|Reschedule| Queue
+    P7 -->|Create Notification| P1
+    
+    P8 -->|Archive Old| NotificationDB
+    P8 -->|Delete Expired| ReminderDB
+    P8 -->|Clear Cache| Cache
+    
+    %% Data Store Flows
+    NotificationDB -->|Read| P3
+    NotificationDB -->|Read| P6
+    ReminderDB -->|Read| P2
+    ReminderDB -->|Read| P7
+    
+    Cache -->|Hit| P6
+    Cache -->|Miss| NotificationDB
+    
+    Queue -->|Process| P3
+    Queue -->|Scheduled| P7
+    
+    %% External Provider Flows
+    EmailProvider -->|Delivery Status| P4
+    PushProvider -->|Delivery Status| P4
+    SMSProvider -->|Delivery Status| P4
+    
+    %% Output Flows
+    P1 -->|Success| NotificationRes
+    P2 -->|Success| ReminderRes
+    P3 -->|Report| DeliveryReport
+    P4 -->|Report| DeliveryReport
+    P6 -->|Success| NotificationRes
+    
+    P1 -->|Error| ErrorRes
+    P2 -->|Error| ErrorRes
+    P3 -->|Error| ErrorRes
+    P4 -->|Error| ErrorRes
+    P6 -->|Error| ErrorRes
+    
+    %% Receiver Flow
+    NotificationRes --> Receiver
+    DeliveryReport --> Admin
+    ErrorRes --> User
+    
+    %% Styling
+    style ExternalEntities fill:#E3F2FD
+    style InputData fill:#E8F5E9
+    style DataStores fill:#FFF3E0
+    style Processes fill:#F3E5F5
+    style OutputData fill:#FFEBEE

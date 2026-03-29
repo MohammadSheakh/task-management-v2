@@ -1,0 +1,126 @@
+flowchart TD
+    %% ===========================================
+    %% ANALYTICS MODULE - USER FLOW (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Parent["👨‍👩‍👧 Parent User Flow"]
+        P1[Open Family Dashboard]
+        P2[View Activity Chart]
+        P3[View Child Progress Chart]
+        P4[Check Leaderboard]
+        P5[View Activity Feed]
+        P6[Receive Real-Time Update]
+    end
+
+    subgraph Child["👶 Child User Flow"]
+        C1[Open App]
+        C2[View Tasks]
+        C3[Complete Task]
+        C4[Complete Subtask]
+        C5[View Own Progress]
+        C6[View Productivity Score]
+    end
+
+    subgraph Admin["👨‍💼 Admin User Flow"]
+        A1[Open Admin Dashboard]
+        A2[View Platform Overview]
+        A3[View User Growth Chart]
+        A4[View Revenue Chart]
+        A5[View Task Metrics]
+        A6[Export Analytics]
+    end
+
+    subgraph API["🔌 API Layer"]
+        API1[GET /analytics/charts/family-activity]
+        API2[GET /analytics/charts/child-progress]
+        API3[GET /analytics/family/:id/overview]
+        API4[GET /analytics/user/my/daily-progress]
+        API5[GET /analytics/admin/dashboard]
+        API6[GET /analytics/charts/user-growth]
+    end
+
+    subgraph Cache["🔴 Redis Cache"]
+        CACHE1[Check Chart Cache]
+        CACHE2[Check Family Cache]
+        CACHE3[Check User Cache]
+        CACHE4[Cache Hit?]
+    end
+
+    subgraph Database["💾 MongoDB Aggregation"]
+        DB1[Aggregate Family Data]
+        DB2[Aggregate Child Progress]
+        DB3[Aggregate User Growth]
+        DB4[Aggregate Platform Metrics]
+    end
+
+    subgraph RealTime["⚡ Real-Time ⭐ NEW!"]
+        RT1[Socket.IO Broadcast]
+        RT2[Family Room]
+        RT3[Parent Receives Update]
+    end
+
+    %% Parent Flow
+    P1 --> API1
+    P1 --> API2
+    P1 --> API3
+    API1 --> CACHE1
+    API2 --> CACHE1
+    API3 --> CACHE2
+    CACHE1 --> CACHE4
+    CACHE2 --> CACHE4
+    CACHE4 -->|Hit| API1
+    CACHE4 -->|Miss| DB1
+    CACHE4 -->|Miss| DB2
+    DB1 --> API1
+    DB2 --> API1
+    API1 --> P2
+    API2 --> P3
+    API3 --> P4
+    P4 --> P5
+    P5 --> RT3
+
+    %% Child Flow
+    C1 --> API4
+    API4 --> CACHE3
+    CACHE3 --> CACHE4
+    CACHE4 -->|Hit| API4
+    CACHE4 -->|Miss| DB3
+    DB3 --> API4
+    API4 --> C2
+    C2 --> C3
+    C3 --> RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    C3 --> C4
+    C4 --> RT1
+    C2 --> C5
+    C5 --> C6
+
+    %% Admin Flow
+    A1 --> API5
+    A1 --> API6
+    API5 --> CACHE2
+    CACHE2 --> CACHE4
+    CACHE4 -->|Hit| API5
+    CACHE4 -->|Miss| DB4
+    DB4 --> API5
+    API5 --> A2
+    API6 --> A3
+    A3 --> A4
+    A4 --> A5
+    A5 --> A6
+
+    %% Real-Time Flow ⭐
+    RT1 -->|group:activity| RT2
+    RT2 -->|Broadcast| RT3
+    RT3 --> P6
+
+    %% Styling
+    style Parent fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Child fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Admin fill:#fff3e0,stroke:#e65100,color:#000
+    style API fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000

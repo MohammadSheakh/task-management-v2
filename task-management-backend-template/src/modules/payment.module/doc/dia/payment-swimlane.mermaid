@@ -1,0 +1,44 @@
+flowchart TB
+    subgraph User Payment Flow
+        U1[User Selects Plan] --> U2[Clicks Subscribe]
+        U2 --> U3[Stripe Checkout]
+        U3 --> U4{Payment Success?}
+        U4 -->|Yes| U5[Subscription Created]
+        U4 -->|No| U6[Payment Failed]
+        U5 --> U7[Access Granted]
+        U6 --> U8[Retry or Cancel]
+    end
+
+    subgraph Admin Payment Flow
+        A1[Admin Views Dashboard] --> A2{Action?}
+        A2 -->|View Earnings| A3[View Transaction Overview]
+        A2 -->|View Details| A4[View Individual Transaction]
+        A2 -->|Process Refund| A5[Initiate Refund]
+        A5 --> A6[Stripe Refund]
+        A6 --> A7[Update Transaction Status]
+    end
+
+    subgraph System Payment Flow
+        S1[Webhook Received] --> S2[Verify Signature]
+        S2 --> S3{Event Type?}
+        S3 -->|payment_intent.succeeded| S4[Create Transaction]
+        S3 -->|payment_intent.failed| S5[Mark as Failed]
+        S3 -->|customer.subscription.deleted| S6[Cancel Subscription]
+        S4 --> S7[Update Subscription Status]
+        S5 --> S8[Notify User]
+        S6 --> S7
+    end
+
+    subgraph Cron Job Flow
+        C1[Cron Runs Daily] --> C2[Check Expiring Trials]
+        C2 --> C3{Trial Expiring?}
+        C3 -->|Yes| C4[Charge Payment Method]
+        C4 --> C5{Payment Success?}
+        C5 -->|Yes| C6[Convert to Paid]
+        C5 -->|No| C7[Expire Subscription]
+    end
+
+    style U1 fill:#42a5f5,color:#fff
+    style A1 fill:#ef5350,color:#fff
+    style S1 fill:#ffca28,color:#000
+    style C1 fill:#66bb6a,color:#fff

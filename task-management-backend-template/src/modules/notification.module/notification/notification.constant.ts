@@ -7,49 +7,86 @@
  */
 
 /**
- * Notification Types
+ * Notification Type Enum
+ * Defines the category of notification
+ *
+ * Note: FAMILY type replaced GROUP to align with childrenBusinessUser architecture
+ * where parent/teacher (business user) manages children/students
  */
-export const NOTIFICATION_TYPE = {
-  TASK: 'task',
-  GROUP: 'group',
-  SYSTEM: 'system',
-  REMINDER: 'reminder',
-  MENTION: 'mention',
-  ASSIGNMENT: 'assignment',
-  DEADLINE: 'deadline',
-  CUSTOM: 'custom',
-} as const;
+export enum NotificationType {
+  TASK = 'task',
+  FAMILY = 'family',           // Family/children activities (replaces 'group')
+  SYSTEM = 'system',
+  REMINDER = 'reminder',
+  MENTION = 'mention',
+  ASSIGNMENT = 'assignment',
+  DEADLINE = 'deadline',
+  CUSTOM = 'custom',
+}
 
 /**
- * Notification Priority Levels
+ * Notification Priority Enum
+ * Determines notification urgency and delivery method
  */
-export const NOTIFICATION_PRIORITY = {
-  LOW: 'low',
-  NORMAL: 'normal',
-  HIGH: 'high',
-  URGENT: 'urgent',
-} as const;
+export enum NotificationPriority {
+  LOW = 'low',
+  NORMAL = 'normal',
+  HIGH = 'high',
+  URGENT = 'urgent',
+}
 
 /**
- * Notification Delivery Channels
+ * Notification Channel Enum
+ * Defines how the notification should be delivered
  */
-export const NOTIFICATION_CHANNEL = {
-  IN_APP: 'in_app',
-  EMAIL: 'email',
-  PUSH: 'push',
-  SMS: 'sms',
-} as const;
+export enum NotificationChannel {
+  IN_APP = 'in_app',
+  EMAIL = 'email',
+  PUSH = 'push',
+  SMS = 'sms',
+}
 
 /**
- * Notification Status
+ * Notification Status Enum
+ * Tracks the delivery and read status
  */
-export const NOTIFICATION_STATUS = {
-  PENDING: 'pending',
-  SENT: 'sent',
-  DELIVERED: 'delivered',
-  READ: 'read',
-  FAILED: 'failed',
-} as const;
+export enum NotificationStatus {
+  PENDING = 'pending',
+  SENT = 'sent',
+  DELIVERED = 'delivered',
+  READ = 'read',
+  FAILED = 'failed',
+}
+
+/**
+ * Reminder Type Enum
+ * Defines when the reminder should be triggered relative to deadline
+ */
+export enum ReminderType {
+  BEFORE_DEADLINE = 'before_deadline',
+  AT_DEADLINE = 'at_deadline',
+  AFTER_DEADLINE = 'after_deadline',
+  CUSTOM = 'custom',
+}
+
+/**
+ * Type exports from enums (for MongoDB schema validation and TypeScript)
+ */
+export type TNotificationType = `${NotificationType}`;
+export type TNotificationPriority = `${NotificationPriority}`;
+export type TNotificationChannel = `${NotificationChannel}`;
+export type TNotificationStatus = `${NotificationStatus}`;
+export type TReminderType = `${ReminderType}`;
+
+/**
+ * Legacy constant exports (for backward compatibility)
+ * @deprecated Use NotificationType, NotificationPriority, etc. enums instead
+ */
+export const NOTIFICATION_TYPE = NotificationType;
+export const NOTIFICATION_PRIORITY = NotificationPriority;
+export const NOTIFICATION_CHANNEL = NotificationChannel;
+export const NOTIFICATION_STATUS = NotificationStatus;
+export const REMINDER_TYPE = ReminderType;
 
 /**
  * Notification Limits Configuration
@@ -152,6 +189,30 @@ export const QUEUE_CONFIG = {
 } as const;
 
 /**
+ * Activity Types for Children/Family Activity Feed
+ * Figma: dashboard-flow-01.png (Live Activity section)
+ *
+ * Note: These represent TASK-RELATED activities only
+ * Parent/teacher sees when children complete/start/update tasks
+ *
+ * NOT included: Child joined/left (these are admin CRUD operations, not activities)
+ */
+export const ACTIVITY_TYPE = {
+  TASK_CREATED: 'task_created',           // ✅ Child created a task
+  TASK_STARTED: 'task_started',           // ✅ Child started working on a task
+  TASK_UPDATED: 'task_updated',           // ✅ Child updated a task
+  TASK_COMPLETED: 'task_completed',       // ✅ Child completed a task (MAIN USE CASE)
+  TASK_DELETED: 'task_deleted',           // ✅ Child deleted a task
+  SUBTASK_COMPLETED: 'subtask_completed', // ✅ Child completed a subtask
+  TASK_ASSIGNED: 'task_assigned',         // ✅ Task was assigned to child
+} as const;
+
+/**
+ * Activity Type Union Type
+ */
+export type TActivityType = typeof ACTIVITY_TYPE[keyof typeof ACTIVITY_TYPE];
+
+/**
  * Reminder Configuration
  */
 export const REMINDER_CONFIG = {
@@ -196,9 +257,9 @@ export const EMAIL_CONFIG = {
   DEADLINE_TEMPLATE: 'task-deadline',
 
   /**
-   * Template for group invitation
+   * Template for family/child joined notification
    */
-  GROUP_INVITATION_TEMPLATE: 'group-invitation',
+  CHILD_JOINED_TEMPLATE: 'child-joined',
 
   /**
    * Default sender email

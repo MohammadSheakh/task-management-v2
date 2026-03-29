@@ -1,0 +1,111 @@
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend
+    participant API as API Gateway
+    participant Auth as Auth Controller
+    participant UserSvc as User Service
+    participant Cache as Redis Cache
+    participant DB as MongoDB
+    participant Email as Email Service
+
+    Note over U,Email: 📖 STANDARD PROFILE FLOW
+    U->>FE: Open App
+    FE->>API: GET /user/profile
+    API->>Cache: Get user:userId:profile
+
+    alt Cache Hit
+        Cache-->>API: Return cached profile
+        API-->>FE: Return profile data
+        FE-->>U: Display profile
+    else Cache Miss
+        Cache-->>API: Miss
+        API->>UserSvc: getUserById
+        UserSvc->>DB: FindOne with .lean
+        DB-->>UserSvc: User document
+        UserSvc->>Cache: Set user:userId:profile TTL=15min
+        Cache-->>UserSvc: OK
+        UserSvc-->>API: Return user data
+        API-->>FE: Return profile data
+        FE-->>U: Display profile
+    end
+
+    Note over U,Email: ⚙️ UPDATE PROFILE FLOW
+    U->>FE: Update Profile
+    FE->>API: PUT /user/profile
+    API->>Auth: authenticate
+    Auth->>Cache: Get session:userId
+    Cache-->>Auth: Valid session
+    Auth-->>API: Authenticated
+
+    API->>UserSvc: updateUser
+    UserSvc->>DB: FindOneAndUpdate
+    DB-->>UserSvc: Updated user
+    UserSvc->>Cache: Del user:userId:profile
+    Cache-->>UserSvc: OK
+    UserSvc-->>API: Return updated user
+    API-->>FE: Return success
+    FE-->>U: Show updated profile
+
+    Note over U,Email: ⏰ PREFERRED TIME - GET
+    U->>FE: View Profile (Preferred Time section)
+    FE->>API: GET /user/preferred-time
+    API->>Auth: authenticate
+    Auth->>Cache: Get session
+    Cache-->>Auth: Valid
+    Auth-->>API: Authenticated
+
+    API->>UserSvc: getPreferredTime
+    UserSvc->>DB: FindById select(preferredTime)
+    DB-->>UserSvc: preferredTime: "08:17"
+    UserSvc-->>API: Return { userId, preferredTime: "08:17" }
+    API-->>FE: Return preferred time
+    FE-->>U: Display "08:17 AM"
+
+    Note over U,Email: ⏰ PREFERRED TIME - UPDATE (Manual)
+    U->>FE: Tap Preferred Time → Select Time
+    FE->>API: PUT /user/preferred-time { preferredTime: "09:00" }
+    API->>Auth: authenticate
+    Auth-->>API: Validated
+
+    API->>UserSvc: updatePreferredTime
+    UserSvc->>DB: FindByIdAndUpdate { preferredTime }
+    DB-->>UserSvc: Updated user
+    UserSvc->>Cache: Del user:userId:profile
+    Cache-->>UserSvc: Cache invalidated
+    UserSvc-->>API: Return { userId, preferredTime, updatedAt }
+    API-->>FE: Return success
+    FE-->>U: Show "Preferred time updated to 09:00 AM"
+
+    Note over U,Email: 🔄 PREFERRED TIME - AUTO UPDATE (From Task)
+    TaskModule->>BullMQ: Add job: calculatePreferredTime
+    BullMQ->>PrefWorker: Process job
+    PrefWorker->>DB: Get last 10 completed tasks
+    DB-->>PrefWorker: Tasks with startTime
+    PrefWorker->>PrefWorker: Calculate average
+    PrefWorker->>DB: Update user.preferredTime
+    DB-->>PrefWorker: Updated
+    PrefWorker-->>BullMQ: Job completed
+    BullMQ->>Cache: Del user:userId:profile
+    Cache-->>BullMQ: Cache invalidated
+
+    U->>FE: Open Profile
+    FE->>API: GET /user/profile
+    API->>Cache: Get profile (miss or expired)
+    Cache-->>API: Miss
+    API->>UserSvc: getUserById
+    UserSvc->>DB: Find user
+    DB-->>UserSvc: User with updated preferredTime
+    UserSvc->>Cache: Set user:userId:profile
+    UserSvc-->>API: Return user
+    API-->>FE: Return profile with new preferredTime
+    FE-->>U: Display updated preferred time automatically
+
+    Note over U,Email: 🚪 LOGOUT FLOW
+    U->>FE: Logout
+    FE->>API: POST /auth/logout
+    API->>UserSvc: invalidateSession
+    UserSvc->>Cache: Del session:userId:*
+    Cache-->>UserSvc: OK
+    UserSvc-->>API: Logout success
+    API-->>FE: Return success
+    FE-->>U: Show login screen

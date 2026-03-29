@@ -1,0 +1,43 @@
+flowchart TB
+    subgraph "Parent/Business User"
+        P1[Create Task] --> P2[Add Subtasks]
+        P2 --> P3[Assign to Children]
+    end
+    
+    subgraph "Child User"
+        C1[View Task] --> C2[See Subtasks]
+        C2 --> C3[Complete Subtask]
+        C3 --> C4[Track Progress]
+    end
+    
+    subgraph "SubTask Service"
+        S1[Receive Request] --> S2{Operation?}
+        S2 -->|Create| S3[createSubTask]
+        S2 -->|Update| S4[updateSubTask]
+        S2 -->|Delete| S5[deleteSubTask]
+        S2 -->|Toggle| S6[toggleStatus]
+        S3 --> S7[Verify Parent Task]
+        S4 --> S7
+        S5 --> S7
+        S6 --> S7
+        S7 --> S8[Execute Operation]
+        S8 --> S9[Update Parent Task]
+        S9 --> S10[Invalidate Cache]
+    end
+    
+    subgraph "Database"
+        D1[SubTask Collection]
+        D2[Task Collection]
+        D3[TaskProgress Collection]
+    end
+    
+    subgraph "Cache"
+        R1[Redis Cache]
+        R2[Invalidate on Write]
+    end
+    
+    P2 --> S3
+    C3 --> S6
+    S10 --> R2
+    S8 --> D1
+    S9 --> D2

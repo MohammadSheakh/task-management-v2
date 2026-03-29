@@ -1,0 +1,88 @@
+sequenceDiagram
+    %% ===========================================
+    %% SUBTASK MODULE - SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant U as User
+    participant FE as Frontend
+    participant API as API Gateway
+    participant SUBTASK as subtask.service
+    participant TASK as task.service
+    participant TP as taskProgress.service
+    participant REDIS as Redis Cache
+    participant DB as MongoDB
+    participant SOCKET as Socket.IO
+
+    %% SCENARIO 1: Create Subtask
+    Note over U,DB: Scenario 1: Create Subtask
+
+    U->>FE: Add Subtask
+    FE->>API: POST /subtasks/
+    API->>SUBTASK: createSubtask()
+    SUBTASK->>DB: Create SUBTASK
+    DB-->>SUBTASK: subtaskId
+    SUBTASK->>DB: Update TASK totalSubtasks
+    DB-->>SUBTASK: Updated
+    SUBTASK->>SOCKET: broadcastSubtaskCreate()
+    SOCKET->>SOCKET: Emit to task room
+    SUBTASK->>REDIS: Invalidate caches
+    SUBTASK-->>API: Subtask created
+    API-->>FE: Success
+    FE-->>U: Subtask added
+
+    %% SCENARIO 2: Toggle Subtask Status → Real-Time Update ⭐ NEW!
+    Note over U,DB: Scenario 2: Toggle Subtask Status → Real-Time Update ⭐ NEW!
+
+    U->>FE: Toggle Subtask
+    FE->>API: PUT /subtasks/:id/toggle-status
+    API->>SUBTASK: toggleSubtaskStatus()
+    SUBTASK->>DB: Update SUBTASK isCompleted
+    DB-->>SUBTASK: Updated
+    SUBTASK->>DB: Update TASK completedSubtasks
+    DB-->>SUBTASK: Updated
+    SUBTASK->>TP: Update TaskProgress
+    TP->>DB: Update completedSubtaskIndexes
+    DB-->>TP: Updated
+    TP->>SOCKET: broadcastProgressUpdate()
+    SOCKET->>SOCKET: Emit to family room
+    SOCKET->>Parent: Real-time notification
+    Parent->>FE: Progress bar updates
+    SUBTASK->>REDIS: Invalidate caches
+    SUBTASK-->>API: Success
+    API-->>FE: Subtask toggled
+    FE-->>U: Success
+
+    %% SCENARIO 3: Get Subtasks for Task (Cached)
+    Note over U,DB: Scenario 3: Get Subtasks for Task (Cached)
+
+    U->>FE: View Subtasks
+    FE->>API: GET /subtasks/task/:taskId
+    API->>SUBTASK: getSubtasksByTaskId()
+    SUBTASK->>REDIS: Check cache
+    REDIS-->>SUBTASK: Cache hit
+    SUBTASK-->>API: Cached subtasks
+    API-->>FE: Subtask list
+    FE-->>U: Display subtasks
+
+    %% SCENARIO 4: Delete Subtask
+    Note over U,DB: Scenario 4: Delete Subtask
+
+    U->>FE: Delete Subtask
+    FE->>API: DELETE /subtasks/:id
+    API->>SUBTASK: deleteSubtask()
+    SUBTASK->>DB: Soft delete SUBTASK
+    DB-->>SUBTASK: Deleted
+    SUBTASK->>DB: Update TASK totalSubtasks
+    DB-->>SUBTASK: Updated
+    SUBTASK->>SOCKET: broadcastSubtaskDelete()
+    SOCKET->>SOCKET: Emit to task room
+    SUBTASK->>REDIS: Invalidate caches
+    SUBTASK-->>API: Success
+    API-->>FE: Subtask deleted
+    FE-->>U: Success
+
+    %% Styling
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer ⭐
+    end

@@ -1,0 +1,169 @@
+flowchart TB
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - DEPLOYMENT ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph CDN["🌍 CDN Layer"]
+        CLOUDFLARE["Cloudflare<br/>- DDoS Protection<br/>- Global CDN<br/>- SSL/TLS"]
+    end
+
+    subgraph LoadBalancing["⚖️ Load Balancing Layer"]
+        NLB["AWS NLB<br/>Network Load Balancer"]
+        ALB["AWS ALB<br/>Application Load Balancer"]
+        API_GATEWAY["API Gateway<br/>Rate Limiting"]
+    end
+
+    subgraph Application["🖥️ Application Layer"]
+        subgraph AppPods["Application Pods (Kubernetes)"]
+            POD1["Pod 1<br/>Node.js + Express"]
+            POD2["Pod 2<br/>Node.js + Express"]
+            POD3["Pod 3<br/>Node.js + Express"]
+            POD4["Pod 4<br/>Node.js + Express"]
+        end
+        
+        subgraph SocketPods["Socket.IO Pods"]
+            SOCKET_POD1["Socket Pod 1<br/>Socket.IO + Redis"]
+            SOCKET_POD2["Socket Pod 2<br/>Socket.IO + Redis"]
+        end
+        
+        subgraph WorkerPods["Worker Pods"]
+            WORKER1["Worker 1<br/>BullMQ Workers"]
+            WORKER2["Worker 2<br/>BullMQ Workers"]
+        end
+    end
+
+    subgraph Data["💾 Data Layer"]
+        subgraph MongoDB["🍃 MongoDB Atlas"]
+            MONGO_PRIMARY["Primary Node<br/>us-east-1"]
+            MONGO_SECONDARY1["Secondary Node<br/>us-west-2"]
+            MONGO_SECONDARY2["Secondary Node<br/>eu-west-1"]
+        end
+        
+        subgraph Redis["🔴 Redis Cluster"]
+            REDIS_PRIMARY["Primary Node<br/>Cache"]
+            REDIS_REPLICA1["Replica Node<br/>Cache"]
+            REDIS_REPLICA2["Replica Node<br/>Cache"]
+            REDIS_SOCKET["Socket.IO State"]
+            REDIS_ACTIVITY["Activity Feeds"]
+        end
+        
+        subgraph Storage["📁 File Storage"]
+            S3["AWS S3<br/>Attachments & Images"]
+            CLOUDFRONT["CloudFront<br/>S3 CDN"]
+        end
+    end
+
+    subgraph Monitoring["📊 Monitoring & Observability"]
+        CLOUDWATCH["AWS CloudWatch<br/>Logs & Metrics"]
+        SENTRY["Sentry<br/>Error Tracking"]
+        PROMETHEUS["Prometheus<br/>Metrics"]
+        GRAFANA["Grafana<br/>Dashboards"]
+    end
+
+    subgraph Security["🔐 Security Layer"]
+        WAF["AWS WAF<br/>Web Application Firewall"]
+        SECRETS["AWS Secrets Manager<br/>API Keys & Tokens"]
+        SSL["SSL/TLS Certificates<br/>Let's Encrypt"]
+        IAM["IAM Roles<br/>Pod Permissions"]
+    end
+
+    subgraph External["🌐 External Services"]
+        STRIPE["💳 Stripe API"]
+        EMAIL["📧 SendGrid/SES"]
+        FCM["📱 Firebase FCM"]
+        TWILIO["📱 Twilio SMS"]
+    end
+
+    %% Traffic Flow
+    CDN --> LoadBalancing
+    CLOUDFLARE --> NLB
+    NLB --> ALB
+    ALB --> API_GATEWAY
+    
+    %% API to Application
+    API_GATEWAY --> AppPods
+    API_GATEWAY --> POD1
+    API_GATEWAY --> POD2
+    API_GATEWAY --> POD3
+    API_GATEWAY --> POD4
+    
+    %% Socket.IO Flow
+    POD1 -.->|WebSocket Upgrade| SOCKET_POD1
+    POD2 -.->|WebSocket Upgrade| SOCKET_POD2
+    
+    %% Worker Flow
+    POD1 -->|Add Jobs| WorkerPods
+    POD2 -->|Add Jobs| WorkerPods
+    WORKER1 -->|Process| Q1
+    WORKER2 -->|Process| Q2
+    
+    %% Application to Data
+    AppPods --> Data
+    POD1 --> MongoDB
+    POD2 --> MongoDB
+    POD1 -.->|Cache| Redis
+    POD2 -.->|Cache| Redis
+    
+    SocketPods --> Redis
+    SOCKET_POD1 --> REDIS_SOCKET
+    SOCKET_POD2 --> REDIS_SOCKET
+    
+    WorkerPods --> Data
+    WORKER1 --> MongoDB
+    WORKER1 --> Redis
+    
+    %% MongoDB Replication
+    MONGO_PRIMARY --> MONGO_SECONDARY1
+    MONGO_PRIMARY --> MONGO_SECONDARY2
+    
+    %% Redis Replication
+    REDIS_PRIMARY --> REDIS_REPLICA1
+    REDIS_PRIMARY --> REDIS_REPLICA2
+    
+    %% File Storage
+    POD1 --> S3
+    POD2 --> S3
+    S3 --> CLOUDFRONT
+    
+    %% Monitoring
+    Application --> Monitoring
+    Data --> Monitoring
+    LoadBalancing --> Monitoring
+    POD1 --> CLOUDWATCH
+    POD2 --> SENTRY
+    REDIS_PRIMARY --> PROMETHEUS
+    MONGO_PRIMARY --> GRAFANA
+    
+    %% Security
+    WAF --> ALB
+    SECRETS --> AppPods
+    SSL --> ALB
+    IAM --> AppPods
+    
+    %% External Services
+    WorkerPods --> External
+    WORKER1 --> EMAIL
+    WORKER1 --> FCM
+    WORKER1 --> TWILIO
+    POD1 --> STRIPE
+    
+    %% Styling
+    style CDN fill:#e3f2fd,stroke:#1565c0,color:#000
+    style LoadBalancing fill:#fff3e0,stroke:#e65100,color:#000
+    style Application fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style Data fill:#fce4ec,stroke:#c2185b,color:#000
+    style Monitoring fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Security fill:#ffebee,stroke:#c62828,color:#000
+    style External fill:#fff8e1,stroke:#f57f17,color:#000
+    
+    style CLOUDFLARE fill:#42a5f5,color:#fff
+    style NLB fill:#ff9800,color:#fff
+    style ALB fill:#ff9800,color:#fff
+    style POD1 fill:#66bb6a,color:#fff
+    style POD2 fill:#66bb6a,color:#fff
+    style SOCKET_POD1 fill:#fff176,color:#000
+    style SOCKET_POD2 fill:#fff176,color:#000
+    style MONGO_PRIMARY fill:#ef5350,color:#fff
+    style REDIS_PRIMARY fill:#ab47bc,color:#fff
+    style S3 fill:#26a69a,color:#fff

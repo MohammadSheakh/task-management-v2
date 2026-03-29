@@ -1,0 +1,35 @@
+flowchart LR
+    subgraph User Journey
+        START([User Opens App]) --> HOME[View Home Screen]
+        HOME --> DAILY[Check Daily Progress]
+        DAILY --> STREAK[View Weekly Streak]
+        STREAK --> PROFILE[Go to Profile]
+        PROFILE --> PRODUCTIVITY[Check Productivity Score]
+        PRODUCTIVITY --> STATS[View Task Statistics]
+        STATS --> HISTORY[View History/Trends]
+        HISTORY --> END([End Session])
+    end
+
+    subgraph Group Owner Journey
+        GSTART([Group Owner Opens Dashboard]) --> GOVER[View Group Overview]
+        GOVER --> MEMBERS[Check Member Stats]
+        MEMBERS --> LEADER[View Leaderboard]
+        LEADER --> ACTIVITY[Check Activity Feed]
+        ACTIVITY --> GEND([End Session])
+    end
+
+    subgraph Admin Journey
+        ASTART([Admin Opens Dashboard]) --> AOVER[View Platform Overview]
+        AOVER --> GROWTH[Check User Growth]
+        GROWTH --> REVENUE[View Revenue Analytics]
+        REVENUE --> TASKS[Check Task Metrics]
+        TASKS --> ENGAGE[View Engagement Metrics]
+        ENGAGE --> AEND([End Session])
+    end
+
+    style START fill:#42a5f5,color:#fff
+    style END fill:#ef5350,color:#fff
+    style GSTART fill:#42a5f5,color:#fff
+    style GEND fill:#ef5350,color:#fff
+    style ASTART fill:#ef5350,color:#fff
+    style AEND fill:#ef5350,color:#fff

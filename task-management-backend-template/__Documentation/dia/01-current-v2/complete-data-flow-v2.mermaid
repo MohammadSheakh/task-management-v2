@@ -1,0 +1,183 @@
+flowchart LR
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE DATA FLOW (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    %% User Actions Layer
+    subgraph UserActions["👤 User Actions Layer"]
+        PARENT_ACTION["Parent Actions<br/>- Create Task<br/>- Monitor Children<br/>- View Analytics"]
+        CHILD_ACTION["Child Actions<br/>- View Tasks<br/>- Complete Tasks<br/>- Track Progress"]
+        ADMIN_ACTION["Admin Actions<br/>- Manage Users<br/>- View Platform Stats<br/>- Manage Subscriptions"]
+    end
+
+    %% API Gateway Layer
+    subgraph APIGateway["🔌 API Gateway Layer"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT Validation)"]
+        RATE["Rate Limiting<br/>(Redis-based)"]
+        CORS["CORS Validation"]
+    end
+
+    %% Business Logic Layer
+    subgraph BusinessLogic["⚙️ Business Logic Layer"]
+
+        subgraph TaskFlow["📋 Task Flow"]
+            TASK_CTRL["task.controller.ts"]
+            TASK_SVC["task.service.ts"]
+            SUBTASK_SVC["subtask.service.ts"]
+        end
+
+        subgraph ProgressFlow["📊 Progress Flow (NEW!)"]
+            TASKPROG_CTRL["taskProgress.controller.ts"]
+            TASKPROG_SVC["taskProgress.service.ts"]
+        end
+
+        subgraph FamilyFlow["👨‍👩‍👧‍👦 Family Flow (NEW!)"]
+            CBU_CTRL["childrenBusinessUser.controller.ts"]
+            CBU_SVC["childrenBusinessUser.service.ts"]
+        end
+
+        subgraph NotificationFlow["🔔 Notification Flow"]
+            NOTIF_CTRL["notification.controller.ts"]
+            NOTIF_SVC["notification.service.ts"]
+            REMINDER_SVC["taskReminder.service.ts"]
+        end
+
+        subgraph AnalyticsFlow["📊 Analytics Flow"]
+            CHART_AGG["chartAggregation.service.ts"]
+            USER_ANALYTICS["userAnalytics.service.ts"]
+            TASK_ANALYTICS["taskAnalytics.service.ts"]
+            GROUP_ANALYTICS["groupAnalytics.service.ts"]
+        end
+    end
+
+    %% Data Access Layer
+    subgraph DataAccess["💾 Data Access Layer"]
+        MONGODB["🍃 MongoDB<br/>Primary Database"]
+        REDIS["🔴 Redis<br/>Cache Layer"]
+        FILE_STORE["📁 File Storage<br/>S3/Local"]
+    end
+
+    %% Async Processing Layer
+    subgraph AsyncProcessing["🔄 Async Processing Layer"]
+        BULLMQ["🐂 BullMQ Queues"]
+        NOTIF_QUEUE["notification-queue"]
+        REMINDER_QUEUE["task-reminders-queue"]
+        PREFERRED_TIME_QUEUE["preferredTimeQueue"]
+        
+        WORKERS["Workers"]
+        NOTIF_WORKER["Notification Worker"]
+        REMINDER_WORKER["Reminder Worker"]
+        PREFERRED_TIME_WORKER["Preferred Time Worker"]
+    end
+
+    %% Real-Time Layer (NEW!)
+    subgraph RealTime["⚡ Real-Time Layer (NEW!)"]
+        SOCKET_IO["Socket.IO Server"]
+        REDIS_ADAPTER["Redis Adapter"]
+        ROOMS["Rooms"]
+        EVENTS["Events"]
+    end
+
+    %% External Services Layer
+    subgraph External["🌐 External Services Layer"]
+        STRIPE["💳 Stripe"]
+        EMAIL["📧 Email Service"]
+        PUSH["📱 FCM Push"]
+        SMS["📱 Twilio SMS"]
+    end
+
+    %% Data Flows
+
+    %% Parent Actions
+    PARENT_ACTION -->|Create Task| TASK_CTRL
+    PARENT_ACTION -->|View Analytics| CHART_AGG
+    PARENT_ACTION -->|Monitor Children| GROUP_ANALYTICS
+    PARENT_ACTION -->|Receive Real-time| SOCKET_IO
+
+    %% Child Actions
+    CHILD_ACTION -->|View Tasks| TASK_CTRL
+    CHILD_ACTION -->|Complete Task| TASKPROG_CTRL
+    CHILD_ACTION -->|Track Progress| TASKPROG_CTRL
+    CHILD_ACTION -->|Receive Real-time| SOCKET_IO
+
+    %% Admin Actions
+    ADMIN_ACTION -->|Manage Users| USER_ANALYTICS
+    ADMIN_ACTION -->|View Stats| GROUP_ANALYTICS
+    ADMIN_ACTION -->|Manage Subscriptions| CHART_AGG
+
+    %% API Gateway Flow
+    TASK_CTRL --> LB
+    TASKPROG_CTRL --> LB
+    CBU_CTRL --> LB
+    CHART_AGG --> LB
+    LB --> AUTH
+    AUTH --> RATE
+    RATE --> CORS
+
+    %% Business Logic Flow
+    TASK_CTRL --> TASK_SVC
+    TASK_SVC --> SUBTASK_SVC
+    TASKPROG_CTRL --> TASKPROG_SVC
+    CBU_CTRL --> CBU_SVC
+    NOTIF_CTRL --> NOTIF_SVC
+    NOTIF_SVC --> REMINDER_SVC
+
+    %% Data Access Flow
+    TASK_SVC --> MONGODB
+    TASKPROG_SVC --> MONGODB
+    CBU_SVC --> MONGODB
+    NOTIF_SVC --> MONGODB
+    CHART_AGG --> MONGODB
+
+    TASK_SVC -.->|Cache| REDIS
+    TASKPROG_SVC -.->|Cache| REDIS
+    NOTIF_SVC -.->|Cache| REDIS
+    CHART_AGG -.->|Cache| REDIS
+
+    %% Async Processing Flow
+    NOTIF_SVC --> NOTIF_QUEUE
+    REMINDER_SVC --> REMINDER_QUEUE
+    TASKPROG_SVC --> PREFERRED_TIME_QUEUE
+
+    NOTIF_QUEUE --> NOTIF_WORKER
+    REMINDER_QUEUE --> REMINDER_WORKER
+    PREFERRED_TIME_QUEUE --> PREFERRED_TIME_WORKER
+
+    %% Real-Time Flow (NEW!)
+    TASK_SVC -.->|Task Created| SOCKET_IO
+    TASKPROG_SVC -.->|Progress Update| SOCKET_IO
+    CBU_SVC -.->|Family Update| SOCKET_IO
+    NOTIF_SVC -.->|Notification| SOCKET_IO
+
+    SOCKET_IO --> REDIS_ADAPTER
+    REDIS_ADAPTER --> ROOMS
+    REDIS_ADAPTER --> EVENTS
+
+    %% External Services Flow
+    NOTIF_WORKER --> EMAIL
+    NOTIF_WORKER --> PUSH
+    NOTIF_WORKER --> SMS
+    REMINDER_WORKER --> EMAIL
+    REMINDER_WORKER --> PUSH
+
+    %% File Storage Flow
+    TASK_SVC -.->|Attachments| FILE_STORE
+    NOTIF_SVC -.->|Images| FILE_STORE
+
+    %% Styling
+    style UserActions fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style BusinessLogic fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style DataAccess fill:#fce4ec,stroke:#c2185b,color:#000
+    style AsyncProcessing fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style External fill:#ffebee,stroke:#c62828,color:#000
+
+    style TASKPROG_CTRL fill:#c8e6c9,stroke:#2e7d32
+    style TASKPROG_SVC fill:#c8e6c9,stroke:#2e7d32
+    style CBU_CTRL fill:#c8e6c9,stroke:#2e7d32
+    style CBU_SVC fill:#c8e6c9,stroke:#2e7d32
+    style SOCKET_IO fill:#fff176,color:#000
+    style REDIS_ADAPTER fill:#fff176,color:#000

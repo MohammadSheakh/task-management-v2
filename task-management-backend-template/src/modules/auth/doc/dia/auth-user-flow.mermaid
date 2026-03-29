@@ -1,0 +1,75 @@
+flowchart TD
+    Start([User Authentication Journey]) --> EntryPoint{Entry Point}
+
+    EntryPoint --> NewUser[New User Registration]
+    EntryPoint --> ExistingUser[Existing User Login]
+    EntryPoint --> SocialLogin[Social Login]
+    EntryPoint --> ForgotPassword[Forgot Password]
+
+    subgraph Registration["Registration Flow"]
+        NewUser --> FillRegForm[Fill Registration Form]
+        FillRegForm --> SubmitReg[Submit Registration]
+        SubmitReg --> CreateOTP[Create Email OTP]
+        CreateOTP --> SendOTP[Send OTP Email]
+        SendOTP --> VerifyOTP[Verify OTP]
+        VerifyOTP --> OTPValid{OTP Valid?}
+        OTPValid -->|No| ResendOTP[Resend OTP]
+        ResendOTP --> SendOTP
+        OTPValid -->|Yes| CreateProfile[Create UserProfile]
+        CreateProfile --> CreateWallet[Create Wallet for Mentor]
+        CreateWallet --> IssueToken[Issue JWT Tokens]
+        IssueToken --> RegComplete[Registration Complete]
+    end
+
+    subgraph Login["Login Flow"]
+        ExistingUser --> FillLoginForm[Fill Login Form]
+        FillLoginForm --> CheckLock{Account Locked?}
+        CheckLock -->|Yes| ShowLockMsg[Show Lock Message]
+        ShowLockMsg --> End
+        CheckLock -->|No| VerifyCreds[Verify Credentials]
+        VerifyCreds --> CredsValid{Credentials Valid?}
+        CredsValid -->|No| IncFailed[Increment Failed Attempts]
+        IncFailed --> CheckThreshold{Threshold Reached?}
+        CheckThreshold -->|Yes| LockAccount[Lock Account 15min]
+        CheckThreshold -->|No| ShowLoginErr[Show Login Error]
+        ShowLoginErr --> FillLoginForm
+        CredsValid -->|Yes| ResetFailed[Reset Failed Attempts]
+        ResetFailed --> CreateSession[Create Redis Session]
+        CreateSession --> IssueTokens[Issue Access & Refresh Tokens]
+        IssueTokens --> LoginComplete[Login Complete]
+    end
+
+    subgraph Social["Social Login Flow"]
+        SocialLogin --> ChooseProvider[Choose Google/Apple]
+        ChooseProvider --> RedirectSocial[Redirect to Provider]
+        RedirectSocial --> AuthProvider[Authenticate with Provider]
+        AuthProvider --> CallbackCallback[Receive ID Token]
+        CallbackCallback --> VerifyToken[Verify ID Token]
+        VerifyToken --> UserExists{User Exists?}
+        UserExists -->|No| CreateSocialUser[Create New User]
+        UserExists -->|Yes| LinkAccount[Link OAuth Account]
+        CreateSocialUser --> IssueSocialToken[Issue JWT Tokens]
+        LinkAccount --> IssueSocialToken
+        IssueSocialToken --> SocialComplete[Social Login Complete]
+    end
+
+    subgraph PasswordReset["Password Reset Flow"]
+        ForgotPassword --> EnterEmail[Enter Email]
+        EnterEmail --> CreateResetToken[Create Reset Token]
+        CreateResetToken --> SendResetEmail[Send Reset Email]
+        SendResetEmail --> ClickLink[User Clicks Reset Link]
+        ClickLink --> VerifyResetToken[Verify Reset Token]
+        VerifyResetToken --> TokenValid{Token Valid?}
+        TokenValid -->|No| ShowTokenErr[Show Token Error]
+        ShowTokenErr --> End
+        TokenValid -->|Yes| EnterNewPass[Enter New Password]
+        EnterNewPass --> HashPassword[Hash New Password]
+        HashPassword --> UpdateDB[Update Password in DB]
+        UpdateDB --> InvalidateSessions[Invalidate All Sessions]
+        InvalidateSessions --> ResetComplete[Password Reset Complete]
+    end
+
+    RegComplete --> End([Journey End])
+    LoginComplete --> End
+    SocialComplete --> End
+    ResetComplete --> End

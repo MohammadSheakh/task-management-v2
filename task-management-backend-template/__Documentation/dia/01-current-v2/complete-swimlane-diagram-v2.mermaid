@@ -1,0 +1,143 @@
+flowchart TB
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE SWIMLANE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph User["👤 User Layer<br/>(Parent/Child/Admin)"]
+        U1[Parent Actions]
+        U2[Child Actions]
+        U3[Admin Actions]
+    end
+
+    subgraph Frontend["💻 Frontend Layer<br/>(Flutter/Web)"]
+        F1[UI Components]
+        F2[State Management]
+        F3[Socket.IO Client]
+        F4[Chart.js]
+    end
+
+    subgraph API["🔌 API Layer<br/>(Express + Middleware)"]
+        A1[Routes]
+        A2[Authentication]
+        A3[Rate Limiting]
+        A4[Validation]
+    end
+
+    subgraph Backend["⚙️ Backend Layer<br/>(Controllers + Services)"]
+        B1[task.controller]
+        B2[taskProgress.controller]
+        B3[childrenBusinessUser.controller]
+        B4[notification.controller]
+        B5[chartAggregation.service]
+        B6[task.service]
+        B7[taskProgress.service]
+        B8[childrenBusinessUser.service]
+    end
+
+    subgraph Database["💾 Database Layer<br/>(MongoDB + Redis)"]
+        D1[MongoDB<br/>Primary DB]
+        D2[Redis<br/>Cache]
+        D3[Redis<br/>Socket.IO State]
+        D4[Redis<br/>Activity Feeds]
+    end
+
+    subgraph Queue["🔄 Queue Layer<br/>(BullMQ)"]
+        Q1[notification-queue]
+        Q2[task-reminders-queue]
+        Q3[preferredTimeQueue]
+        Q4[Workers]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer<br/>(Socket.IO)"]
+        R1[Socket.IO Server]
+        R2[Redis Adapter]
+        R3[Rooms]
+        R4[Events]
+    end
+
+    subgraph External["🌐 External Layer<br/>(Stripe/Email/Push)"]
+        E1[Stripe API]
+        E2[Email Service]
+        E3[FCM Push]
+        E4[SMS Service]
+    end
+
+    %% User to Frontend
+    U1 -->|Create Task| F1
+    U2 -->|Complete Task| F1
+    U3 -->|View Analytics| F1
+    F3 -->|Connect| R1
+    F4 -->|Display| F1
+
+    %% Frontend to API
+    F1 -->|HTTP Request| A1
+    A1 -->|Verify JWT| A2
+    A2 -->|Check Rate| A3
+    A3 -->|Validate| A4
+
+    %% API to Backend
+    A4 -->|POST /tasks| B1
+    A4 -->|PUT /task-progress| B2
+    A4 -->|GET /children-business-user| B3
+    A4 -->|GET /analytics/charts| B5
+
+    %% Backend Internal
+    B1 -->|Create Task| B6
+    B2 -->|Update Progress| B7
+    B3 -->|Manage Family| B8
+    B7 -->|Notify Parent| B4
+
+    %% Backend to Database
+    B6 -->|CRUD| D1
+    B7 -->|CRUD| D1
+    B8 -->|CRUD| D1
+    B6 -.->|Cache| D2
+    B7 -.->|Cache| D2
+    B5 -.->|Cache| D2
+
+    %% Backend to Queue
+    B4 -->|Add Job| Q1
+    B7 -->|Add Job| Q2
+    B7 -->|Add Job| Q3
+    Q4 -->|Process| Q1
+    Q4 -->|Process| Q2
+    Q4 -->|Process| Q3
+
+    %% Backend to Real-Time
+    B6 -.->|Emit| R1
+    B7 -.->|Emit| R1
+    B8 -.->|Emit| R1
+    B4 -.->|Emit| R1
+    R1 -->|Adapter| R2
+    R2 -->|Rooms| R3
+    R2 -->|Events| R4
+
+    %% Real-Time to Frontend
+    R1 -.->|Push| F3
+
+    %% Queue to External
+    Q4 -->|Send| E2
+    Q4 -->|Push| E3
+    Q4 -->|SMS| E4
+
+    %% Payment Flow
+    B1 -->|Process| E1
+    E1 -->|Webhook| B1
+
+    %% Styling
+    style User fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Frontend fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#fff3e0,stroke:#e65100,color:#000
+    style Backend fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style Queue fill:#e0f7fa,stroke:#006064,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style External fill:#ffebee,stroke:#c62828,color:#000
+
+    style B2 fill:#c8e6c9,stroke:#2e7d32
+    style B3 fill:#c8e6c9,stroke:#2e7d32
+    style B7 fill:#c8e6c9,stroke:#2e7d32
+    style B8 fill:#c8e6c9,stroke:#2e7d32
+    style R1 fill:#fff176,color:#000
+    style R2 fill:#fff176,color:#000

@@ -1,0 +1,61 @@
+sequenceDiagram
+    participant BU as Business User
+    participant API as ChildrenBusinessUser API
+    participant Service as ChildrenBusinessUserService
+    participant DB as Database
+    participant Redis as Redis Cache
+    participant Group as Group Module
+
+    BU->>API: POST /children (name, email, password)
+    API->>Service: createChildAccount(businessUserId, childData)
+    
+    Service->>DB: Find business user
+    DB-->>Service: businessUser
+    
+    Service->>DB: Find active subscription
+    DB-->>Service: subscription (business_starter/level1/level2)
+    
+    Service->>DB: Get subscription plan
+    DB-->>Service: plan (maxChildrenAccount)
+    
+    Service->>DB: Count existing children
+    DB-->>Service: currentChildrenCount
+    
+    alt Has reached max limit
+        Service-->>API: Error: Max children limit reached
+        API-->>BU: 400 Bad Request
+    else Under limit
+        Service->>DB: Check if email exists
+        DB-->>Service: No existing user
+        
+        Service->>Service: Hash password
+        
+        Service->>DB: Create child user<br/>accountCreatorId = businessUserId
+        DB-->>Service: childUser
+        
+        Service->>DB: Create relationship
+        DB-->>Service: relationship
+        
+        Service->>Group: getOrCreateFamilyGroup()
+        
+        alt No family group exists
+            Group->>DB: Create family group<br/>maxMembers = plan.maxChildrenAccount
+            DB-->>Group: familyGroup
+            Group->>DB: Update business user<br/>familyGroupId = group._id
+        else Family group exists
+            Group->>DB: Find existing family group
+            DB-->>Group: familyGroup
+        end
+        
+        Group-->>Service: familyGroup
+        
+        Service->>Group: addChildToGroup(groupId, childUserId)
+        Group->>DB: Add child as group member
+        DB-->>Group: member created
+        
+        Service->>Redis: Invalidate cache
+        Redis-->>Service: Cache invalidated
+        
+        Service-->>API: { childUser, relationship, familyGroup }
+        API-->>BU: 201 Created - Child account created
+    end

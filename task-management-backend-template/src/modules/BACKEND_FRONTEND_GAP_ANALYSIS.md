@@ -296,28 +296,47 @@ export const apiSlice = createApi({
 | Update task | ✅ `PUT /tasks/:id` | ✅ Exists | ✅ Aligned |
 | Delete task | ✅ `DELETE /tasks/:id` | ✅ Exists (soft) | ✅ Aligned |
 | Update status | ✅ Status change | ✅ `PUT /tasks/:id/status` | ✅ Aligned |
-| **Add subtask** | ❌ **Individual add** | ❌ **Only bulk update** | 🔴 **GAP** |
-| **Delete subtask** | ❌ **Individual delete** | ❌ **Not exists** | 🔴 **GAP** |
-| **Toggle subtask** | ❌ **Toggle isCompleted** | ❌ **Not exists** | 🔴 **GAP** |
+| **Add subtask** | ✅ Individual add | ✅ `POST /subtasks/` | ✅ **ALIGNED** |
+| **Delete subtask** | ✅ Individual delete | ✅ `DELETE /subtasks/:id` | ✅ **ALIGNED** |
+| **Toggle subtask** | ✅ Toggle isCompleted | ✅ `PUT /subtasks/:id/toggle-status` | ✅ **ALIGNED** |
 | Get statistics | ⚠️ Daily progress | ✅ `GET /tasks/statistics` | ✅ Aligned |
 | Get daily progress | ✅ `GET /tasks/daily-progress` | ✅ Exists | ✅ Aligned |
+| Get subtasks | ✅ List with details | ✅ `GET /subtasks/task/:taskId` | ✅ **ALIGNED** |
 
-**SubTask Structure Gap**:
+**✅ GOOD NEWS: SubTask module already exists and is fully functional!**
 
-Flutter expects:
-```dart
-SubTask {
-  title: String
-  isCompleted: bool
-  duration: String?
+Backend has a complete **separate SubTask collection** (better than embedded approach):
+```typescript
+// src/modules/task.module/subTask/subTask.interface.ts
+interface ISubTask {
+  taskId: Types.ObjectId;         // Parent task reference
+  createdById: Types.ObjectId;    // Who created
+  assignedToUserId?: Types.ObjectId; // Who it's assigned to
+  title: string;
+  description?: string;
+  duration?: string;              // ✅ Matches Flutter
+  isCompleted: boolean;           // ✅ Matches Flutter
+  completedAt?: Date;
+  order?: number;
 }
 ```
 
-Backend model (`task.model.ts`):
-```typescript
-// ❌ No SubTask interface found
-// ❌ Subtasks stored as simple array or not at all
-```
+**SubTask Endpoints Already Available:**
+- `POST /subtasks/` - Create subtask
+- `GET /subtasks/task/:taskId` - Get all subtasks for a task
+- `GET /subtasks/task/:taskId/paginate` - Get with pagination
+- `GET /subtasks/:id` - Get single subtask
+- `PUT /subtasks/:id` - Update subtask
+- `PUT /subtasks/:id/toggle-status` - Toggle completion
+- `DELETE /subtasks/:id` - Delete subtask
+- `GET /subtasks/statistics` - Get statistics
+
+**Bonus Features in Existing Module:**
+- ✅ Pagination support
+- ✅ Assignment feature (`assignedToUserId`)
+- ✅ Description field for subtasks
+- ✅ Auto-update parent task progress
+- ✅ Auto-complete task when all subtasks done
 
 ---
 
@@ -399,95 +418,42 @@ class UgcTask {
 
 | # | Gap | Impact | Solution |
 |---|-----|--------|----------|
-| 1 | **No SubTask model in backend** | Flutter cannot track subtask completion | Create `subtask.interface.ts`, `subtask.model.ts` |
-| 2 | **No individual subtask CRUD** | Cannot add/delete/toggle subtasks one by one | Add endpoints: `POST /tasks/:id/subtasks`, `DELETE /tasks/:id/subtasks/:subtaskId`, `PUT /tasks/:id/subtasks/:subtaskId` |
-| 3 | **Missing `time` field alias** | Flutter expects `time`, backend has `scheduledTime` | Add virtual field or transform in controller |
-| 4 | **Missing `assignedBy` field** | Group tasks need to show who assigned | Add virtual field populated from `createdById` |
-| 5 | **Website Redux not configured** | Website cannot make API calls | Create taskApiSlice, groupApiSlice, notificationApiSlice |
+| 1 | **Missing `time` field alias** | Flutter expects `time`, backend has `scheduledTime` | Add virtual field or transform in controller |
+| 2 | **Missing `assignedBy` field** | Group tasks need to show who assigned | Add virtual field populated from `createdById` |
+| 3 | **Website Redux not configured** | Website cannot make API calls | Create taskApiSlice, groupApiSlice, notificationApiSlice |
 
 ### 🟡 MEDIUM Priority (Should Fix)
 
 | # | Gap | Impact | Solution |
 |---|-----|--------|----------|
-| 6 | **No real-time notifications in Flutter** | Notifications don't update live | Integrate Socket.IO in Flutter |
-| 7 | **Subtask duration tracking** | Flutter shows duration, backend doesn't store | Add `duration` field to SubTask model |
+| 4 | **No real-time notifications in Flutter** | Notifications don't update live | Integrate Socket.IO in Flutter |
 
 ### 🟢 LOW Priority (Nice to Have)
 
 | # | Gap | Impact | Solution |
 |---|-----|--------|----------|
-| 8 | **Mark all as read UI** | Flutter missing this button | Add button in Flutter notification screen |
-| 9 | **Delete notification UI** | Flutter missing this feature | Add delete option in Flutter |
+| 5 | **Mark all as read UI** | Flutter missing this button | Add button in Flutter notification screen |
+| 6 | **Delete notification UI** | Flutter missing this feature | Add delete option in Flutter |
 
 ---
 
 ## 5. Recommended Fixes
 
-### Phase 1: Backend SubTask Support (2-3 hours)
+### Phase 1: Add Missing Fields (1 hour)
 
-**Step 1**: Create SubTask interface
-```typescript
-// src/modules/task.module/subtask/subtask.interface.ts
-export interface ISubTask {
-  _id?: Types.ObjectId;
-  title: string;
-  isCompleted: boolean;
-  duration?: string;
-  completedAt?: Date;
-  order: number;
-}
-```
-
-**Step 2**: Add SubTask to Task model
-```typescript
-// src/modules/task.module/task/task.model.ts
-subtasks: [
-  {
-    title: { type: String, required: true },
-    isCompleted: { type: Boolean, default: false },
-    duration: { type: String },
-    completedAt: { type: Date },
-    order: { type: Number, default: 0 }
-  }
-]
-```
-
-**Step 3**: Add subtask CRUD endpoints
-```typescript
-// src/modules/task.module/task/task.route.ts
-router.route('/:id/subtasks').post(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  controller.addSubtask
-);
-
-router.route('/:id/subtasks/:subtaskId').put(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  controller.updateSubtask
-);
-
-router.route('/:id/subtasks/:subtaskId').delete(
-  auth(TRole.commonUser),
-  verifyTaskAccess,
-  controller.deleteSubtask
-);
-```
-
----
-
-### Phase 2: Add Missing Fields (1 hour)
+**✅ NOTE**: SubTask support already exists! No need to implement.
 
 **Step 1**: Add `time` alias in API response
 ```typescript
 // src/modules/task.module/task/task.controller.ts
+// In getTaskById and other task endpoints
 const taskWithTime = {
   ...task.toObject(),
   time: task.scheduledTime || formatTime(task.startTime)
 };
 ```
 
-**Step 2**: Add `assignedBy` virtual field
+**Step 2**: Add `assignedBy` virtual field for group tasks
 ```typescript
 // src/modules/task.module/task/task.model.ts
 taskSchema.virtual('assignedBy').get(function() {
@@ -497,7 +463,7 @@ taskSchema.virtual('assignedBy').get(function() {
 
 ---
 
-### Phase 3: Website Redux Integration (2-3 hours)
+### Phase 2: Website Redux Integration (2-3 hours)
 
 **Step 1**: Create task API slice
 ```javascript

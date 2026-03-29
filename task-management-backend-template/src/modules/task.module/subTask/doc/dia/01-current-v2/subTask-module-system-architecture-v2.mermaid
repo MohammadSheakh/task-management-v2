@@ -1,0 +1,114 @@
+flowchart TB
+    %% ===========================================
+    %% SUBTASK MODULE - SYSTEM ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Frontend["🖥️ Frontend Layer"]
+        FLUTTER["📱 Flutter App<br/>(Children & Parents)"]
+        PARENT_WEB["💻 Parent Dashboard"]
+        CHILD_WEB["💻 Child Dashboard"]
+    end
+
+    subgraph APIGateway["🔌 API Gateway"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT)"]
+        RATE["Rate Limiter"]
+    end
+
+    subgraph SubTaskModule["📝 SubTask Module (v2.0)"]
+
+        subgraph Routes["Routes"]
+            SUBTASK_ROUTE["subtask.route.ts"]
+        end
+
+        subgraph Controllers["Controllers"]
+            SUBTASK_CTRL["subtask.controller.ts"]
+        end
+
+        subgraph Services["Services"]
+            SUBTASK_SVC["subtask.service.ts<br/>with Socket.IO ⭐"]
+        end
+
+        subgraph Models["Models"]
+            SUBTASK_MODEL["subtask.model.ts"]
+        end
+    end
+
+    subgraph RelatedModules["🔗 Related Modules"]
+
+        subgraph TaskModule["task.module"]
+            TASK_SVC["task.service.ts"]
+            TASK_MODEL["task.model.ts"]
+        end
+
+        subgraph TaskProgress["taskProgress.module ⭐ NEW!"]
+            TP_SVC["taskProgress.service.ts"]
+            TP_MODEL["taskProgress.model.ts"]
+        end
+
+        subgraph Notification["notification.module"]
+            NOTIF_SVC["notification.service.ts"]
+        end
+    end
+
+    subgraph DataLayer["💾 Data Layer"]
+        MONGODB["🍃 MongoDB<br/>(Primary Database)"]
+        REDIS["🔴 Redis<br/>(Cache Layer)"]
+        REDIS_SUBTASK["SubTask Cache<br/>2-5 min TTL"]
+        REDIS_SOCKET["Socket.IO State ⭐<br/>1 min TTL"]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        SOCKET_IO["Socket.IO Server"]
+        REDIS_ADAPTER["Redis Adapter"]
+        SUBTASK_ROOMS["SubTask Rooms"]
+        FAMILY_ROOMS["Family Rooms"]
+        EVENTS["Events<br/>subtask:created<br/>subtask:completed"]
+    end
+
+    %% Frontend to API Gateway
+    FLUTTER --> LB
+    PARENT_WEB --> LB
+    CHILD_WEB --> LB
+
+    LB --> AUTH
+    AUTH --> RATE
+
+    %% API Gateway to Module
+    RATE --> SUBTASK_ROUTE
+
+    %% Internal Module Flow
+    SUBTASK_ROUTE --> SUBTASK_CTRL
+    SUBTASK_CTRL --> SUBTASK_SVC
+    SUBTASK_SVC --> SUBTASK_MODEL
+
+    %% Module to Related Modules
+    SUBTASK_SVC --> TASK_SVC
+    SUBTASK_SVC --> TP_SVC
+    SUBTASK_SVC --> NOTIF_SVC
+
+    %% Module to Data Layer
+    SUBTASK_MODEL --> MONGODB
+    SUBTASK_SVC -.->|Cache| REDIS_SUBTASK
+
+    %% Real-Time Integration ⭐
+    SUBTASK_SVC -.->|Broadcast| SOCKET_IO
+    TP_SVC -.->|Broadcast| SOCKET_IO
+    SOCKET_IO --> REDIS_ADAPTER
+    REDIS_ADAPTER --> SUBTASK_ROOMS
+    REDIS_ADAPTER --> FAMILY_ROOMS
+    REDIS_ADAPTER --> EVENTS
+    SOCKET_IO -.->|State| REDIS_SOCKET
+
+    %% Styling
+    style Frontend fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style SubTaskModule fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style RelatedModules fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style DataLayer fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+
+    style SUBTASK_SVC fill:#c8e6c9,stroke:#2e7d32
+    style SOCKET_IO fill:#fff176,color:#000
+    style REDIS_SOCKET fill:#ffcc80,color:#000

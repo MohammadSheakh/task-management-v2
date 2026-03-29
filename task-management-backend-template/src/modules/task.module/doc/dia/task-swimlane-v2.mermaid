@@ -1,0 +1,134 @@
+flowchart TB
+    %% ===========================================
+    %% TASK MODULE - SWIMLANE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph User["👤 User Layer<br/>(Parent/Child)"]
+        U1[Parent: Create Task]
+        U2[Child: View Tasks]
+        U3[Child: Complete Task]
+        U4[Parent: Monitor Progress]
+    end
+
+    subgraph Frontend["💻 Frontend Layer<br/>(Flutter/Web)"]
+        F1[Task Screen]
+        F2[Progress Widget]
+        F3[Socket.IO Client]
+    end
+
+    subgraph API["🔌 API Layer<br/>(Express + Middleware)"]
+        A1[Routes]
+        A2[Authentication]
+        A3[Rate Limiting]
+    end
+
+    subgraph Backend["⚙️ Backend Layer<br/>(Controllers + Services)"]
+        B1[task.controller]
+        B2[task.service<br/>with Socket.IO ⭐]
+        B3[subtask.controller]
+        B4[subtask.service]
+    end
+
+    subgraph Database["💾 Database Layer<br/>(MongoDB)"]
+        D1[TASK Collection]
+        D2[SUBTASK Collection]
+        D3[TASK_PROGRESS ⭐]
+        D4[USER Collection]
+    end
+
+    subgraph Cache["🔴 Cache Layer<br/>(Redis)"]
+        C1[Task Cache<br/>2-5 min TTL]
+        C2[Statistics Cache<br/>5 min TTL]
+        C3[Socket.IO State ⭐<br/>1 min TTL]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        R1[Socket.IO Server]
+        R2[Redis Adapter]
+        R3[Task Rooms]
+        R4[Family Rooms]
+        R5[Events]
+    end
+
+    subgraph TaskProgress["📊 TaskProgress ⭐ NEW!"]
+        TP1[taskProgress.service]
+        TP2[taskProgress.model]
+    end
+
+    subgraph Related["🔗 Related Modules"]
+        REL1[childrenBusinessUser]
+        REL2[notification]
+        REL3[analytics]
+    end
+
+    %% User to Frontend
+    U1 --> F1
+    U2 --> F1
+    U3 --> F1
+    U4 --> F2
+    F3 --> R1
+
+    %% Frontend to API
+    F1 --> A1
+    F2 --> A1
+    A1 --> A2
+    A2 --> A3
+
+    %% API to Backend
+    A3 --> B1
+    A3 --> B3
+    B1 --> B2
+    B3 --> B4
+
+    %% Backend to Database
+    B2 --> D1
+    B2 --> D2
+    B2 --> D4
+    B4 --> D2
+    B4 --> D1
+
+    %% Backend to Cache
+    B2 -.->|Check| C1
+    B2 -.->|Check| C2
+    C1 -->|Hit| B2
+    C2 -->|Hit| B2
+    C1 -->|Miss| D1
+    C2 -->|Miss| D1
+
+    %% Real-Time Integration ⭐
+    B2 -.->|Broadcast| R1
+    B4 -.->|Broadcast| R1
+    TP1 -.->|Broadcast| R1
+    R1 --> R2
+    R2 --> R3
+    R2 --> R4
+    R2 --> R5
+    R1 -.->|State| C3
+    R1 -.->|Push| F3
+
+    %% TaskProgress Flow ⭐
+    B2 --> TP1
+    TP1 --> TP2
+    TP2 --> D3
+
+    %% Related Modules
+    B2 --> REL1
+    B2 --> REL2
+    B2 --> REL3
+    TP1 --> REL2
+
+    %% Styling
+    style User fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Frontend fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#fff3e0,stroke:#e65100,color:#000
+    style Backend fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style TaskProgress fill:#c8e6c9,stroke:#2e7d32,color:#000
+    style Related fill:#e0f7fa,stroke:#006064,color:#000
+
+    style B2 fill:#c8e6c9,stroke:#2e7d32
+    style R1 fill:#fff176,color:#000
+    style C3 fill:#ffcc80,color:#000

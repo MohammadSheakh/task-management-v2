@@ -1,0 +1,125 @@
+flowchart TB
+    subgraph UserModule["User Module"]
+        direction TB
+
+        subgraph UserCore["User Core"]
+            UserRoute[user.route.ts]
+            UserController[user.controller.ts]
+            UserService[user.service.ts]
+            UserModel[user.model.ts]
+            UserInterface[user.interface.ts]
+            UserValidation[user.validation.ts]
+            PrefTimeEndpoint[⏰ preferredTime Service]
+        end
+
+        subgraph UserProfile["UserProfile Sub-module"]
+            ProfileRoute[userProfile.route.ts]
+            ProfileController[userProfile.controller.ts]
+            ProfileService[userProfile.service.ts]
+            ProfileModel[userProfile.model.ts]
+            ProfileInterface[userProfile.interface.ts]
+        end
+
+        subgraph UserDevices["UserDevices Sub-module"]
+            DevicesRoute[userDevices.route.ts]
+            DevicesController[userDevices.controller.ts]
+            DevicesService[userDevices.service.ts]
+            DevicesModel[userDevices.model.ts]
+            DevicesInterface[userDevices.interface.ts]
+        end
+
+        subgraph UserRoleData["UserRoleData Sub-module"]
+            RoleDataRoute[userRoleData.route.ts]
+            RoleDataController[userRoleData.controller.ts]
+            RoleDataService[userRoleData.service.ts]
+            RoleDataModel[userRoleData.model.ts]
+            RoleDataInterface[userRoleData.interface.ts]
+        end
+
+        subgraph OAuth["OAuthAccount Sub-module"]
+            OAuthRoute[oauthAccount.route.ts]
+            OAuthController[oauthAccount.controller.ts]
+            OAuthService[oauthAccount.service.ts]
+            OAuthModel[oauthAccount.model.ts]
+            OAuthInterface[oauthAccount.interface.ts]
+        end
+    end
+
+    subgraph Shared["Shared Components"]
+        GenericController[generic.controller.ts]
+        GenericService[generic.service.ts]
+        PaginationService[PaginationService]
+        AuthMiddleware[auth.middleware.ts]
+        RateLimitMiddleware[rateLimit.middleware.ts]
+    end
+
+    subgraph Async["Async Processing"]
+        BullMQ[BullMQ Queue]
+        PrefWorker[⏰ Preferred Time Worker]
+    end
+
+    subgraph External["External Dependencies"]
+        Redis[Redis Cache]
+        MongoDB[MongoDB]
+        EmailService[Email Service]
+        FCM[Firebase Cloud Messaging]
+        GoogleOAuth[Google OAuth]
+        AppleOAuth[Apple OAuth]
+        TaskModule[Task Module]
+    end
+
+    UserRoute --> UserController
+    UserController --> GenericController
+    GenericController --> UserService
+
+    ProfileRoute --> ProfileController
+    ProfileController --> GenericController
+    ProfileController --> UserService
+
+    DevicesRoute --> DevicesController
+    DevicesController --> GenericController
+    DevicesController --> UserService
+
+    RoleDataRoute --> RoleDataController
+    RoleDataController --> GenericController
+    RoleDataController --> UserService
+
+    OAuthRoute --> OAuthController
+    OAuthController --> GenericController
+    OAuthController --> UserService
+
+    UserService --> GenericService
+    UserService --> PaginationService
+
+    UserRoute --> AuthMiddleware
+    ProfileRoute --> AuthMiddleware
+    DevicesRoute --> AuthMiddleware
+    RoleDataRoute --> AuthMiddleware
+    OAuthRoute --> RateLimitMiddleware
+
+    UserService --> Redis
+    UserService --> MongoDB
+    UserService --> EmailService
+    DevicesService --> FCM
+    OAuthService --> GoogleOAuth
+    OAuthService --> AppleOAuth
+
+    UserModel --> MongoDB
+    ProfileModel --> MongoDB
+    DevicesModel --> MongoDB
+    RoleDataModel --> MongoDB
+    OAuthModel --> MongoDB
+
+    %% Preferred Time Flow
+    PrefTimeEndpoint --> UserService
+    UserService --> UserCol[(User Collection)]
+    
+    TaskModule --> BullMQ
+    BullMQ --> PrefWorker
+    PrefWorker --> TaskCol[(Task Collection)]
+    PrefWorker --> UserCol
+
+    style PrefTimeEndpoint fill:#9ff,stroke:#333,stroke-width:2px
+    style PrefWorker fill:#f9f,stroke:#333,stroke-width:2px
+    style BullMQ fill:#ff9,stroke:#333,stroke-width:2px
+    style UserCol fill:#bbf,stroke:#333,stroke-width:2px

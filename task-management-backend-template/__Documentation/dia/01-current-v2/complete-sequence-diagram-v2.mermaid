@@ -1,0 +1,199 @@
+sequenceDiagram
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE SEQUENCE DIAGRAM (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    participant P as Parent
+    participant C as Child
+    participant A as Admin
+    participant FE as Frontend
+    participant API as API Gateway
+    participant TASK as task.module
+    participant TASKPROG as taskProgress.module
+    participant CBU as childrenBusinessUser.module
+    participant NOTIF as notification.module
+    participant SOCKET as Socket.IO
+    participant DB as MongoDB
+    participant REDIS as Redis
+    participant QUEUE as BullMQ
+    participant EXT as External Services
+
+    %% ===========================================
+    %% SCENARIO 1: Parent Creates Child Account
+    %% ===========================================
+    Note over P,DB: Scenario 1: Parent Creates Child Account
+    
+    P->>FE: Create Child Account
+    FE->>API: POST /children-business-user/create-child
+    API->>CBU: createChild()
+    CBU->>DB: Check subscription limit
+    DB-->>CBU: Limit OK
+    CBU->>DB: Create child USER
+    DB-->>CBU: childUserId
+    CBU->>DB: Create CHILDREN_BUSINESS_USER relationship
+    DB-->>CBU: relationshipId
+    CBU->>REDIS: Invalidate children cache
+    CBU-->>API: Child created
+    API-->>FE: Success
+    FE-->>P: Child account created
+
+    %% ===========================================
+    %% SCENARIO 2: Parent Creates Collaborative Task
+    %% ===========================================
+    Note over P,DB: Scenario 2: Parent Creates Collaborative Task
+    
+    P->>FE: Create Collaborative Task
+    FE->>API: POST /tasks (collaborative)
+    API->>TASK: createTask()
+    TASK->>DB: Create TASK
+    DB-->>TASK: taskId
+    TASK->>DB: Create SUBTASKs (if any)
+    DB-->>TASK: subtaskIds
+    TASK->>TASKPROG: bulkCreateForTask()
+    TASKPROG->>DB: Create TASK_PROGRESS for each child
+    DB-->>TASKPROG: progressIds
+    TASK->>SOCKET: emit('task:assigned')
+    SOCKET->>C: Real-time notification
+    TASK->>REDIS: Invalidate task cache
+    TASK-->>API: Task created
+    API-->>FE: Success
+    FE-->>P: Task created
+
+    %% ===========================================
+    %% SCENARIO 3: Child Completes Task
+    %% ===========================================
+    Note over C,DB: Scenario 3: Child Completes Task (Real-Time to Parent)
+    
+    C->>FE: Complete Subtask
+    FE->>API: PUT /task-progress/:taskId/subtasks/:index/complete
+    API->>TASKPROG: completeSubtask()
+    TASKPROG->>DB: Update TASK_PROGRESS
+    DB-->>TASKPROG: Updated progress
+    TASKPROG->>DB: Update TASK completionPercentage
+    DB-->>TASKPROG: Updated task
+    TASKPROG->>SOCKET: emit('task-progress:subtask-completed')
+    SOCKET->>P: Real-time update
+    P->>FE: See progress update
+    TASKPROG->>NOTIF: createNotification()
+    NOTIF->>QUEUE: Add to notification-queue
+    QUEUE->>NOTIF: Process notification
+    NOTIF->>EXT: Send push notification
+    TASKPROG->>REDIS: Invalidate progress cache
+    TASKPROG-->>API: Success
+    API-->>FE: Subtask completed
+    FE-->>C: Success + Celebration
+
+    %% ===========================================
+    %% SCENARIO 4: Parent Views Analytics Charts
+    %% ===========================================
+    Note over P,DB: Scenario 4: Parent Views Analytics Charts
+    
+    P->>FE: View Dashboard
+    FE->>API: GET /analytics/charts/family-activity/:businessUserId
+    API->>CHART_AGG: getFamilyActivityChart()
+    CHART_AGG->>REDIS: Check cache
+    REDIS-->>CHART_AGG: Cache miss
+    CHART_AGG->>DB: Aggregate task completions
+    DB-->>CHART_AGG: Activity data
+    CHART_AGG->>REDIS: Cache result (5 min)
+    CHART_AGG-->>API: Chart data
+    API-->>FE: Chart data
+    FE-->>P: Display charts
+
+    %% ===========================================
+    %% SCENARIO 5: Child Starts Task (Real-Time)
+    %% ===========================================
+    Note over C,DB: Scenario 5: Child Starts Task (Real-Time to Parent)
+    
+    C->>FE: Start Task
+    FE->>API: PUT /task-progress/:taskId/status
+    API->>TASKPROG: updateProgressStatus()
+    TASKPROG->>DB: Update TASK_PROGRESS status
+    DB-->>TASKPROG: Updated
+    TASKPROG->>SOCKET: emit('task-progress:started')
+    SOCKET->>P: Real-time notification
+    P->>FE: See "Child started task"
+    TASKPROG->>NOTIF: createNotification()
+    NOTIF->>QUEUE: Add to queue
+    TASKPROG->>REDIS: Invalidate cache
+    TASKPROG-->>API: Success
+    API-->>FE: Task started
+    FE-->>C: Success
+
+    %% ===========================================
+    %% SCENARIO 6: Admin Views Platform Analytics
+    %% ===========================================
+    Note over A,DB: Scenario 6: Admin Views Platform Analytics
+    
+    A->>FE: View Admin Dashboard
+    FE->>API: GET /analytics/admin/dashboard
+    API->>ADMIN_ANALYTICS: getDashboardOverview()
+    ADMIN_ANALYTICS->>REDIS: Check cache
+    REDIS-->>ADMIN_ANALYTICS: Cache miss
+    ADMIN_ANALYTICS->>DB: Aggregate user stats
+    DB-->>ADMIN_ANALYTICS: User data
+    ADMIN_ANALYTICS->>DB: Aggregate task stats
+    DB-->>ADMIN_ANALYTICS: Task data
+    ADMIN_ANALYTICS->>DB: Aggregate revenue stats
+    DB-->>ADMIN_ANALYTICS: Revenue data
+    ADMIN_ANALYTICS->>REDIS: Cache result
+    ADMIN_ANALYTICS-->>API: Dashboard data
+    API-->>FE: Dashboard data
+    FE-->>A: Display dashboard
+
+    %% ===========================================
+    %% SCENARIO 7: Stripe Webhook Processing
+    %% ===========================================
+    Note over EXT,DB: Scenario 7: Stripe Webhook Processing
+    
+    EXT->>API: POST /webhooks/stripe
+    API->>WEBHOOK: processWebhook()
+    WEBHOOK->>DB: Find USER_SUBSCRIPTION
+    DB-->>WEBHOOK: Subscription
+    WEBHOOK->>DB: Update subscription status
+    DB-->>WEBHOOK: Updated
+    WEBHOOK->>NOTIF: createNotification()
+    NOTIF->>QUEUE: Add to queue
+    WEBHOOK->>REDIS: Invalidate subscription cache
+    WEBHOOK-->>API: Success
+    API-->>EXT: 200 OK
+
+    %% ===========================================
+    %% SCENARIO 8: Real-Time Family Activity Feed
+    %% ===========================================
+    Note over C,DB: Scenario 8: Real-Time Family Activity Feed
+    
+    C->>FE: Complete Task
+    FE->>API: PUT /task-progress/:taskId/status
+    API->>TASKPROG: updateProgressStatus()
+    TASKPROG->>DB: Update TASK_PROGRESS
+    DB-->>TASKPROG: Completed
+    TASKPROG->>SOCKET: broadcastGroupActivity()
+    SOCKET->>REDIS: Add to activity:feed:{familyId}
+    REDIS-->>SOCKET: Stored
+    SOCKET->>P: emit('group:activity')
+    P->>FE: See activity in feed
+    SOCKET->>All Family: Broadcast activity
+    TASKPROG->>REDIS: Invalidate cache
+    TASKPROG-->>API: Success
+    API-->>FE: Task completed
+    FE-->>C: Success + Celebration
+
+    %% Styling
+    rect rgb(227, 242, 253)
+        Note over P: Parent User
+    end
+    
+    rect rgb(232, 245, 233)
+        Note over C: Child User
+    end
+    
+    rect rgb(255, 249, 196)
+        Note over SOCKET: Real-Time Layer
+    end
+    
+    rect rgb(224, 224, 224)
+        Note over TASKPROG: NEW! Modules
+        Note over CBU: NEW! Modules
+    end

@@ -1,0 +1,74 @@
+erDiagram
+    User ||--o{ ChildrenBusinessUser : "creates"
+    User ||--o{ ChildrenBusinessUser : "is child of"
+    ChildrenBusinessUser }o--|| User : "parent business user"
+    ChildrenBusinessUser }o--|| User : "child user"
+    
+    User {
+        ObjectId _id
+        String name
+        String email
+        String role
+        ObjectId accountCreatorId "FK to User (creator)"
+        ObjectId familyGroupId "FK to Group (auto-created)"
+        String subscriptionType
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    ChildrenBusinessUser {
+        ObjectId _id
+        ObjectId parentBusinessUserId "FK to User"
+        ObjectId childUserId "FK to User"
+        ObjectId addedBy "FK to User"
+        DateTime addedAt
+        String status "active|inactive|removed"
+        String note
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    Group ||--o{ GroupMember : "has members"
+    Group {
+        ObjectId _id
+        ObjectId ownerUserId "FK to User (business user)"
+        String name "Family name"
+        Number maxMembers "From subscription"
+        Number currentMemberCount
+        String visibility "private"
+        String status "active"
+        Boolean isDeleted
+    }
+    
+    GroupMember {
+        ObjectId _id
+        ObjectId groupId "FK to Group"
+        ObjectId userId "FK to User"
+        String role "owner|admin|member"
+        String status "active|inactive|blocked"
+        DateTime joinedAt
+        Boolean isDeleted
+    }
+    
+    SubscriptionPlan ||--o{ UserSubscription : "purchased by"
+    SubscriptionPlan {
+        ObjectId _id
+        String subscriptionName
+        String subscriptionType "business_starter|business_level1|business_level2"
+        Number maxChildrenAccount "4|40|999"
+        String amount
+        String currency
+        Boolean isActive
+    }
+    
+    UserSubscription {
+        ObjectId _id
+        ObjectId userId "FK to User"
+        ObjectId subscriptionPlanId "FK to SubscriptionPlan"
+        String status "active|cancelled|past_due"
+        DateTime startDate
+        DateTime expirationDate
+        Boolean isActive
+    }

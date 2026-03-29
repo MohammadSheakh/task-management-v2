@@ -1,0 +1,52 @@
+flowchart TD
+    subgraph "Business User Swimlane"
+        BU1[Register Account] --> BU2[Purchase Subscription]
+        BU2 --> BU3[Create Child Account]
+        BU3 --> BU4[View Children List]
+        BU4 --> BU5[Remove Child]
+        BU5 --> BU6[View Statistics]
+    end
+
+    subgraph "Child User Swimlane"
+        CU1[Receive Account] --> CU2[Login to App]
+        CU2 --> CU3[View Tasks]
+        CU3 --> CU4[View Parent Info]
+        CU4 --> CU5[Update Profile]
+    end
+
+    subgraph "System Swimlane"
+        SYS1{Check Subscription Limit} -->|Under| SYS2[Create Account]
+        SYS1 -->|Exceeded| SYS3[Reject Request]
+        SYS2 --> SYS4[Set accountCreatorId]
+        SYS4 --> SYS5[Create Relationship]
+        SYS5 --> SYS6[Update Cache]
+    end
+
+    subgraph "Database Swimlane"
+        DB1[Store User Document] --> DB2[Store Relationship]
+        DB2 --> DB3[Index for Queries]
+        DB3 --> DB4[Soft Delete Support]
+    end
+
+    subgraph "Cache Swimlane"
+        C1[Check Cache] --> C2{Cache Hit?}
+        C2 -->|Yes| C3[Return Cached]
+        C2 -->|No| C4[Query Database]
+        C4 --> C5[Cache Result]
+        C5 --> C6[Invalidate on Write]
+    end
+
+    BU3 --> SYS1
+    SYS2 --> DB1
+    C1 -.-> C2
+    BU4 --> C1
+
+    style BU1 fill:#e1f5ff
+    style BU2 fill:#e1f5ff
+    style BU3 fill:#e1f5ff
+    style CU1 fill:#e8f5e9
+    style CU2 fill:#e8f5e9
+    style SYS1 fill:#fff4e1
+    style SYS2 fill:#fff4e1
+    style DB1 fill:#f3e5f5
+    style C1 fill:#ffebee

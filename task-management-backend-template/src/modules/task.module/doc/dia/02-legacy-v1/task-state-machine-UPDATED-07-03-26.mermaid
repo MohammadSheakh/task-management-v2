@@ -1,0 +1,131 @@
+---
+title: Task Module - Updated State Machine Diagram
+description: State transitions matching current task.module implementation (simple 3-state flow)
+date: 07-03-26
+---
+
+stateDiagram-v2
+    %% Task States
+    state Task {
+        [*] --> Pending: Create Task
+        Pending --> InProgress: Start Task
+        Pending --> Completed: Complete Directly
+        InProgress --> Completed: Mark Complete
+        Completed --> [*]: Archived
+        
+        Pending --> Deleted: Delete
+        InProgress --> Deleted: Delete
+        Completed --> Deleted: Delete (Soft)
+        Deleted --> [*]: Permanent Delete
+        Deleted --> Pending: Restore (within 30 days)
+        
+        note right of Pending
+            Initial state
+            - Task created
+            - Awaiting start
+            - Can be edited
+            - Can assign users
+        end note
+        
+        note right of InProgress
+            Active state
+            - Work started
+            - Progress tracked
+            - Subtasks being completed
+            - Can update details
+        end note
+        
+        note right of Completed
+            Final state
+            - All work done
+            - completedTime set
+            - Read-only
+            - Can be archived
+        end note
+        
+        note right of Deleted
+            Soft deleted
+            - isDeleted: true
+            - Hidden from lists
+            - Can restore
+            - Auto-purge after 30d
+        end note
+    }
+    
+    %% SubTask States
+    state SubTask {
+        [*] --> Pending: Create Subtask
+        Pending --> Completed: Mark Complete
+        Completed --> Pending: Unmark
+        Completed --> [*]: Deleted
+        Pending --> [*]: Deleted
+        
+        note right of Pending
+            Not yet done
+            - isCompleted: false
+            - Can be edited
+            - Can be deleted
+        end note
+        
+        note right of Completed
+            Finished
+            - isCompleted: true
+            - completedAt set
+            - Updates parent task
+            - Read-only
+        end note
+    }
+    
+    %% Task Type States
+    state TaskType {
+        [*] --> Personal: Default
+        Personal --> SingleAssignment: Assign to one
+        Personal --> Collaborative: Assign to multiple
+        SingleAssignment --> Collaborative: Add more assignees
+        Collaborative --> SingleAssignment: Remove assignees
+        SingleAssignment --> Personal: Remove assignee
+        Collaborative --> Personal: Remove all assignees
+    }
+    
+    %% Priority States
+    state Priority {
+        [*] --> Medium: Default
+        Medium --> Low: De-prioritize
+        Medium --> High: Prioritize
+        Low --> Medium: Re-prioritize
+        High --> Medium: De-prioritize
+        High --> Urgent: Critical
+        Urgent --> High: De-escalate
+    }
+    
+    %% Assignment States
+    state Assignment {
+        [*] --> Unassigned: Created
+        Unassigned --> Assigned: Assign User(s)
+        Assigned --> Unassigned: Remove All
+        Assigned --> Reassigned: Change Assignee
+        Reassigned --> Assigned: Confirm
+        Reassigned --> Unassigned: Remove All
+    }
+    
+    %% Parent Task Progress (Auto-calculated)
+    state Progress {
+        state SubProgress {
+            0% --> 25%: 1/4 subtasks done
+            25% --> 50%: 2/4 subtasks done
+            50% --> 75%: 3/4 subtasks done
+            75% --> 100%: 4/4 subtasks done
+            100% --> TaskCompleted: Auto-complete parent
+        }
+    }
+    
+    %% State Transitions Between Entities
+    Task --> TaskType: Has Type
+    Task --> Priority: Has Priority
+    Task --> Assignment: Has Assignment
+    Task --> SubTask: Contains Subtasks
+    SubTask --> Progress: Updates Parent
+    
+    Note "Simple 3-State Flow\npending → inProgress → completed" as N1
+    Note "SubTask: 2-State\npending ↔ completed" as N2
+    Note "Virtual Fields:\n- time\n- assignedBy\n- completionPercentage\n- isOverdue" as N3

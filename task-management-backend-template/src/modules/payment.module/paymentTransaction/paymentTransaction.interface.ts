@@ -1,7 +1,7 @@
 //@ts-ignore
 import { Model, Types, Schema } from 'mongoose';
 import { PaginateOptions, PaginateResult } from '../../../types/paginate';
-import { TPaymentGateway, TPaymentStatus } from './paymentTransaction.constant';
+import { TPaymentGateway, TPaymentStatus, TPaymentEnvironment, TPaymentPlatform } from './paymentTransaction.constant';
 import { TCurrency } from '../../../enums/payment';
 import { TTransactionFor } from '../../../constants/TTransactionFor';
 
@@ -9,37 +9,31 @@ export interface IPaymentTransaction {
   // _taskId: undefined | Types.ObjectId;
   _id?: Types.ObjectId; // undefined |  Types.ObjectId |
   userId: Types.ObjectId; //🔗
-  referenceFor :  TTransactionFor; //🧩 
+  referenceFor :  TTransactionFor; //🧩
   referenceId: Types.ObjectId; //🔗
   //---------------------------------
   // const refModel = mongoose.model(result.type);
   // const isExistRefference = await refModel.findById(result.refferenceId).session(session);
   //---------------------------------
-  paymentGateway: TPaymentGateway.none |
-                TPaymentGateway.paypal |
-                TPaymentGateway.stripe;
+  paymentGateway: TPaymentGateway;
   transactionId : string; // from kappes
   paymentIntent : string; // from kappes
 
   amount: number;
-  currency : TCurrency.usd
-  paymentStatus :  
-  
-  TPaymentStatus.pending | 
-    TPaymentStatus.processing |
-    TPaymentStatus.completed |
-    TPaymentStatus.failed |
-    TPaymentStatus.refunded |
-    TPaymentStatus.cancelled |
-    TPaymentStatus.partially_refunded |
-    TPaymentStatus.disputed; //🚦
+  currency: TCurrency;
+  paymentStatus: TPaymentStatus;
 
     gatewayResponse: {
       type: Schema.Types.Mixed,
       default: null,
-    },
+    };
 
-  isDeleted? : Boolean;  
+  // 🆕 RevenueCat Specific Fields
+  revenueCatOrderId?: string;
+  revenueCatEnvironment?: TPaymentEnvironment;
+  platform?: TPaymentPlatform;
+
+  isDeleted? : Boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

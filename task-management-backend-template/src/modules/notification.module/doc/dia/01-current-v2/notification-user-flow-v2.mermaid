@@ -1,0 +1,119 @@
+flowchart TD
+    %% ===========================================
+    %% NOTIFICATION MODULE - USER FLOW (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Parent["👨‍👩‍👧 Parent User Flow"]
+        P1[Open Dashboard]
+        P2[View Notifications]
+        P3[Check Unread Count]
+        P4[Mark as Read]
+        P5[View Activity Feed]
+        P6[Receive Real-Time Update]
+    end
+
+    subgraph Child["👶 Child User Flow"]
+        C1[Open App]
+        C2[View Notifications]
+        C3[Complete Task]
+        C4[Receive Reminder]
+        C5[View Task Reminders]
+        C6[Cancel Reminder]
+    end
+
+    subgraph API["🔌 API Layer"]
+        API1[GET /notifications/my]
+        API2[GET /notifications/unread-count]
+        API3[POST /notifications/:id/read]
+        API4[POST /task-reminders/]
+        API5[GET /task-reminders/my]
+    end
+
+    subgraph Cache["🔴 Redis Cache"]
+        CACHE1[Check Unread Cache]
+        CACHE2[Check Notification List]
+        CACHE3[Cache Hit?]
+    end
+
+    subgraph Database["💾 MongoDB"]
+        DB1[Create Notification]
+        DB2[Get Notifications]
+        DB3[Create Reminder]
+        DB4[Update Status]
+    end
+
+    subgraph RealTime["⚡ Real-Time ⭐ NEW!"]
+        RT1[Socket.IO Emit]
+        RT2[Family Room Broadcast]
+        RT3[User Receives]
+        RT4[Dashboard Updates]
+    end
+
+    subgraph BullMQ["🔄 BullMQ"]
+        BQ1[Add to Queue]
+        BQ2[Scheduled Job]
+        BQ3[Worker Processes]
+        BQ4[Send Reminder]
+    end
+
+    %% Parent Flow
+    P1 --> API1
+    P1 --> API2
+    API1 --> CACHE1
+    API2 --> CACHE1
+    CACHE1 --> CACHE3
+    CACHE3 -->|Hit| API1
+    CACHE3 -->|Miss| DB2
+    DB2 --> API1
+    API1 --> P2
+    API2 --> P3
+    P3 --> API3
+    API3 --> DB4
+    DB4 --> RT1
+    RT1 --> RT2
+    RT2 --> RT3
+    RT3 --> RT4
+    RT4 --> P6
+    API3 --> P4
+    P4 --> P5
+
+    %% Child Flow
+    C1 --> API5
+    API5 --> CACHE2
+    CACHE2 --> CACHE3
+    CACHE3 -->|Hit| API5
+    CACHE3 -->|Miss| DB2
+    DB2 --> API5
+    API5 --> C5
+    C5 --> C6
+    C6 --> API4
+    API4 --> DB3
+    DB3 --> BQ1
+    BQ1 --> BQ2
+    BQ2 --> BQ3
+    BQ3 --> BQ4
+    BQ4 --> C4
+    C2 --> API1
+    C3 --> RT1
+
+    %% Real-Time Flow ⭐
+    RT1 -->|notification:new| RT2
+    RT2 -->|Broadcast| RT3
+    RT3 --> RT4
+    RT4 --> P6
+
+    %% BullMQ Flow
+    BQ1 --> BQ2
+    BQ2 -->|At reminderTime| BQ3
+    BQ3 --> BQ4
+    BQ4 --> RT1
+
+    %% Styling
+    style Parent fill:#e3f2fd,stroke:#1565c0,color:#000
+    style Child fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style API fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style Cache fill:#ffe0b2,stroke:#e65100,color:#000
+    style Database fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style BullMQ fill:#e0f7fa,stroke:#006064,color:#000

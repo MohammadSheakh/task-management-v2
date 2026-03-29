@@ -3,13 +3,15 @@ import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { Task } from './task.model';
 import { Types } from 'mongoose';
+import { TaskType, TaskStatus } from './task.constant';
+import { ITask } from './task.interface';
 
 /**
  * Task Middleware
  * Custom validation and authorization checks for task operations
  */
 
-/**
+/** ✔️
  * Verify that the user has permission to access/modify a task
  * Checks if user is the creator, owner, or assigned user
  */
@@ -36,16 +38,22 @@ export const verifyTaskAccess = async (
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
     }
 
+    // Convert to strings for reliable comparison
+    const userIdStr = userId.toString();
+    const createdByIdStr = task.createdById.toString();
+    const ownerUserIdStr = task.ownerUserId?.toString();
+    const assignedUserIdsStr = (task.assignedUserIds || []).map((id: any) => id.toString());
+
     // Check if user has access
     const hasAccess =
-      task.createdById.toString() === userId ||
-      task.ownerUserId?.toString() === userId ||
-      (task.assignedUserIds || []).some((id: any) => id.toString() === userId);
+      createdByIdStr === userIdStr ||
+      ownerUserIdStr === userIdStr ||
+      assignedUserIdsStr.includes(userIdStr);
 
     if (!hasAccess) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,
-        'You do not have permission to access this task'
+        'You do not have access to this task'
       );
     }
 
@@ -57,7 +65,7 @@ export const verifyTaskAccess = async (
   }
 };
 
-/**
+/** 🔁
  * Verify task ownership for modification
  * Only creator or owner can modify the task
  */
@@ -74,7 +82,7 @@ export const verifyTaskOwnership = async (
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const task = (req as any).task || await Task.findById(taskId);
+    const task:ITask = (req as any).task || await Task.findById(taskId);
 
     if (!task) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
@@ -83,7 +91,9 @@ export const verifyTaskOwnership = async (
     // Only creator or owner can modify
     const isOwner =
       task.createdById.toString() === userId ||
-      task.ownerUserId?.toString() === userId;
+      task.ownerUserId?.toString() === userId ||
+      task.assignedUserIds?.some((id: any) => id.toString() === userId)
+      ;
 
     if (!isOwner) {
       throw new ApiError(
@@ -93,6 +103,79 @@ export const verifyTaskOwnership = async (
     }
 
     next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Check if user is Secondary User (has task management privileges)
+ * Secondary User can create/assign tasks for family members
+ * Business users always have permission
+ *
+ * Family Structure (via ChildrenBusinessUser relationship):
+ * - Business User: Family owner/parent, full task management rights
+ * - Secondary User: Trusted child with permission to create/assign tasks
+ * - Regular Child: Can only create personal tasks for self
+ *
+ * @figmaIndex dashboard-flow-03.png
+ * @figmaIndex add-task-flow-for-permission-account-interface.png
+ */
+export const checkSecondaryUserPermission = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const { User } = await import('../../user.module/user/user.model');
+    const user = await User.findById(userId).select('role').lean();
+
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+    }
+
+    // If business user → always allow
+    if (user.role === 'business') {
+      return next();
+    }
+
+    // If child user → check if they are Secondary User
+    if (user.role === 'child') {
+      const { ChildrenBusinessUser } = await import(
+        '../../childrenBusinessUser.module/childrenBusinessUser.model'
+      );
+
+      /*----------- comment by sheakh .. need to recheck this logic .. 
+      const relationship = await ChildrenBusinessUser.findOne({
+        childUserId: new Types.ObjectId(userId),
+        isSecondaryUser: true,
+        isDeleted: false,
+        status: 'active',
+      });
+
+      if (!relationship) {
+        throw new ApiError(
+          StatusCodes.FORBIDDEN,
+          'Only Secondary Users can create tasks. Ask your parent to grant permission.'
+        );
+      }
+      ----------------*/
+
+
+      // User is Secondary User → allow
+      return next();
+    }
+
+    throw new ApiError(
+      StatusCodes.FORBIDDEN,
+      'Unauthorized to perform this action'
+    );
   } catch (error) {
     next(error);
   }
@@ -112,7 +195,7 @@ export const validateTaskTypeConsistency = async (
   try {
     const { taskType, assignedUserIds, ownerUserId } = req.body;
 
-    if (taskType === 'personal') {
+    if (taskType === TaskType.PERSONAL) {
       if (assignedUserIds && assignedUserIds.length > 0) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -121,7 +204,7 @@ export const validateTaskTypeConsistency = async (
       }
     }
 
-    if (taskType === 'singleAssignment') {
+    if (taskType === TaskType.SINGLE_ASSIGNMENT) {
       if (!assignedUserIds || assignedUserIds.length !== 1) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -130,7 +213,7 @@ export const validateTaskTypeConsistency = async (
       }
     }
 
-    if (taskType === 'collaborative') {
+    if (taskType === TaskType.COLLABORATIVE) {
       if (!assignedUserIds || assignedUserIds.length < 2) {
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -165,14 +248,14 @@ export const validateStatusTransition = async (
 
     const currentStatus = task.status;
     const validTransitions: Record<string, string[]> = {
-      pending: ['inProgress', 'completed'],
-      inProgress: ['completed', 'pending'],
-      completed: [], // Completed tasks cannot change status
+      [TaskStatus.PENDING]: [TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED],
+      [TaskStatus.IN_PROGRESS]: [TaskStatus.COMPLETED, TaskStatus.PENDING],
+      [TaskStatus.COMPLETED]: [], // Completed tasks cannot change status
     };
 
     if (
-      currentStatus === 'completed' &&
-      status !== 'completed'
+      currentStatus === TaskStatus.COMPLETED &&
+      status !== TaskStatus.COMPLETED
     ) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
@@ -197,7 +280,7 @@ export const validateStatusTransition = async (
 };
 
 /**
- * Check if user has reached daily task limit
+ * - Check if user has reached daily task limit
  * Only applies to personal tasks
  */
 export const checkDailyTaskLimit = async (

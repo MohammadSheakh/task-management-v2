@@ -1,0 +1,58 @@
+graph TB
+    subgraph task_module["📦 task.module"]
+        subgraph task["Task Sub-Module"]
+            TaskModel[Task Model]
+            TaskService[Task Service]
+            TaskController[Task Controller]
+            TaskRoutes[Task Routes]
+            PrefTimeCalc[⏰ Preferred Time Calculator]
+            PrefSuggestion[⏰ Suggestion Service]
+        end
+
+        subgraph subtask["SubTask Sub-Module"]
+            SubTaskModel[SubTask Model]
+            SubTaskService[SubTask Service]
+            SubTaskController[SubTask Controller]
+            SubTaskRoutes[SubTask Routes]
+        end
+
+        subgraph doc["Documentation"]
+            TaskDocs[Task Docs]
+            TaskDiagrams[Task Diagrams]
+        end
+    end
+
+    subgraph external["External Dependencies"]
+        Auth[Auth Module]
+        User[User Module]
+        Group[Group Module]
+        Notification[Notification Module]
+        Attachment[Attachment Module]
+        BullMQ[BullMQ Helper]
+    end
+
+    TaskController --> TaskService
+    TaskService --> TaskModel
+    SubTaskController --> SubTaskService
+    SubTaskService --> SubTaskModel
+
+    TaskService --> Auth
+    TaskService --> User
+    TaskService --> Group
+    TaskService --> Notification
+    TaskService --> Attachment
+    TaskService --> BullMQ
+
+    SubTaskService --> TaskService
+
+    TaskController --> PrefTimeCalc
+    PrefTimeCalc --> BullMQ
+    BullMQ --> User
+
+    TaskController --> PrefSuggestion
+    PrefSuggestion --> User
+
+    style PrefTimeCalc fill:#f9f,stroke:#333,stroke-width:2px
+    style BullMQ fill:#ff9,stroke:#333,stroke-width:2px
+    style PrefSuggestion fill:#9ff,stroke:#333,stroke-width:2px
+    style User fill:#bbf,stroke:#333,stroke-width:2px

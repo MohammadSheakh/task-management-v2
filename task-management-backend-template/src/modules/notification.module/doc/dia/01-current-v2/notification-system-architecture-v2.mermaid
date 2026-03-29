@@ -1,0 +1,163 @@
+flowchart TB
+    %% ===========================================
+    %% NOTIFICATION MODULE - SYSTEM ARCHITECTURE (v2.0)
+    %% Updated: 12-03-26
+    %% ===========================================
+
+    subgraph Frontend["🖥️ Frontend Layer"]
+        FLUTTER["📱 Flutter App<br/>(Children & Parents)"]
+        PARENT_WEB["💻 Parent Dashboard"]
+        CHILD_WEB["💻 Child Dashboard"]
+    end
+
+    subgraph APIGateway["🔌 API Gateway"]
+        LB["Load Balancer"]
+        AUTH["Authentication<br/>(JWT)"]
+        RATE["Rate Limiter"]
+    end
+
+    subgraph NotificationModule["📬 Notification Module (v2.0)"]
+
+        subgraph Routes["Routes"]
+            NOTIF_ROUTE["notification.route.ts"]
+            REMINDER_ROUTE["taskReminder.route.ts"]
+        end
+
+        subgraph Controllers["Controllers"]
+            NOTIF_CTRL["notification.controller.ts"]
+            REMINDER_CTRL["taskReminder.controller.ts"]
+        end
+
+        subgraph Services["Services"]
+            NOTIF_SVC["notification.service.ts<br/>with Socket.IO ⭐"]
+            REMINDER_SVC["taskReminder.service.ts"]
+        end
+
+        subgraph Models["Models"]
+            NOTIF_MODEL["notification.model.ts"]
+            REMINDER_MODEL["taskReminder.model.ts"]
+        end
+    end
+
+    subgraph RelatedModules["🔗 Related Modules"]
+
+        subgraph UserModule["user.module"]
+            USER_SVC["user.service.ts"]
+        end
+
+        subgraph TaskModule["task.module"]
+            TASK_SVC["task.service.ts"]
+        end
+
+        subgraph CBU["childrenBusinessUser.module"]
+            CBU_SVC["childrenBusinessUser.service.ts"]
+        end
+
+        subgraph TaskProgress["taskProgress.module"]
+            TP_SVC["taskProgress.service.ts"]
+        end
+    end
+
+    subgraph DataLayer["💾 Data Layer"]
+        MONGODB["🍃 MongoDB<br/>(Primary Database)"]
+        REDIS["🔴 Redis<br/>(Cache Layer)"]
+        REDIS_UNREAD["Unread Cache<br/>60s TTL"]
+        REDIS_LIST["Notification List<br/>300s TTL"]
+        REDIS_SOCKET["Socket.IO State ⭐<br/>60s TTL"]
+    end
+
+    subgraph RealTime["⚡ Real-Time Layer ⭐ NEW!"]
+        SOCKET_IO["Socket.IO Server"]
+        REDIS_ADAPTER["Redis Adapter"]
+        USER_ROOMS["User Rooms"]
+        FAMILY_ROOMS["Family Rooms"]
+        EVENTS["Events<br/>notification:new<br/>group:activity"]
+    end
+
+    subgraph AsyncProcessing["🔄 Async Processing"]
+        BULLMQ["🐂 BullMQ Queues"]
+        NOTIF_QUEUE["notification-queue"]
+        REMINDER_QUEUE["task-reminders-queue"]
+        EMAIL_QUEUE["email-queue"]
+        WORKERS["Workers"]
+        NOTIF_WORKER["Notification Worker"]
+        REMINDER_WORKER["Reminder Worker"]
+        EMAIL_WORKER["Email Worker"]
+    end
+
+    subgraph External["🌐 External Services"]
+        EMAIL["📧 Email Service<br/>SendGrid/SES"]
+        PUSH["📱 FCM Push<br/>Notifications"]
+        SMS["📱 Twilio SMS"]
+    end
+
+    %% Frontend to API Gateway
+    FLUTTER --> LB
+    PARENT_WEB --> LB
+    CHILD_WEB --> LB
+
+    LB --> AUTH
+    AUTH --> RATE
+
+    %% API Gateway to Module
+    RATE --> NOTIF_ROUTE
+    RATE --> REMINDER_ROUTE
+
+    %% Internal Module Flow
+    NOTIF_ROUTE --> NOTIF_CTRL
+    NOTIF_CTRL --> NOTIF_SVC
+    NOTIF_SVC --> NOTIF_MODEL
+
+    REMINDER_ROUTE --> REMINDER_CTRL
+    REMINDER_CTRL --> REMINDER_SVC
+    REMINDER_SVC --> REMINDER_MODEL
+
+    %% Module to Related Modules
+    NOTIF_SVC --> USER_SVC
+    NOTIF_SVC --> TASK_SVC
+    NOTIF_SVC --> CBU_SVC
+    NOTIF_SVC --> TP_SVC
+
+    %% Module to Data Layer
+    NOTIF_MODEL --> MONGODB
+    REMINDER_MODEL --> MONGODB
+    NOTIF_SVC -.->|Cache| REDIS_UNREAD
+    NOTIF_SVC -.->|Cache| REDIS_LIST
+
+    %% Real-Time Integration ⭐
+    NOTIF_SVC -.->|Emit| SOCKET_IO
+    CBU_SVC -.->|Broadcast| SOCKET_IO
+    TP_SVC -.->|Broadcast| SOCKET_IO
+    SOCKET_IO --> REDIS_ADAPTER
+    REDIS_ADAPTER --> USER_ROOMS
+    REDIS_ADAPTER --> FAMILY_ROOMS
+    REDIS_ADAPTER --> EVENTS
+    SOCKET_IO -.->|State| REDIS_SOCKET
+
+    %% Async Processing
+    NOTIF_SVC --> NOTIF_QUEUE
+    REMINDER_SVC --> REMINDER_QUEUE
+    NOTIF_QUEUE --> NOTIF_WORKER
+    REMINDER_QUEUE --> REMINDER_WORKER
+    NOTIF_QUEUE --> EMAIL_QUEUE
+    EMAIL_QUEUE --> EMAIL_WORKER
+
+    %% External Services
+    EMAIL_WORKER --> EMAIL
+    NOTIF_WORKER --> PUSH
+    NOTIF_WORKER --> SMS
+    REMINDER_WORKER --> PUSH
+
+    %% Styling
+    style Frontend fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APIGateway fill:#fff3e0,stroke:#e65100,color:#000
+    style NotificationModule fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style RelatedModules fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style DataLayer fill:#fce4ec,stroke:#c2185b,color:#000
+    style RealTime fill:#fff9c4,stroke:#f9a825,color:#000
+    style AsyncProcessing fill:#e0f7fa,stroke:#006064,color:#000
+    style External fill:#fff8e1,stroke:#f57f17,color:#000
+
+    style NOTIF_SVC fill:#c8e6c9,stroke:#2e7d32
+    style SOCKET_IO fill:#fff176,color:#000
+    style REDIS_SOCKET fill:#ffcc80,color:#000

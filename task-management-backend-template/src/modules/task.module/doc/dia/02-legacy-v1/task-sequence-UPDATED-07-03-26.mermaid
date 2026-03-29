@@ -1,0 +1,245 @@
+---
+title: Task Module - Updated Sequence Diagram
+description: Sequence diagrams matching current task.module implementation with virtual fields and dual subtask storage
+date: 07-03-26
+---
+
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant FE as Frontend (Web/Mobile)
+    participant API as API Gateway
+    participant Ctrl as Task Controller
+    participant Svc as Task Service
+    participant SubSvc as SubTask Service
+    participant DB as MongoDB
+    participant Cache as Redis
+    participant Queue as BullMQ
+    participant Notif as Notification Service
+    
+    %% Scenario 1: Create Task with Embedded Subtasks
+    %% rect rgb(232, 245, 233)
+    note right of U: Create Personal Task
+    U->>FE: Enter task details + subtasks
+    FE->>API: POST /tasks {title, description, startTime, subtasks[]}
+    API->>Ctrl: create()
+    Ctrl->>Svc: validateTaskData()
+    Svc->>DB: insertOne(task with embedded subtasks)
+    DB-->>Svc: task created {_id, totalSubtasks, completedSubtasks}
+    Svc->>Cache: del(userTasks:userId)
+    Svc-->>Ctrl: task object
+    Ctrl-->>API: 201 Created
+    API-->>FE: task data (with virtual fields: time, assignedBy)
+    FE-->>U: Task created successfully
+    %% end
+    
+    %% Scenario 2: Create Collaborative Task
+    %% rect rgb(255, 243, 224)
+    note right of U: Create Group Task
+    U->>FE: Select multiple assignees
+    FE->>API: POST /tasks {taskType: 'collaborative', assignedUserIds[]}
+    API->>Ctrl: create()
+    Ctrl->>Svc: validateTaskTypeConsistency()
+    Svc->>DB: insertOne(task with assignedUserIds)
+    DB-->>Svc: task created
+    Svc->>Notif: enqueueNotification(task assignment)
+    Notif->>Queue: add('send-notification')
+    Queue-->>Notif: queued
+    Svc-->>Ctrl: task with assignedBy virtual
+    Ctrl-->>API: 201 Created
+    API-->>FE: task data
+    FE-->>U: Task assigned to team
+    %% end
+    
+    %% Scenario 3: Add Subtask to Existing Task
+    %% rect rgb(227, 242, 253)
+    note right of U: Add Subtask
+    U->>FE: Add new subtask
+    FE->>API: POST /subtasks {taskId, title, duration}
+    API->>SubSvc: create()
+    SubSvc->>DB: insertOne(subtask)
+    DB-->>SubSvc: subtask created
+    SubSvc->>DB: updateOne(task, {inc: totalSubtasks})
+    DB-->>SubSvc: task updated
+    SubSvc->>Cache: del(task:taskId)
+    SubSvc-->>API: 201 Created
+    API-->>FE: subtask data
+    FE-->>U: Subtask added
+    %% end
+    
+    %% Scenario 4: Toggle Subtask Status
+    %% rect rgb(243, 229, 245)
+    note right of U: Complete Subtask
+    U->>FE: Check subtask checkbox
+    FE->>API: PUT /subtasks/:id/toggle-status
+    API->>SubSvc: toggleStatus(id)
+    SubSvc->>DB: find({_id})
+    DB-->>SubSvc: subtask object
+    SubSvc->>DB: updateOne({isCompleted: !isCompleted, completedAt})
+    DB-->>SubSvc: updated
+    alt Marked Complete
+        SubSvc->>DB: updateOne(task, {inc: completedSubtasks})
+        DB-->>SubSvc: task updated
+        SubSvc->>DB: find({taskId, isCompleted: true})
+        DB-->>SubSvc: all subtasks?
+        opt All Subtasks Complete
+            SubSvc->>DB: updateOne(task, {status: 'completed', completedTime})
+            SubSvc->>Notif: enqueueNotification(task completed)
+        end
+    else Marked Incomplete
+        SubSvc->>DB: updateOne(task, {dec: completedSubtasks})
+        SubSvc->>DB: updateOne(task, {status: 'inProgress'})
+    end
+    SubSvc->>Cache: del(task:taskId)
+    SubSvc-->>API: 200 OK
+    API-->>FE: updated subtask
+    FE-->>U: Progress updated
+    %% end
+    
+    %% Scenario 5: Get Tasks with Filtering
+    %% rect rgb(255, 235, 238)
+    note right of U: View Task List
+    U->>FE: Open tasks (filter: status=pending)
+    FE->>API: GET /tasks?status=pending&page=1&limit=10
+    API->>Ctrl: getMyTasks()
+    Ctrl->>Cache: get(userTasks:userId:pending)
+    alt Cache Hit
+        Cache-->>Ctrl: cached tasks
+        Ctrl-->>API: cached data
+    else Cache Miss
+        Ctrl->>Svc: getMyTasks({userId, status, page, limit})
+        Svc->>DB: find({$or: [createdById, ownerUserId, assignedUserIds]})
+        DB-->>Svc: tasks[]
+        Svc->>Cache: setex(key, 300, tasks)
+        Svc-->>Ctrl: tasks with virtual fields
+    end
+    Ctrl-->>API: 200 OK
+    API-->>FE: tasks[]
+    FE-->>U: Display task list
+    %% end
+    
+    %% Scenario 6: Get Task Details
+    %% rect rgb(224, 247, 250)
+    note right of U: View Task Details
+    U->>FE: Click task
+    FE->>API: GET /tasks/:id
+    API->>Ctrl: getTaskById(id)
+    Ctrl->>Cache: get(task:id)
+    alt Cache Hit
+        Cache-->>Ctrl: cached task
+    else Cache Miss
+        Ctrl->>Svc: getById(id, populate: [createdById, ownerUserId, assignedUserIds])
+        Svc->>DB: findById(id)
+        DB-->>Svc: task object
+        Svc->>SubSvc: getSubTasksByTask(id)
+        SubSvc->>DB: find({taskId}).sort(order)
+        DB-->>SubSvc: subtasks[]
+        Svc-->>Ctrl: task + subtasks (with time, assignedBy virtuals)
+    end
+    Ctrl-->>API: 200 OK
+    API-->>FE: task details
+    FE-->>U: Display task + subtasks
+    %% end
+    
+    %% Scenario 7: Update Task
+    %% rect rgb(255, 248, 225)
+    note right of U: Edit Task
+    U->>FE: Update task details
+    FE->>API: PUT /tasks/:id {title, description, startTime}
+    API->>Ctrl: updateById(id)
+    Ctrl->>Svc: verifyTaskOwnership(userId, id)
+    Svc->>DB: find({_id, createdById})
+    DB-->>Svc: is owner?
+    alt Is Owner
+        Svc->>DB: updateOne(id, updates)
+        DB-->>Svc: updated
+        Svc->>Cache: del(task:id)
+        Svc-->>Ctrl: updated task
+        Ctrl-->>API: 200 OK
+        API-->>FE: success
+        FE-->>U: Task updated
+    else Not Owner
+        Svc-->>Ctrl: 403 Forbidden
+        Ctrl-->>API: 403
+        API-->>FE: error
+        FE-->>U: Permission denied
+    end
+    %% end
+    
+    %% Scenario 8: Update Task Status
+    %% rect rgb(236, 240, 248)
+    note right of U: Mark Task Complete
+    U->>FE: Click "Complete" button
+    FE->>API: PUT /tasks/:id/status {status: 'completed'}
+    API->>Ctrl: updateStatus(id, status)
+    Ctrl->>Svc: validateStatusTransition(current, new)
+    Svc->>DB: find({_id})
+    DB-->>Svc: task object
+    alt Valid Transition
+        Svc->>DB: updateOne({status, completedTime: now})
+        DB-->>Svc: updated
+        Svc->>Notif: enqueueNotification(task completed)
+        Notif->>Queue: add('send-notification')
+        Svc->>Cache: del(task:id)
+        Svc-->>Ctrl: updated task
+        Ctrl-->>API: 200 OK
+        API-->>FE: success
+        FE-->>U: Task completed! 🎉
+    else Invalid Transition
+        Svc-->>Ctrl: 400 Bad Request
+        Ctrl-->>API: 400
+        API-->>FE: error
+        FE-->>U: Cannot transition to this status
+    end
+    %% end
+    
+    %% Scenario 9: Get Daily Progress
+    rect rgb(255, 235, 238)
+    note right of U: Check Daily Progress
+    U->>FE: View daily progress widget
+    FE->>API: GET /tasks/daily-progress?date=2026-03-07
+    API->>Ctrl: getDailyProgress(date)
+    Ctrl->>Cache: get(dailyProgress:userId:date)
+    alt Cache Hit
+        Cache-->>Ctrl: {total, completed}
+    else Cache Miss
+        Ctrl->>Svc: getDailyProgress(userId, date)
+        Svc->>DB: aggregate([match date, group by status])
+        DB-->>Svc: {total: 5, completed: 2}
+        Svc->>Cache: setex(key, 60, progress)
+        Svc-->>Ctrl: progress data
+    end
+    Ctrl-->>API: 200 OK
+    API-->>FE: {total: 5, completed: 2, percentage: 40%}
+    FE-->>U: Display progress bar
+    end
+    
+    %% Scenario 10: Delete Task
+    rect rgb(255, 243, 224)
+    note right of U: Delete Task
+    U->>FE: Click delete icon
+    FE->>API: DELETE /tasks/:id
+    API->>Ctrl: softDeleteById(id)
+    Ctrl->>Svc: verifyTaskOwnership(userId, id)
+    Svc->>DB: find({_id, createdById})
+    DB-->>Svc: is owner?
+    alt Is Owner
+        Svc->>DB: updateOne({isDeleted: true, deletedAt})
+        Svc->>SubSvc: softDeleteSubtasks(taskId)
+        SubSvc->>DB: updateMany({taskId}, {isDeleted: true})
+        Svc->>Cache: del(task:id)
+        Svc-->>Ctrl: deleted task
+        Ctrl-->>API: 200 OK
+        API-->>FE: success
+        FE-->>U: Task deleted
+    else Not Owner
+        Svc-->>Ctrl: 403 Forbidden
+        Ctrl-->>API: 403
+        API-->>FE: error
+        FE-->>U: Permission denied
+    end
+    end
+    
+    Note over U,Notif: All operations trigger notifications via BullMQ
+    Note over U,Cache: Cache invalidation on write operations
+    Note over U,DB: Virtual fields added in transform: time, assignedBy

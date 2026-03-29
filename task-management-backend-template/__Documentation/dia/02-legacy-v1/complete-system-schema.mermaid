@@ -1,0 +1,273 @@
+erDiagram
+    %% ===========================================
+    %% TASK MANAGEMENT SYSTEM - COMPLETE ER DIAGRAM
+    %% ===========================================
+    
+    %% USER MODULE
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String password
+        String phoneNumber
+        String role "user|admin|subAdmin"
+        String profileImage
+        Boolean isEmailVerified
+        ObjectId profileId FK
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    USER_PROFILE {
+        ObjectId _id PK
+        ObjectId userId FK
+        String location
+        Date dob
+        String gender
+        String supportMode "calm|encouraging|logical"
+        String notificationStyle "gentle|firm|xyz"
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    %% TASK MODULE
+    TASK {
+        ObjectId _id PK
+        String title
+        String description
+        String taskType "personal|singleAssignment|collaborative"
+        String status "pending|inProgress|completed"
+        String priority "low|medium|high"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        ObjectId groupId FK
+        DateTime startTime
+        DateTime dueDate
+        DateTime completedTime
+        Number totalSubtasks
+        Number completedSubtasks
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    SUBTASK {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId createdById FK
+        ObjectId assignedToUserId FK
+        String title
+        String description
+        String duration
+        Boolean isCompleted
+        DateTime completedAt
+        Number order
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    %% GROUP MODULE
+    GROUP {
+        ObjectId _id PK
+        String name
+        String description
+        ObjectId ownerUserId FK
+        String visibility "public|private"
+        String status "active|inactive|suspended"
+        Number memberCount
+        Number currentMemberCount
+        Number maxMembers
+        String subscriptionType "individual|group"
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    GROUP_MEMBER {
+        ObjectId _id PK
+        ObjectId groupId FK
+        ObjectId userId FK
+        String role "owner|admin|member"
+        String status "active|inactive|suspended"
+        Object permissions
+        DateTime joinedAt
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    GROUP_INVITATION {
+        ObjectId _id PK
+        ObjectId groupId FK
+        ObjectId invitedBy FK
+        String email
+        ObjectId userId FK
+        String token
+        String status "pending|accepted|declined|expired"
+        DateTime expiresAt
+        DateTime acceptedAt
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    %% NOTIFICATION MODULE
+    NOTIFICATION {
+        ObjectId _id PK
+        String title
+        String subTitle
+        ObjectId senderId FK
+        ObjectId receiverId FK
+        String receiverRole
+        String type "task|reminder|assignment|deadline|group|payment"
+        String priority "low|normal|high|urgent"
+        String[] channels "in_app|email|push|sms"
+        String status "pending|sent|delivered|read|failed"
+        Boolean isRead
+        DateTime readAt
+        DateTime sentAt
+        String linkFor
+        ObjectId linkId FK
+        Object data
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    TASK_REMINDER {
+        ObjectId _id PK
+        ObjectId taskId FK
+        ObjectId userId FK
+        DateTime reminderTime
+        String type "before|at|after"
+        Number hoursBefore
+        Boolean isSent
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    %% SUBSCRIPTION MODULE
+    SUBSCRIPTION_PLAN {
+        ObjectId _id PK
+        String subscriptionName
+        String subscriptionType "standard|standardPlus|vise"
+        String initialDuration "month|year"
+        String renewalFrequency "monthly|yearly"
+        String amount
+        String currency "USD|EUR|BDT"
+        String[] features
+        Boolean fullAccessToInteractiveChat
+        Boolean canViewCycleInsights
+        String stripe_product_id
+        String stripe_price_id
+        Boolean isActive
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    USER_SUBSCRIPTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        ObjectId subscriptionPlanId FK
+        String status "active|cancelled|expired|trial|processing"
+        DateTime startDate
+        DateTime currentPeriodStart
+        DateTime currentPeriodEnd
+        DateTime cancelAt
+        DateTime cancelledAt
+        String cancellationReason
+        Number amount
+        String currency
+        String stripe_subscription_id
+        String stripe_customer_id
+        Boolean isFreeTrial
+        DateTime freeTrialEndsAt
+        Boolean isActive
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    %% PAYMENT MODULE
+    PAYMENT_TRANSACTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        String referenceFor "UserSubscription|Order|Service"
+        ObjectId referenceId FK
+        String paymentGateway "stripe|paypal"
+        String transactionId
+        String paymentIntent
+        Number amount
+        String currency "USD|EUR|BDT"
+        String paymentStatus "pending|processing|completed|failed|cancelled|refunded"
+        String stripeCustomerId
+        String stripePaymentIntentId
+        String stripeChargeId
+        String failureReason
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+    
+    %% ANALYTICS (Virtual - Aggregated Data)
+    ANALYTICS_USER {
+        ObjectId userId FK
+        Number totalTasks
+        Number completedTasks
+        Number completionRate
+        Number currentStreak
+        Number longestStreak
+        Number productivityScore
+        DateTime lastUpdated
+    }
+    
+    %% RELATIONSHIPS
+    
+    USER ||--o| USER_PROFILE : "has"
+    USER ||--o{ TASK : "creates"
+    USER ||--o{ TASK : "owns"
+    USER ||--o{ TASK : "assigned_to"
+    USER ||--o{ SUBTASK : "creates"
+    USER ||--o{ SUBTASK : "assigned_to"
+    USER ||--o{ GROUP : "owns"
+    USER ||--o{ GROUP_MEMBER : "is_member_of"
+    USER ||--o{ GROUP_INVITATION : "receives"
+    USER ||--o{ NOTIFICATION : "sends"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ TASK_REMINDER : "creates"
+    USER ||--o{ USER_SUBSCRIPTION : "has"
+    USER ||--o{ PAYMENT_TRANSACTION : "makes"
+    
+    TASK ||--o{ SUBTASK : "contains"
+    TASK ||--o{ NOTIFICATION : "triggers"
+    TASK ||--o{ TASK_REMINDER : "has"
+    TASK }o--|| GROUP : "belongs_to"
+    
+    GROUP ||--o{ GROUP_MEMBER : "contains"
+    GROUP ||--o{ GROUP_INVITATION : "sends"
+    GROUP ||--o{ TASK : "has"
+    
+    SUBSCRIPTION_PLAN ||--o{ USER_SUBSCRIPTION : "subscribed_by"
+    
+    USER_SUBSCRIPTION ||--o{ PAYMENT_TRANSACTION : "generates"
+    
+    %% STYLING
+    style USER fill:#42a5f5,color:#fff
+    style USER_PROFILE fill:#42a5f5,color:#fff
+    style TASK fill:#66bb6a,color:#fff
+    style SUBTASK fill:#66bb6a,color:#fff
+    style GROUP fill:#ef5350,color:#fff
+    style GROUP_MEMBER fill:#ef5350,color:#fff
+    style GROUP_INVITATION fill:#ef5350,color:#fff
+    style NOTIFICATION fill:#ffca28,color:#000
+    style TASK_REMINDER fill:#ffca28,color:#000
+    style SUBSCRIPTION_PLAN fill:#ab47bc,color:#fff
+    style USER_SUBSCRIPTION fill:#ab47bc,color:#fff
+    style PAYMENT_TRANSACTION fill:#26a69a,color:#fff
+    style ANALYTICS_USER fill:#78909c,color:#fff

@@ -1,0 +1,83 @@
+erDiagram
+    %% Subscription Plan Entity
+    SUBSCRIPTION_PLAN {
+        ObjectId _id PK
+        String subscriptionName
+        String subscriptionType "standard|standardPlus|vise"
+        String initialDuration "month"
+        String renewalFrequency "monthly"
+        String amount
+        String currency "USD"
+        String[] features
+        Boolean fullAccessToInteractiveChat
+        Boolean canViewCycleInsights
+        String stripe_product_id
+        String stripe_price_id
+        Boolean isActive
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% User Subscription Entity
+    USER_SUBSCRIPTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        ObjectId subscriptionPlanId FK
+        String status "active|cancelled|expired|trial|processing"
+        DateTime startDate
+        DateTime currentPeriodStart
+        DateTime currentPeriodEnd
+        DateTime cancelAt
+        DateTime cancelledAt
+        String cancellationReason
+        Number amount
+        String currency
+        String stripe_subscription_id
+        String stripe_customer_id
+        Boolean isFreeTrial
+        DateTime freeTrialEndsAt
+        Boolean isActive
+        Boolean isDeleted
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% User Entity
+    USER {
+        ObjectId _id PK
+        String name
+        String email
+        String subscriptionType "individual|group"
+        Boolean isEmailVerified
+        Boolean isDeleted
+        DateTime createdAt
+    }
+
+    %% Payment Transaction Entity
+    PAYMENT_TRANSACTION {
+        ObjectId _id PK
+        ObjectId userId FK
+        String referenceFor "UserSubscription"
+        ObjectId referenceId FK
+        String paymentGateway "stripe"
+        String transactionId
+        String paymentIntent
+        Number amount
+        String currency
+        String paymentStatus "pending|processing|completed|failed|cancelled"
+        DateTime createdAt
+        DateTime updatedAt
+    }
+
+    %% Relationships
+    USER ||--o{ USER_SUBSCRIPTION : "has"
+    SUBSCRIPTION_PLAN ||--o{ USER_SUBSCRIPTION : "subscribed_by"
+    USER_SUBSCRIPTION ||--o{ PAYMENT_TRANSACTION : "generates"
+    USER ||--o{ PAYMENT_TRANSACTION : "makes"
+
+    %% Styling
+    style SUBSCRIPTION_PLAN fill:#42a5f5,color:#fff
+    style USER_SUBSCRIPTION fill:#66bb6a,color:#fff
+    style USER fill:#ef5350,color:#fff
+    style PAYMENT_TRANSACTION fill:#ffca28,color:#000

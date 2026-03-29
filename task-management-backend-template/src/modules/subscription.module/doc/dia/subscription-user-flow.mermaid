@@ -1,0 +1,37 @@
+flowchart LR
+    START([User Opens Dashboard]) --> VIEW[View Available Plans]
+    VIEW --> CHOOSE{Choose Plan}
+    
+    CHOOSE -->|Individual $10.99| IND[Select Individual Plan]
+    CHOOSE -->|Group $29.99| GROUP[Select Group Plan]
+    
+    IND --> PAY[Proceed to Payment]
+    GROUP --> PAY
+    
+    PAY --> STRIPE{Stripe Payment}
+    STRIPE -->|Success| ACTIVE[Subscription Active]
+    STRIPE -->|Failed| ERROR[Payment Failed]
+    
+    ACTIVE --> TRIAL{Start Free Trial?}
+    TRIAL -->|Yes| TRIAL_ACTIVE[14-Day Trial Active]
+    TRIAL -->|No| DASHBOARD[Go to Dashboard]
+    
+    TRIAL_ACTIVE --> RENEW[Auto-Renewal After Trial]
+    RENEW --> DASHBOARD
+    
+    ERROR --> RETRY[Retry Payment]
+    RETRY --> PAY
+    
+    DASHBOARD --> MANAGE{Manage Subscription}
+    MANAGE -->|View Details| VIEW_DETAILS[View Subscription Details]
+    MANAGE -->|Cancel| CANCEL[Cancel Subscription]
+    MANAGE -->|Upgrade| UPGRADE[Upgrade Plan]
+    
+    VIEW_DETAILS --> END([End])
+    CANCEL --> END
+    UPGRADE --> CHOOSE
+    
+    style START fill:#42a5f5,color:#fff
+    style END fill:#ef5350,color:#fff
+    style ACTIVE fill:#66bb6a,color:#fff
+    style ERROR fill:#ff5252,color:#fff

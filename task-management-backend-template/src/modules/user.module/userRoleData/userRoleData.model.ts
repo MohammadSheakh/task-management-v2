@@ -4,6 +4,10 @@ import { IUserRoleData, IUserRoleDataModel } from './userRoleData.interface';
 import paginate from '../../../common/plugins/paginate';
 import { TAdminStatus, TProviderApprovalStatus } from './userRoleData.constant';
 
+/**
+ * userRoleData Schema
+ * Represents role specific data for users, such as admin status and users other status
+ */
 const UserRoleDataSchema = new Schema<IUserRoleData>(
   {
     userId: { //🔗
@@ -11,26 +15,7 @@ const UserRoleDataSchema = new Schema<IUserRoleData>(
       ref: 'User',
       required: [true, 'User ID is required'],
     },
-    adminStatus: {
-      type: String,
-      enum: [
-        TAdminStatus.active, 
-        TAdminStatus.inactive,
-        // TAdminStatus.none // i dont this we need this
-      ],
-    },
-    providerApprovalStatus: {
-      type: String,
-      enum: [
-        TProviderApprovalStatus.accept,
-        TProviderApprovalStatus.reject,
-        TProviderApprovalStatus.pending,
-        TProviderApprovalStatus.requested,
-      ],
-    },
-    approvedAt: {
-      type: Date,
-    },
+    
     isDeleted: {
       type: Boolean,
       required: [false, 'isDeleted is not required'],

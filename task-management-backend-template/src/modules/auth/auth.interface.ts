@@ -6,7 +6,7 @@ export interface IRegisterData {
     name:string,
     email:string,
     password:string,
-    role: TRole.student | TRole.mentor,
+    role: TRole.business | TRole.child,
     phoneNumber: number,
     location: string, 
     lat: number, 
@@ -19,7 +19,7 @@ export interface ICreateUser{
     name:string,
     email:string,
     password:string,
-    role: TRole.student | TRole.mentor
+    role: TRole.child | TRole.business
     profileId: Types.ObjectId 
 }
 

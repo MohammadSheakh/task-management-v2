@@ -1,2 +1,0 @@
-kindly check payment module to view design
--> earningPageDesign folder 
