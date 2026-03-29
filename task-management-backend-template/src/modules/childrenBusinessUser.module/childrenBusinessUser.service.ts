@@ -1,5 +1,6 @@
 //@ts-ignore
 import { StatusCodes } from 'http-status-codes';
+//@ts-ignore
 import { Types } from 'mongoose';
 import { GenericService } from '../_generic-module/generic.services';
 import { ChildrenBusinessUser } from './childrenBusinessUser.model';
