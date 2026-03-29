@@ -1,0 +1,61 @@
+---
+title: TaskProgress System Flow
+---
+
+flowchart TD
+    subgraph "Child Actions"
+        A1[Child Views Progress] --> A2[GET /:taskId/user/:userId]
+        B1[Child Starts Task] --> B2[PUT /:taskId/status<br/>status=inProgress]
+        C1[Child Completes Task] --> C2[PUT /:taskId/status<br/>status=completed]
+        D1[Child Completes Subtask] --> D2[PUT /:taskId/subtasks/:idx/complete]
+    end
+
+    subgraph "Parent Actions"
+        E1[Parent Views Dashboard] --> E2[GET /:taskId/children]
+        F1[Parent Views Child Tasks] --> F2[GET /child/:childId/tasks]
+    end
+
+    subgraph "TaskProgress Controller"
+        A2 --> Ctrl[TaskProgressController]
+        B2 --> Ctrl
+        C2 --> Ctrl
+        D2 --> Ctrl
+        E2 --> Ctrl
+        F2 --> Ctrl
+    end
+
+    Ctrl --> Svc[TaskProgressService]
+
+    subgraph "Business Logic"
+        Svc --> Cache{Cache Hit?}
+        Cache -->|Yes| Return[Return Cached Data]
+        Cache -->|No| DB[Query Database]
+        
+        DB --> Update[Update Progress]
+        Update --> Sync{Sync Parent Task?}
+        Sync -->|All Children Completed| AutoComplete[Parent Task → completed]
+        Sync -->|Any Child Started| StartParent[Parent Task → inProgress]
+        Sync -->|None| NoOp[No Change]
+        
+        AutoComplete --> Notify[Notify Parent]
+        StartParent --> Notify
+        Update --> Invalidate[Invalidate Cache]
+    end
+
+    Notify --> Socket[Emit Socket.IO Event]
+    Socket --> ParentRoom[Parent's Room]
+    
+    Invalidate --> Redis[Redis Cache]
+    
+    Return --> Resp[Response]
+    DB --> Resp
+    Resp --> Client[Client]
+
+    style A1 fill:#e1f5ff
+    style B1 fill:#e1f5ff
+    style C1 fill:#e1f5ff
+    style D1 fill:#e1f5ff
+    style E1 fill:#fff4e1
+    style F1 fill:#fff4e1
+    style AutoComplete fill:#d4edda
+    style Notify fill:#fff3cd

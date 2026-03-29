@@ -5,6 +5,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { Notification, NotificationSchema } from './notification.schema';
+import { TaskReminderModule } from './taskReminder/taskReminder.module';
 
 import { RedisModule } from '../../helpers/redis/redis.module';
 import { SocketModule } from '../socket.gateway/socket.module';
@@ -84,6 +85,9 @@ import { setNotificationService } from '../../helpers/notification.helper';
         removeOnFail: { count: 500 },
       },
     }),
+
+    // Task Reminder Module
+    TaskReminderModule,
   ],
   controllers: [NotificationController],
   providers: [
@@ -97,7 +101,7 @@ import { setNotificationService } from '../../helpers/notification.helper';
       },
     },
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, TaskReminderModule],
 })
 export class NotificationModule implements OnModuleInit {
   constructor(private notificationService: NotificationService) {}

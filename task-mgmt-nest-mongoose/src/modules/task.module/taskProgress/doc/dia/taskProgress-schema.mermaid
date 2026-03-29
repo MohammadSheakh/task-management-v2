@@ -1,0 +1,54 @@
+---
+title: TaskProgress Schema Diagram
+---
+
+erDiagram
+    TaskProgress {
+        ObjectId _id PK
+        ObjectId taskId FK "→ Task"
+        ObjectId userId FK "→ User"
+        String status "notStarted|inProgress|completed"
+        Date startedAt
+        Date completedAt
+        Number[] completedSubtaskIndexes
+        Number progressPercentage "0-100"
+        String note "max 500 chars"
+        Boolean isDeleted
+        Date createdAt
+        Date updatedAt
+    }
+
+    Task {
+        ObjectId _id PK
+        String title
+        String taskType "personal|singleAssignment|collaborative"
+        ObjectId createdById FK
+        ObjectId ownerUserId FK
+        ObjectId[] assignedUserIds FK
+        String status "pending|inProgress|completed"
+        Number totalSubtasks
+        Number completedSubtasks
+    }
+
+    User {
+        ObjectId _id PK
+        String name
+        String email
+        String role "user|admin|business|child"
+        ObjectId profileId FK
+    }
+
+    SubTask {
+        ObjectId _id PK
+        ObjectId taskId FK "→ Task"
+        String title
+        String description
+        Number order
+        Boolean isCompleted
+    }
+
+    TaskProgress ||--o| Task : "tracks progress for"
+    TaskProgress ||--o| User : "belongs to child"
+    Task ||--o{ SubTask : "has many"
+    Task ||--o| User : "created by"
+    Task ||--o{ User : "assigned to (collaborative)"
