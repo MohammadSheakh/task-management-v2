@@ -58,6 +58,7 @@ const notificationLimiter = rateLimiter('user');
 // ─── Validation Schemas ────────────────────────────────────────────────
 /**
  * Bulk notification validation
+ * Updated: Removed 'group' from enum, use 'family' instead
  */
 const sendBulkNotificationSchema = z
   .object({
@@ -67,7 +68,7 @@ const sendBulkNotificationSchema = z
     subTitle: z.union([z.string(), z.record(z.string())]).optional(),
     type: z.enum([
       'task',
-      'group',
+      'family',         // ✅ Updated: 'family' replaces 'group'
       'system',
       'reminder',
       'mention',
@@ -196,34 +197,15 @@ router
   );
 
 // ────────────────────────────────────────────────────────────────────────
-// Figma-Aligned Routes: Live Activity Feed
+// Parent Dashboard: Live Activity Feed for Children/Family
 // Figma: teacher-parent-dashboard/dashboard/dashboard-flow-01.png
-//        app-user/group-children-user/home-flow.png
-// ────────────────────────────────────────────────────────────────────────
-
-/*-─────────────────────────────────
-|  Child | Business | Notification | dashboard-flow-01.png | Get live activity feed for group
-|  @desc Real-time feed of group member task completions and activities
-|  @auth Group members (child, business)
-|  @rateLimit 100 requests per minute
-└──────────────────────────────────*/
-router
-  .route('/activity-feed/:groupId')
-  .get(
-    auth(TRole.commonUser),
-    notificationLimiter,
-    controller.getLiveActivityFeed,
-  );
-
-// ────────────────────────────────────────────────────────────────────────
-// Parent Dashboard: Live Activity Feed
-// Figma: teacher-parent-dashboard/dashboard/dashboard-flow-01.png
+// Architecture: childrenBusinessUser.module (parent/teacher → children relationship)
 // ────────────────────────────────────────────────────────────────────────
 
 /*-───────────────────────────────── 🆕
 |  Business (Parent/Teacher) | Notification | dashboard-flow-01.png | Get live activity feed for parent dashboard
 |  @desc Real-time feed showing all children's task activities (completions, starts, subtask completions)
-|  @desc No groupId required - automatically fetches from business user's children
+|  @desc Uses childrenBusinessUser relationship to fetch activities from all children
 |  @auth Business users only (Parent/Teacher)
 |  @rateLimit 100 requests per minute
 |  @query limit - Number of activities to return (default: 10)

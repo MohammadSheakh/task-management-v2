@@ -469,6 +469,180 @@ export class ChildrenBusinessUserController {
   });
 
   /**
+   * Get team members list with task progress V2
+   * GET /children-business-users/team-members/list/v2
+   *
+   * @description Get paginated list of children with task progress percentage (V2 with aggregation pipeline)
+   *              Uses aggregation for better population control (name, email, profileImage, location, dob)
+   * @auth Business user (parent/teacher)
+   * @query page - Page number (default: 1)
+   * @query limit - Items per page (default: 10)
+   * @query sortBy - Sort field (default: -addedAt)
+   */
+  getTeamMembersListV2 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID from request
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Extract query parameters
+    └──────────────────────────────────*/
+    const options = {
+      page: req.query.page ? parseInt(req.query.page as string) : 1,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+      sortBy: req.query.sortBy as string || '-addedAt',
+    };
+
+    /*-─────────────────────────────────
+    |  Step 3: Get team members list V2 from service
+    └──────────────────────────────────*/
+    const result = await this.service.getTeamMembersListWithTaskProgressV2(
+      businessUserId as string,
+      options
+    );
+
+    /*-─────────────────────────────────
+    |  Step 4: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Team members list with task progress V2 retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get team members list with task progress V3
+   * GET /children-business-users/team-members/list/v3
+   *
+   * @description Get paginated list of children with task progress percentage (V3 with paginate + manual populate)
+   *              Uses paginate plugin with manual population for reliability
+   * @auth Business user (parent/teacher)
+   * @query page - Page number (default: 1)
+   * @query limit - Items per page (default: 10)
+   * @query sortBy - Sort field (default: -addedAt)
+   */
+  getTeamMembersListV3 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID from request
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Extract query parameters
+    └──────────────────────────────────*/
+    const options = {
+      page: req.query.page ? parseInt(req.query.page as string) : 1,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+      sortBy: req.query.sortBy as string || '-addedAt',
+    };
+
+    /*-─────────────────────────────────
+    |  Step 3: Get team members list V3 from service
+    └──────────────────────────────────*/
+    const result = await this.service.getTeamMembersListWithTaskProgressV3(
+      businessUserId as string,
+      options
+    );
+
+    /*-─────────────────────────────────
+    |  Step 4: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Team members list with task progress V3 retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get member details with all tasks
+   * GET /children-business-users/team-members/:memberId
+   *
+   * @description Get detailed member profile with all tasks for member details page
+   * @auth Business user (parent/teacher)
+   * @figmaIndex all-task-of-a-member-flow.png
+   */
+  getMemberDetails = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID and member ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+    const { memberId } = req.params;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get member details from service
+    └──────────────────────────────────*/
+    const result = await this.service.getMemberDetailsWithTasks(
+      memberId,
+      businessUserId as string,
+    );
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Member details retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get member details with all tasks V2
+   * GET /children-business-users/team-members/:memberId/v2
+   *
+   * @description Get detailed member profile with all tasks (V2 with smart subtask handling)
+   * @auth Business user (parent/teacher)
+   * @figmaIndex all-task-of-a-member-flow.png
+   */
+  getMemberDetailsV2 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID and member ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+    const { memberId } = req.params;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get member details V2 from service
+    └──────────────────────────────────*/
+    const result = await this.service.getMemberDetailsWithTasksV2(
+      memberId,
+      businessUserId as string,
+    );
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Member details V2 retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
    * Get child's own permission status
    * GET /children-business-users/my-permission
    *

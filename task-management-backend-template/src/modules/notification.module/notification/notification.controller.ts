@@ -307,45 +307,15 @@ export class NotificationController extends GenericController<
   };
 
   // ────────────────────────────────────────────────────────────────────────
-  // Figma-Aligned Controllers: Live Activity Feed
+  // Figma-Aligned Controllers: Live Activity Feed for Children/Family
   // ────────────────────────────────────────────────────────────────────────
-
-  /** ----------------------------------------------
-   * @role User (Primary/Secondary)
-   * @Section Dashboard
-   * @module Notification
-   * @figmaIndex 01
-   * @desc Get live activity feed for group (Figma: dashboard-flow-01.png)
-   *----------------------------------------------*/
-  getLiveActivityFeed = async (req: Request, res: Response) => {
-    const groupId = req.params.groupId;
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
-    }
-
-    const limit = parseInt(req.query.limit as string) || 10;
-
-    const result = await this.notificationService.getLiveActivityFeed(
-      groupId,
-      limit,
-    );
-
-    sendResponse(res, {
-      code: StatusCodes.OK,
-      data: result,
-      message: 'Live activity feed retrieved successfully',
-      success: true,
-    });
-  };
 
   /** ----------------------------------------------
    * @role Business (Parent/Teacher)
    * @Section Dashboard
    * @module Notification
    * @figmaIndex dashboard-flow-01.png (Live Activity section)
-   * @desc Get live activity feed for parent dashboard - shows all children's activities
+   * @desc Get live activity feed for parent/teacher dashboard - shows all children's activities
    * @query limit - Number of activities to return (default: 10)
    *----------------------------------------------*/
   getLiveActivityFeedForParentDashboard = async (
@@ -361,8 +331,8 @@ export class NotificationController extends GenericController<
     const limit = parseInt(req.query.limit as string) || 10;
 
     const result =
-      await this.notificationService.getLiveActivityFeedForParentDashboard(
-        new Types.ObjectId(businessUserId),
+      await this.notificationService.getLiveActivityFeedForChildren(
+        businessUserId,
         limit,
       );
 

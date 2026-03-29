@@ -515,37 +515,74 @@ export class NotificationService extends GenericService<typeof Notification, INo
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Figma-Aligned Methods: Live Activity Feed
+  // Figma-Aligned Methods: Live Activity Feed for Children/Family
   // ────────────────────────────────────────────────────────────────────────
 
   /**
-   * Get Live Activity Feed for Group
+   * Get Live Activity Feed for Children Business User
    * Figma: dashboard-flow-01.png (Live Activity section)
    *
-   * Returns recent activities from group members including task completions,
-   * task starts, subtask completions, and new member joins.
+   * Returns recent activities from children/students including task completions,
+   * task starts, subtask completions, and new children joining the family/school.
    *
-   * @param groupId - Group ID
+   * @param businessUserId - Business user (parent/teacher) ID
    * @param limit - Number of activities to return (default: 10)
-   * @returns Array of recent activities
+   * @returns Array of recent activities from all children
+   *
+   * @description
+   * This endpoint fetches recent task-related activities from all children
+   * belonging to the business user (parent or teacher). Activities include:
+   * - Task completions
+   * - Task starts
+   * - Subtask completions
+   * - Task creations
+   *
+   * Response is formatted for the Live Activity section showing:
+   * - Child name and profile image
+   * - Activity description (e.g., "completed 'Math Homework'")
+   * - Timestamp
    */
-  async getLiveActivityFeed(groupId: string, limit: number = 10) {
-    const groupObjectId = new Types.ObjectId(groupId);
+  async getLiveActivityFeedForChildren(
+    businessUserId: string,
+    limit: number = 10
+  ) {
+    const businessUserObjectId = new Types.ObjectId(businessUserId);
+    const cacheKey = `${NOTIFICATION_CACHE_CONFIG.PREFIX}:dashboard:activity-feed:children:${businessUserId.toString()}:${limit}`;
 
-    // Get recent notifications for all activity types
+    // Try cache first (30 seconds for activity feed)
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    // Get all active children for this business user
+    const { ChildrenBusinessUser } = await import('../../childrenBusinessUser.module/childrenBusinessUser.model');
+
+    const childrenRelations = await ChildrenBusinessUser.find({
+      parentBusinessUserId: businessUserObjectId,
+      status: 'active',
+      isDeleted: false,
+    }).select('childUserId').lean();
+
+    const childUserIds = childrenRelations.map((rel: any) => rel.childUserId);
+
+    if (childUserIds.length === 0) {
+      return [];
+    }
+
+    // Get recent notifications for all children
     const notifications = await this.model.find({
-      'data.groupId': groupObjectId.toString(),
+      receiverId: { $in: childUserIds },
+      type: NotificationType.TASK,
       'data.activityType': {
         $in: [
           ACTIVITY_TYPE.TASK_CREATED,
           ACTIVITY_TYPE.TASK_STARTED,
           ACTIVITY_TYPE.TASK_UPDATED,
           ACTIVITY_TYPE.TASK_COMPLETED,
-          ACTIVITY_TYPE.TASK_DELETED,
           ACTIVITY_TYPE.SUBTASK_COMPLETED,
           ACTIVITY_TYPE.TASK_ASSIGNED,
-          ACTIVITY_TYPE.MEMBER_JOINED,
-        ]
+        ],
       },
       isDeleted: false,
     })
@@ -556,24 +593,30 @@ export class NotificationService extends GenericService<typeof Notification, INo
 
     // Transform notifications into activity feed format
     const activities = notifications.map(notification => {
-      const actor = notification.receiverId as any;
+      const child = notification.receiverId as any;
 
       return {
         _id: notification._id.toString(),
         type: notification.type,
         actor: {
-          _id: actor?._id.toString(),
-          name: actor?.name || 'Unknown User',
-          profileImage: actor?.profileImage?.imageUrl || '/uploads/users/user.png',
+          _id: child?._id.toString(),
+          name: child?.name || 'Unknown',
+          profileImage: child?.profileImage?.imageUrl || '/uploads/users/user.png',
         },
-        task: notification.data?.taskId ? {
-          _id: notification.data.taskId,
-          title: notification.data?.taskTitle || 'Task',
-        } : undefined,
+        task: notification.data?.taskId
+          ? {
+              _id: notification.data.taskId,
+              title: notification.data?.taskTitle || 'Task',
+            }
+          : undefined,
         timestamp: notification.createdAt,
+        timeAgo: this.getTimeAgo(notification.createdAt),
         message: this.generateActivityMessage(notification),
       };
     });
+
+    // Cache the result (30 seconds for real-time feel)
+    await redisClient.setEx(cacheKey, 30, JSON.stringify(activities));
 
     return activities;
   }
@@ -703,16 +746,17 @@ export class NotificationService extends GenericService<typeof Notification, INo
 
   /**
    * Generate activity message based on notification type
+   * Updated to reflect actual Figma use cases - task activities only
    */
   private generateActivityMessage(notification: any): string {
     const actorName = (notification.receiverId as any)?.name || 'Someone';
     const taskTitle = notification.data?.taskTitle || 'a task';
 
-    switch (notification.type) {
+    switch (notification.data?.activityType) {
       case ACTIVITY_TYPE.TASK_CREATED:
         return `${actorName} created '${taskTitle}'`;
       case ACTIVITY_TYPE.TASK_STARTED:
-        return `${actorName} started '${taskTitle}'`;
+        return `${actorName} started working on '${taskTitle}'`;
       case ACTIVITY_TYPE.TASK_UPDATED:
         return `${actorName} updated '${taskTitle}'`;
       case ACTIVITY_TYPE.TASK_COMPLETED:
@@ -723,43 +767,44 @@ export class NotificationService extends GenericService<typeof Notification, INo
         return `${actorName} completed a subtask in '${taskTitle}'`;
       case ACTIVITY_TYPE.TASK_ASSIGNED:
         return `${actorName} was assigned '${taskTitle}'`;
-      case ACTIVITY_TYPE.MEMBER_JOINED:
-        return `${actorName} joined the group`;
-      case ACTIVITY_TYPE.MEMBER_LEFT:
-        return `${actorName} left the group`;
-      case ACTIVITY_TYPE.COMMENT_ADDED:
-        return `${actorName} added a comment`;
-      case ACTIVITY_TYPE.ATTACHMENT_ADDED:
-        return `${actorName} added an attachment`;
       default:
-        return `${actorName} performed an action`;
+        return `${actorName} performed an action on '${taskTitle}'`;
     }
   }
 
   /** 🔁
-   * Record activity for group member
-   * Creates a notification entry for live activity feed
+   * Record activity for child
+   * Creates a notification entry for live activity feed in parent/teacher dashboard
    *
-   * @param groupId - Group ID
-   * @param userId - User performing the action
+   * @param businessUserId - Business user (parent/teacher) ID
+   * @param childUserId - Child user performing the action
    * @param activityType - Type of activity
    * @param taskData - Optional task information
+   *
+   * @description
+   * This method records activities from children/students that will appear
+   * in the parent/teacher dashboard's Live Activity section.
+   *
+   * Example use cases:
+   * - Child completes a task
+   * - Child starts a new task
+   * - Child completes a subtask
    */
-  async recordGroupActivity(
-    groupId: string,
-    userId: string,
+  async recordChildActivity(
+    businessUserId: string,
+    childUserId: string,
     activityType: TActivityType,
     taskData?: {
       taskId: string;
       taskTitle: string;
     }
   ) {
-    const user = await User.findById(userId).select('name profileImage');
+    const user = await User.findById(childUserId).select('name profileImage');
 
     await this.model.create({
-      receiverId: new Types.ObjectId(userId),
+      receiverId: new Types.ObjectId(childUserId),
       title: activityType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      type: NotificationType.TASK,  // ✅ FIXED: Use valid NotificationType instead of activityType
+      type: NotificationType.TASK,  // ✅ Use valid NotificationType
       priority: NotificationPriority.NORMAL,
       channels: [NotificationChannel.IN_APP],
       linkFor: 'task',
@@ -767,7 +812,7 @@ export class NotificationService extends GenericService<typeof Notification, INo
       referenceFor: 'task',
       referenceId: taskData ? new Types.ObjectId(taskData.taskId) : undefined,
       data: {
-        groupId,
+        businessUserId,  // ✅ Track which business user this belongs to
         taskId: taskData?.taskId,
         taskTitle: taskData?.taskTitle,
         activityType,  // ✅ Store activity type in data field
@@ -775,8 +820,8 @@ export class NotificationService extends GenericService<typeof Notification, INo
       isDeleted: false,
     });
 
-    // Invalidate activity feed cache
-    const cacheKey = `activity-feed:${groupId}:10`;
+    // Invalidate activity feed cache for this business user
+    const cacheKey = `${NOTIFICATION_CACHE_CONFIG.PREFIX}:dashboard:activity-feed:children:${businessUserId}:10`;
     await redisClient.del(cacheKey);
   }
 }

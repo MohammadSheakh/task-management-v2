@@ -173,6 +173,75 @@ router.get(
   controller.getTeamMembersList
 );
 
+/*-───────────────────────────────── ✔️ NEW V2
+|  Business | ChildrenBusinessUser | team-member-flow-01.png | Get team members list with task progress V2
+|  @desc Get paginated list of children with task progress percentage (V2 with aggregation pipeline)
+|  @desc Uses aggregation for better population control (name, email, profileImage, location, dob)
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 10)
+|  @query sortBy - Sort field (default: -addedAt)
+|  @response Paginated list with taskProgress (totalTasks, completedTasks, progressPercentage)
+└──────────────────────────────────*/
+router.get(
+  '/team-members/list/v2',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getTeamMembersListV2
+);
+
+/*-───────────────────────────────── ✔️ NEW V3
+|  Business | ChildrenBusinessUser | team-member-flow-01.png | Get team members list with task progress V3
+|  @desc Get paginated list of children with task progress percentage (V3 with paginate + manual populate)
+|  @desc Uses paginate plugin with manual population for reliability
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 10)
+|  @query sortBy - Sort field (default: -addedAt)
+|  @response Paginated list with taskProgress (totalTasks, completedTasks, progressPercentage)
+└──────────────────────────────────*/
+router.get(
+  '/team-members/list/v3',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getTeamMembersListV3
+);
+
+/*-───────────────────────────────── ✔️ NEW
+|  Business | ChildrenBusinessUser | all-task-of-a-member-flow.png | Get member details with all tasks
+|  @desc Get detailed member profile with all tasks for member details page
+|  @desc Shows personal info, all tasks with subtasks, and statistics
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @param memberId - Child user ID
+|  @response Member profile with tasks and statistics
+└──────────────────────────────────*/
+router.get(
+  '/team-members/:memberId',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getMemberDetails
+);
+
+/*-───────────────────────────────── ✔️ NEW V2
+|  Business | ChildrenBusinessUser | all-task-of-a-member-flow.png | Get member details with all tasks V2
+|  @desc Get detailed member profile with all tasks (V2 with smart subtask handling)
+|  @desc For collaborative tasks: uses SubTaskProgress (individual progress)
+|  @desc For personal tasks: uses SubTask.isCompleted (global status)
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @param memberId - Child user ID
+|  @response Member profile with tasks and statistics
+└──────────────────────────────────*/
+router.get(
+  '/team-members/:memberId/v2',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getMemberDetailsV2
+);
+
 /*-───────────────────────────────── ✔️ NEW
 |  Child | ChildrenBusinessUser | add-task-flow-for-permission-account-interface.png | Get my permission status
 |  @desc Get the authenticated child user's permission status (isSecondaryUser, capabilities)

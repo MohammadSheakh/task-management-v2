@@ -9,10 +9,13 @@
 /**
  * Notification Type Enum
  * Defines the category of notification
+ *
+ * Note: FAMILY type replaced GROUP to align with childrenBusinessUser architecture
+ * where parent/teacher (business user) manages children/students
  */
 export enum NotificationType {
   TASK = 'task',
-  GROUP = 'group',
+  FAMILY = 'family',           // Family/children activities (replaces 'group')
   SYSTEM = 'system',
   REMINDER = 'reminder',
   MENTION = 'mention',
@@ -186,21 +189,22 @@ export const QUEUE_CONFIG = {
 } as const;
 
 /**
- * Activity Types for Group Activity Feed
+ * Activity Types for Children/Family Activity Feed
  * Figma: dashboard-flow-01.png (Live Activity section)
+ *
+ * Note: These represent TASK-RELATED activities only
+ * Parent/teacher sees when children complete/start/update tasks
+ *
+ * NOT included: Child joined/left (these are admin CRUD operations, not activities)
  */
 export const ACTIVITY_TYPE = {
-  TASK_CREATED: 'task_created',
-  TASK_STARTED: 'task_started',
-  TASK_UPDATED: 'task_updated',
-  TASK_COMPLETED: 'task_completed',
-  TASK_DELETED: 'task_deleted',
-  SUBTASK_COMPLETED: 'subtask_completed',
-  TASK_ASSIGNED: 'task_assigned',
-  MEMBER_JOINED: 'member_joined',
-  MEMBER_LEFT: 'member_left',
-  COMMENT_ADDED: 'comment_added',
-  ATTACHMENT_ADDED: 'attachment_added',
+  TASK_CREATED: 'task_created',           // ✅ Child created a task
+  TASK_STARTED: 'task_started',           // ✅ Child started working on a task
+  TASK_UPDATED: 'task_updated',           // ✅ Child updated a task
+  TASK_COMPLETED: 'task_completed',       // ✅ Child completed a task (MAIN USE CASE)
+  TASK_DELETED: 'task_deleted',           // ✅ Child deleted a task
+  SUBTASK_COMPLETED: 'subtask_completed', // ✅ Child completed a subtask
+  TASK_ASSIGNED: 'task_assigned',         // ✅ Task was assigned to child
 } as const;
 
 /**
@@ -253,9 +257,9 @@ export const EMAIL_CONFIG = {
   DEADLINE_TEMPLATE: 'task-deadline',
 
   /**
-   * Template for group invitation
+   * Template for family/child joined notification
    */
-  GROUP_INVITATION_TEMPLATE: 'group-invitation',
+  CHILD_JOINED_TEMPLATE: 'child-joined',
 
   /**
    * Default sender email

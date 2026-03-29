@@ -483,11 +483,11 @@ export class ChildrenBusinessUserService extends GenericService<
     const cacheKey = this.getCacheKey('team-statistics', businessUserId);
 
     // Try cache first (5 minutes for statistics)
-    const cached = await this.getFromCache(cacheKey);
-    if (cached) {
-      logger.debug(`Cache hit for team members statistics: ${cacheKey}`);
-      return cached;
-    }
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   logger.debug(`Cache hit for team members statistics: ${cacheKey}`);
+    //   return cached;
+    // }
 
     // Get all active children for this business user
     const childrenRelations = await this.model
@@ -602,17 +602,19 @@ export class ChildrenBusinessUserService extends GenericService<
       populate: [
         {
           path: 'childUserId',
-          select: 'name email phoneNumber profileImage gender',
-          populate: {
-            path: 'profileId',
-            select: 'location dob',
-          },
+          select: 'name email phoneNumber profileImage',
+          // populate: {
+          //   path: 'profileId',
+          //   select: 'location dob',
+          // },
         },
       ],
-      lean: true,
+      // lean: true,
     };
 
     const childrenResult = await this.model.paginate(query, paginateOptions);
+
+    console.log("✔️✔️ ", childrenResult);
 
     
     // Add null check for childrenResult
@@ -758,6 +760,767 @@ export class ChildrenBusinessUserService extends GenericService<
 
     logger.info(
       `Team members list with task progress retrieved for business user: ${businessUserId}`,
+    );
+    return result;
+  }
+
+  /** ✔️🔁 V2
+   * Get team members list with task progress for Team Members dashboard - V2
+   * Uses aggregation pipeline for better population control
+   * Figma: teacher-parent-dashboard/team-members/team-member-flow-01.png
+   *
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param options - Pagination options (page, limit, sortBy)
+   * @returns Paginated list of children with task progress percentage
+   */
+  async getTeamMembersListWithTaskProgressV2(
+    businessUserId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+    } = {},
+  ): Promise<any> {
+    const cacheKey = this.getCacheKey(
+      'team-list-v2',
+      businessUserId,
+      `page-${options.page || 1}-limit-${options.limit || 10}`,
+    );
+
+    const page = options.page || 1;
+    const limit = options.limit || 10;
+    const sortBy = options.sortBy || '-addedAt';
+
+    // Parse sortBy to MongoDB sort format
+    const sortField = sortBy.replace('-', '');
+    const sortOrder = sortBy.startsWith('-') ? -1 : 1;
+
+    // ✅ Use aggregation pipeline for full control over population
+    const pipeline: any[] = [
+      {
+        $match: {
+          parentBusinessUserId: new Types.ObjectId(businessUserId),
+          status: ChildrenBusinessUserStatus.ACTIVE,
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'childUserId',
+          foreignField: '_id',
+          as: 'childUser',
+        },
+      },
+      {
+        $unwind: '$childUser',
+      },
+      {
+        $lookup: {
+          from: 'userprofiles',
+          localField: 'childUser.profileId',
+          foreignField: '_id',
+          as: 'childUserProfile',
+        },
+      },
+      {
+        $unwind: {
+          path: '$childUserProfile',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          childUserId: '$childUser._id',
+          name: '$childUser.name',
+          role : '$childUser.role',
+          email: '$childUser.email',
+          phoneNumber: '$childUser.phoneNumber',
+          gender: '$childUser.gender',
+          profileImage: '$childUser.profileImage',
+          // location: '$childUserProfile.location',
+          // dob: '$childUserProfile.dob',
+          addedAt: 1,
+          status: 1,
+          isSecondaryUser: 1,
+        },
+      },
+      {
+        $sort: { [sortField]: sortOrder },
+      },
+      {
+        $skip: (page - 1) * limit,
+      },
+      {
+        $limit: limit,
+      },
+    ];
+
+    // Execute aggregation
+    const childrenResult = await this.model.aggregate(pipeline);
+
+    // Get total count for pagination
+    const totalPipeline = pipeline.filter(
+      (stage: any) => !stage.$skip && !stage.$limit,
+    );
+    const totalCountResult = await this.model.aggregate(totalPipeline);
+    const total = totalCountResult.length;
+
+    // Handle empty results
+    if (childrenResult.length === 0) {
+      const result = {
+        docs: [],
+        page: page,
+        limit: limit,
+        total: 0,
+        totalPages: 0,
+      };
+
+      // Cache the result
+      await this.setInCache(cacheKey, result, 180);
+      return result;
+    }
+
+    // Extract child user IDs for task progress calculation
+    const childUserIds = childrenResult.map((child: any) => child.childUserId);
+
+    // Get task progress for each child using aggregation
+    const taskProgress = await Task.aggregate([
+      {
+        $match: {
+          assignedUserIds: { $in: childUserIds },
+          isDeleted: false,
+        },
+      },
+      {
+        $unwind: '$assignedUserIds',
+      },
+      {
+        $group: {
+          _id: '$assignedUserIds',
+          totalTasks: { $sum: 1 },
+          completedTasks: {
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.COMPLETED] }, 1, 0] },
+          },
+          pendingTasks: {
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.PENDING] }, 1, 0] },
+          },
+          inProgressTasks: {
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.IN_PROGRESS] }, 1, 0] },
+          },
+        },
+      },
+      {
+        $project: {
+          childUserId: '$_id',
+          totalTasks: 1,
+          completedTasks: 1,
+          pendingTasks: 1,
+          inProgressTasks: 1,
+          progressPercentage: {
+            $round: [
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $eq: ['$totalTasks', 0] },
+                      0,
+                      { $divide: ['$completedTasks', '$totalTasks'] },
+                    ],
+                  },
+                  100,
+                ],
+              },
+              0,
+            ],
+          },
+        },
+      },
+    ]);
+
+    // Create a map of childUserId to task progress
+    const progressMap = new Map();
+    taskProgress.forEach((tp: any) => {
+      progressMap.set(tp.childUserId.toString(), {
+        totalTasks: tp.totalTasks,
+        completedTasks: tp.completedTasks,
+        pendingTasks: tp.pendingTasks,
+        inProgressTasks: tp.inProgressTasks,
+        progressPercentage: tp.progressPercentage,
+      });
+    });
+
+    // Build response with task progress
+    const docs = childrenResult.map((child: any) => {
+      const childUserIdStr = child.childUserId.toString();
+      const progress = progressMap.get(childUserIdStr) || {
+        totalTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        inProgressTasks: 0,
+        progressPercentage: 0,
+      };
+
+      return {
+        _id: child._id.toString(),
+        childUserId: childUserIdStr,
+        name: child.name || 'Unknown',
+        email: child.email || '',
+        role : child.role || 'child',
+        phoneNumber: child.phoneNumber || '',
+        // gender: child.gender || '',
+        profileImage: child.profileImage || { imageUrl: '/uploads/users/user.png' },
+        // location: child.location || '',
+        // dob: child.dob || null,
+        roleType: child.isSecondaryUser ? 'Secondary' : 'Primary',
+        taskProgress: progress,
+        addedAt: child.addedAt,
+      };
+    });
+
+    const result = {
+      docs,
+      page: page,
+      limit: limit,
+      total: total,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    // Cache the result
+    await this.setInCache(cacheKey, result, 180); // 3 minutes
+
+    logger.info(
+      `Team members list with task progress V2 retrieved for business user: ${businessUserId}`,
+    );
+    return result;
+  }
+
+  /** ✔️🔁 V3
+   * Get team members list with task progress V3 - Fixed pagination with manual populate
+   * Uses paginate plugin but manually populates childUserId for reliability
+   * Figma: teacher-parent-dashboard/team-members/team-member-flow-01.png
+   *
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param options - Pagination options (page, limit, sortBy)
+   * @returns Paginated list of children with task progress percentage
+   */
+  async getTeamMembersListWithTaskProgressV3(
+    businessUserId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+    } = {},
+  ): Promise<any> {
+    const cacheKey = this.getCacheKey(
+      'team-list-v3',
+      businessUserId,
+      `page-${options.page || 1}-limit-${options.limit || 10}`,
+    );
+
+    const page = options.page || 1;
+    const limit = options.limit || 10;
+    const sortBy = options.sortBy || '-addedAt';
+
+    // Build filter query
+    const query = {
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      status: ChildrenBusinessUserStatus.ACTIVE,
+      isDeleted: false,
+    };
+
+    // ✅ Step 1: Use paginate plugin WITHOUT populate (more reliable)
+    const paginateOptions = {
+      page,
+      limit,
+      sortBy,
+      // Don't use populate in paginate options (can be unreliable)
+    };
+
+    const childrenResult = await this.model.paginate(query, paginateOptions);
+
+    // Handle empty results
+    if (
+      !childrenResult ||
+      !childrenResult.results ||
+      childrenResult.results.length === 0
+    ) {
+      const result = {
+        docs: [],
+        page: childrenResult?.page || page,
+        limit: childrenResult?.limit || limit,
+        total: childrenResult?.total || 0,
+        totalPages: childrenResult?.totalPages || 0,
+      };
+
+      // Cache the result
+      await this.setInCache(cacheKey, result, 180);
+      return result;
+    }
+
+    // ✅ Step 2: Manually populate childUserId using populate() on the results
+    await this.model.populate(childrenResult.results, [
+      {
+        path: 'childUserId',
+        select: 'name email phoneNumber profileImage gender profileId',
+        model: 'User',
+      },
+    ]);
+
+    // ✅ Step 3: Manually populate profileId for each child
+    // Need to do this separately because nested populate doesn't work well
+    for (const rel of childrenResult.results) {
+      if (rel.childUserId?.profileId) {
+        await (rel.childUserId as any).populate({
+          path: 'profileId',
+          select: 'location dob',
+          model: 'UserProfile',
+        });
+      }
+    }
+
+    logger.info(`V3 populated results: ${JSON.stringify(childrenResult.results[0], null, 2)}`);
+
+    // Extract child user IDs for task progress calculation
+    const childUserIds = childrenResult.results.map(
+      (rel: any) => rel.childUserId?._id || rel.childUserId,
+    );
+
+    // Get task progress for each child using aggregation
+    const taskProgress = await Task.aggregate([
+      {
+        $match: {
+          assignedUserIds: { $in: childUserIds },
+          isDeleted: false,
+        },
+      },
+      {
+        $unwind: '$assignedUserIds',
+      },
+      {
+        $group: {
+          _id: '$assignedUserIds',
+          totalTasks: { $sum: 1 },
+          completedTasks: {
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.COMPLETED] }, 1, 0] },
+          },
+          pendingTasks: {
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.PENDING] }, 1, 0] },
+          },
+          inProgressTasks: {
+            $sum: { $cond: [{ $eq: ['$status', TaskStatus.IN_PROGRESS] }, 1, 0] },
+          },
+        },
+      },
+      {
+        $project: {
+          childUserId: '$_id',
+          totalTasks: 1,
+          completedTasks: 1,
+          pendingTasks: 1,
+          inProgressTasks: 1,
+          progressPercentage: {
+            $round: [
+              {
+                $multiply: [
+                  {
+                    $cond: [
+                      { $eq: ['$totalTasks', 0] },
+                      0,
+                      { $divide: ['$completedTasks', '$totalTasks'] },
+                    ],
+                  },
+                  100,
+                ],
+              },
+              0,
+            ],
+          },
+        },
+      },
+    ]);
+
+    // Create a map of childUserId to task progress
+    const progressMap = new Map();
+    taskProgress.forEach((tp: any) => {
+      progressMap.set(tp.childUserId.toString(), {
+        totalTasks: tp.totalTasks,
+        completedTasks: tp.completedTasks,
+        pendingTasks: tp.pendingTasks,
+        inProgressTasks: tp.inProgressTasks,
+        progressPercentage: tp.progressPercentage,
+      });
+    });
+
+    // Check which children are Secondary Users
+    const secondaryUserIds = await this.model
+      .find({
+        parentBusinessUserId: new Types.ObjectId(businessUserId),
+        isSecondaryUser: true,
+        isDeleted: false,
+      })
+      .distinct('childUserId');
+
+    // Build response with task progress
+    const docs = childrenResult.results.map((rel: any) => {
+      const childUser = rel.childUserId;
+      const childUserIdStr = childUser?._id?.toString() || rel.childUserId?.toString();
+      
+      const progress = progressMap.get(childUserIdStr) || {
+        totalTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        inProgressTasks: 0,
+        progressPercentage: 0,
+      };
+
+      return {
+        _id: rel._id.toString(),
+        childUserId: childUserIdStr,
+        name: childUser?.name || 'Unknown',
+        email: childUser?.email || '',
+        phoneNumber: childUser?.phoneNumber || '',
+        gender: childUser?.gender || '',
+        profileImage: childUser?.profileImage || { imageUrl: '/uploads/users/user.png' },
+        location: childUser?.profileId?.location || '',
+        dob: childUser?.profileId?.dob || null,
+        roleType: secondaryUserIds.some(
+          (id: any) => id.toString() === childUserIdStr,
+        )
+          ? 'Secondary'
+          : 'Primary',
+        taskProgress: progress,
+        addedAt: rel.addedAt,
+      };
+    });
+
+    const result = {
+      docs,
+      page: childrenResult.page,
+      limit: childrenResult.limit,
+      total: childrenResult.total,
+      totalPages: childrenResult.totalPages,
+    };
+
+    // Cache the result
+    await this.setInCache(cacheKey, result, 180); // 3 minutes
+
+    logger.info(
+      `Team members list with task progress V3 retrieved for business user: ${businessUserId}`,
+    );
+    return result;
+  }
+
+  /** ✔️🔁 NEW
+   * Get member details with all tasks for member profile page
+   * Figma: teacher-parent-dashboard/team-members/all-task-of-a-member-flow.png
+   *
+   * @param memberId - Child user ID (member to get details for)
+   * @param businessUserId - Parent/Teacher business user ID (for authorization)
+   * @returns Member profile with all tasks and statistics
+   */
+  async getMemberDetailsWithTasks(
+    memberId: string,
+    businessUserId: string,
+  ): Promise<any> {
+    const cacheKey = this.getCacheKey(
+      'member-details',
+      businessUserId,
+      memberId,
+    );
+
+    // Try cache first (3 minutes for member details)
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   logger.debug(`Cache hit for member details: ${cacheKey}`);
+    //   return cached;
+    // }
+
+    // ✅ Step 1: Verify member belongs to this business user
+    const relationship = await this.model.findOne({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: new Types.ObjectId(memberId),
+      status: ChildrenBusinessUserStatus.ACTIVE,
+      isDeleted: false,
+    }).lean();
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Member not found or not part of your team',
+      );
+    }
+
+    // ✅ Step 2: Get member user details with profile
+    const memberUser = await User.findById(memberId)
+      .select('name email phoneNumber gender profileImage profileId role supportMode')
+      .populate('profileId', 'location dob address')
+      .lean();
+
+    if (!memberUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Member not found');
+    }
+
+    // Calculate age from DOB
+    const age = memberUser.profileId?.dob
+      ? Math.floor((new Date().getTime() - new Date(memberUser.profileId.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : null;
+
+    // ✅ Step 3: Get all tasks for this member with subtasks
+    const tasks = await Task.find({
+      assignedUserIds: memberId,
+      isDeleted: false,
+    })
+      .select('title description status priority taskType startTime dueDate completionPercentage totalSubtasks completedSubtasks')
+      .populate('assignedUserIds', 'name profileImage')
+      .populate('createdById', 'name profileImage')
+      .sort({ startTime: -1 })
+      .lean();
+
+    // ✅ Step 4: Get subtasks for each task
+    const { SubTask } = await import('../task.module/subTask/subTask.model');
+    const { SubTaskProgress } = await import('../task.module/subTaskProgress/subTaskProgress.model');
+
+    const tasksWithSubtasks = await Promise.all(
+      tasks.map(async (task: any) => {
+        // Get subtasks for this task (no completedBy in SubTask schema)
+        const subtasks = await SubTask.find({
+          taskId: task._id,
+          isDeleted: false,
+        })
+          .select('title isCompleted order duration completedAt')
+          .sort({ order: 1 })
+          .lean();
+
+        // Get subtask progress for this child (tracks individual child's progress)
+        const subtaskProgress = await SubTaskProgress.find({
+          subtaskId: { $in: subtasks.map((s: any) => s._id) },
+          userId: memberId,
+          isDeleted: false,
+        })
+          .select('subtaskId isCompleted completedAt')
+          .lean();
+
+        // Create map of subtask progress
+        const progressMap = new Map();
+        subtaskProgress.forEach((sp: any) => {
+          progressMap.set(sp.subtaskId.toString(), sp);
+        });
+
+        // Merge subtask progress
+        const subtasksWithProgress = subtasks.map((subtask: any) => {
+          const progress = progressMap.get(subtask._id.toString());
+          return {
+            ...subtask,
+            isCompleted: progress?.isCompleted || subtask.isCompleted,
+            completedAt: progress?.completedAt || subtask.completedAt,
+          };
+        });
+
+        return {
+          ...task,
+          subtasks: subtasksWithProgress,
+        };
+      })
+    );
+
+    // ✅ Step 5: Calculate statistics
+    const statistics = {
+      totalTasks: tasks.length,
+      completedTasks: tasks.filter((t: any) => t.status === 'completed').length,
+      pendingTasks: tasks.filter((t: any) => t.status === 'pending').length,
+      inProgressTasks: tasks.filter((t: any) => t.status === 'inProgress').length,
+    };
+
+    // ✅ Step 6: Build response
+    const result = {
+      member: {
+        _id: memberUser._id,
+        name: memberUser.name,
+        email: memberUser.email,
+        phoneNumber: memberUser.phoneNumber,
+        gender: memberUser.gender,
+        profileImage: memberUser.profileImage || { imageUrl: '/uploads/users/user.png' },
+        address: memberUser.profileId?.address || '',
+        dob: memberUser.profileId?.dob || null,
+        age: age,
+        supportMode: memberUser.supportMode || 'calm',
+        roleType: relationship.isSecondaryUser ? 'Secondary' : 'Primary',
+      },
+      tasks: tasksWithSubtasks,
+      statistics,
+    };
+
+    // ✅ Step 7: Cache the result
+    await this.setInCache(cacheKey, result, 180); // 3 minutes
+
+    logger.info(
+      `Member details with tasks retrieved for member: ${memberId}`,
+    );
+    return result;
+  }
+
+  /** ✔️🔁 V2 NEW
+   * Get member details with all tasks for member profile page - V2
+   * Improved subtask handling: Uses SubTaskProgress for collaborative tasks, SubTask for personal tasks
+   * Figma: teacher-parent-dashboard/team-members/all-task-of-a-member-flow.png
+   *
+   * @param memberId - Child user ID (member to get details for)
+   * @param businessUserId - Parent/Teacher business user ID (for authorization)
+   * @returns Member profile with all tasks and statistics
+   */
+  async getMemberDetailsWithTasksV2(
+    memberId: string,
+    businessUserId: string,
+  ): Promise<any> {
+    const cacheKey = this.getCacheKey(
+      'member-details-v2',
+      businessUserId,
+      memberId,
+    );
+
+    // Try cache first (3 minutes for member details)
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   logger.debug(`Cache hit for member details V2: ${cacheKey}`);
+    //   return cached;
+    // }
+
+    // ✅ Step 1: Verify member belongs to this business user
+    const relationship = await this.model.findOne({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: new Types.ObjectId(memberId),
+      status: ChildrenBusinessUserStatus.ACTIVE,
+      isDeleted: false,
+    }).lean();
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Member not found or not part of your team',
+      );
+    }
+
+    // ✅ Step 2: Get member user details with profile
+    const memberUser = await User.findById(memberId)
+      .select('name email phoneNumber gender profileImage profileId role supportMode')
+      .populate('profileId', 'location dob address')
+      .lean();
+
+    if (!memberUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Member not found');
+    }
+
+    // Calculate age from DOB
+    const age = memberUser.profileId?.dob
+      ? Math.floor((new Date().getTime() - new Date(memberUser.profileId.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : null;
+
+    // ✅ Step 3: Get all tasks for this member with subtasks
+    const tasks = await Task.find({
+      assignedUserIds: memberId,
+      isDeleted: false,
+    })
+      .select('title description status priority taskType startTime dueDate completionPercentage totalSubtasks completedSubtasks')
+      .populate('assignedUserIds', 'name profileImage')
+      .populate('createdById', 'name profileImage')
+      .sort({ startTime: -1 })
+      .lean();
+
+    // ✅ Step 4: Get subtasks with smart handling based on task type
+    const { SubTask } = await import('../task.module/subTask/subTask.model');
+    const { SubTaskProgress } = await import('../task.module/subTaskProgress/subTaskProgress.model');
+
+    const tasksWithSubtasks = await Promise.all(
+      tasks.map(async (task: any) => {
+        // Get subtasks for this task
+        const subtasks = await SubTask.find({
+          taskId: task._id,
+          isDeleted: false,
+        })
+          .select('title isCompleted order duration completedAt')
+          .sort({ order: 1 })
+          .lean();
+
+        // ✅ Smart subtask handling:
+        // - For collaborative tasks: Use SubTaskProgress (individual progress)
+        // - For personal/non-collaborative tasks: Use SubTask.isCompleted (global status)
+        let subtasksWithProgress = subtasks;
+
+        if (task.taskType === 'collaborative') {
+          // Get subtask progress for this child (collaborative task)
+          const subtaskProgress = await SubTaskProgress.find({
+            subtaskId: { $in: subtasks.map((s: any) => s._id) },
+            userId: memberId,
+            isDeleted: false,
+          })
+            .select('subtaskId isCompleted completedAt')
+            .lean();
+
+          // Create map of subtask progress
+          const progressMap = new Map();
+          subtaskProgress.forEach((sp: any) => {
+            progressMap.set(sp.subtaskId.toString(), sp);
+          });
+
+          // Merge subtask progress for collaborative tasks
+          subtasksWithProgress = subtasks.map((subtask: any) => {
+            const progress = progressMap.get(subtask._id.toString());
+            return {
+              ...subtask,
+              isCompleted: progress?.isCompleted || false,  // Use individual progress
+              completedAt: progress?.completedAt || null,
+            };
+          });
+        } else {
+          // For personal tasks, use global subtask completion status
+          subtasksWithProgress = subtasks.map((subtask: any) => ({
+            ...subtask,
+            isCompleted: subtask.isCompleted,  // Use global status
+            completedAt: subtask.completedAt,
+          }));
+        }
+
+        return {
+          ...task,
+          subtasks: subtasksWithProgress,
+        };
+      })
+    );
+
+    // ✅ Step 5: Calculate statistics
+    const statistics = {
+      totalTasks: tasks.length,
+      completedTasks: tasks.filter((t: any) => t.status === 'completed').length,
+      pendingTasks: tasks.filter((t: any) => t.status === 'pending').length,
+      inProgressTasks: tasks.filter((t: any) => t.status === 'inProgress').length,
+    };
+
+    // ✅ Step 6: Build response
+    const result = {
+      member: {
+        _id: memberUser._id,
+        name: memberUser.name,
+        email: memberUser.email,
+        phoneNumber: memberUser.phoneNumber,
+        gender: memberUser.gender,
+        profileImage: memberUser.profileImage || { imageUrl: '/uploads/users/user.png' },
+        address: memberUser.profileId?.address || '',
+        dob: memberUser.profileId?.dob || null,
+        age: age,
+        supportMode: memberUser.supportMode || 'calm',
+        roleType: relationship.isSecondaryUser ? 'Secondary' : 'Primary',
+      },
+      tasks: tasksWithSubtasks,
+      statistics,
+    };
+
+    // ✅ Step 7: Cache the result
+    await this.setInCache(cacheKey, result, 180); // 3 minutes
+
+    logger.info(
+      `Member details with tasks V2 retrieved for member: ${memberId}`,
     );
     return result;
   }

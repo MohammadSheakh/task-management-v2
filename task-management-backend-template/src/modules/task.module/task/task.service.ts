@@ -231,10 +231,11 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       }).lean();
 
       if (relationship) {
-        // Record activity under the business user's "group"
-        await notificationService.recordGroupActivity(
-          relationship.parentBusinessUserId.toString(),
-          userId.toString(),
+        // ✅ FIXED: Use recordChildActivity instead of recordGroupActivity
+        // Record activity for this child, will appear in parent's dashboard
+        await notificationService.recordChildActivity(
+          relationship.parentBusinessUserId.toString(), // Business user (parent/teacher)
+          userId.toString(), // Child who created the task
           ACTIVITY_TYPE.TASK_CREATED,
           { taskId: task._id.toString(), taskTitle: task.title },
         );
@@ -561,10 +562,11 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       }).lean();
 
       if (relationship) {
-        // Record activity under the business user's "group"
-        await notificationService.recordGroupActivity(
-          relationship.parentBusinessUserId.toString(),
-          userId.toString(),
+        // ✅ FIXED: Use recordChildActivity instead of recordGroupActivity
+        // Record activity for this child, will appear in parent's dashboard
+        await notificationService.recordChildActivity(
+          relationship.parentBusinessUserId.toString(), // Business user (parent/teacher)
+          userId.toString(), // Child who started/updated the task
           activityType,
           { taskId: updatedTask._id.toString(), taskTitle: updatedTask.title },
         );

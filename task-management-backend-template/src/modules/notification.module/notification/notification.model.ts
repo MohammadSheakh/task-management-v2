@@ -116,7 +116,9 @@ const notificationSchema = new Schema<INotificationDocument>(
     },
 
     /**
-     * Entity ID to link to (task, group, etc.)
+     * Entity ID to link to (task, family/children, etc.)
+     * Note: In childrenBusinessUser architecture, this links to task or other entities
+     * managed by parent/teacher (business user) for their children/students
      */
     linkId: {
       type: Schema.Types.ObjectId,
