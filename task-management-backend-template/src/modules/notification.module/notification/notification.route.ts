@@ -7,6 +7,7 @@ import auth from '../../../middlewares/auth';
 import { TRole } from '../../../middlewares/roles';
 import { setQueryOptions } from '../../../middlewares/setQueryOptions';
 import validateRequest from '../../../shared/validateRequest';
+//@ts-ignore
 import { z } from 'zod';
 import {
   rateLimiter,

@@ -1,4 +1,6 @@
+//@ts-ignore
 import { StatusCodes } from 'http-status-codes';
+//@ts-ignore
 import { Types } from 'mongoose';
 import { Notification } from './notification.model';
 import { INotification, INotificationDocument, INotificationQueryOptions, IBulkNotificationPayload } from './notification.interface';
@@ -168,7 +170,18 @@ export class NotificationService extends GenericService<typeof Notification, INo
    * @returns Array of created notifications
    */
   async sendBulkNotification(payload: IBulkNotificationPayload): Promise<INotificationDocument[]> {
-    const { userIds, receiverRole, title, subTitle, type, priority = NotificationPriority.NORMAL, channels = [NotificationChannel.IN_APP], linkFor, linkId, data } = payload;
+    const {
+      userIds,
+      receiverRole,
+      title,
+      subTitle,
+      type,
+      priority = NotificationPriority.NORMAL, 
+      channels = [NotificationChannel.IN_APP],
+      linkFor,
+      linkId,
+      data 
+    } = payload;
 
     // Validate bulk limit
     if (userIds && userIds.length > 1000) {
@@ -592,7 +605,7 @@ export class NotificationService extends GenericService<typeof Notification, INo
       .lean();
 
     // Transform notifications into activity feed format
-    const activities = notifications.map(notification => {
+    const activities = notifications.map((notification:any) => {
       const child = notification.receiverId as any;
 
       return {
@@ -694,7 +707,7 @@ export class NotificationService extends GenericService<typeof Notification, INo
       .lean();
 
     // Transform notifications into activity feed format
-    const activities = notifications.map(notification => {
+    const activities = notifications.map((notification:any) => {
       const child = notification.receiverId as any;
 
       return {
