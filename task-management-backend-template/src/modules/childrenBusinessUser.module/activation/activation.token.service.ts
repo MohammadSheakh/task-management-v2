@@ -27,8 +27,8 @@
  */
 
 import crypto from 'crypto';
-import { redisClient } from '../../helpers/redis/redis';
-import { errorLogger, logger } from '../../shared/logger';
+import { redisClient } from '../../../helpers/redis/redis';
+import { errorLogger, logger } from '../../../shared/logger';
 
 export interface IActivationTokenData {
   email: string;

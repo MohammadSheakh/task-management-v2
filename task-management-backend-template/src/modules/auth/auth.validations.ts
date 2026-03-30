@@ -127,10 +127,37 @@ const changePasswordValidationSchema = z.object({
   }),
 });
 
+/**
+ * Validation schema for individual user login
+ * Same as loginValidationSchema but fcmToken is optional
+ */
+const individualUserLoginValidationSchema = z.object({
+  body: z.object({
+    email: z
+      .string({
+        required_error: 'Email is required.',
+        invalid_type_error: 'Email must be a string.',
+      })
+      .email('Invalid email address.'),
+
+    password: z
+      .string({
+        required_error: 'Password is required.',
+        invalid_type_error: 'Password must be a string.',
+      })
+      .min(8, 'Password must be at least 8 characters long.'),
+
+    fcmToken: z.string({
+      invalid_type_error: 'Fcm token must be a string.',
+    }).optional(),
+  }),
+});
+
 export const AuthValidation = {
   loginValidationSchema,
   appleLoginValidationSchema,
   googleLoginValidationSchema,
+  individualUserLoginValidationSchema, // 🆕
   verifyEmailValidationSchema,
   forgotPasswordValidationSchema,
   resetPasswordValidationSchema,

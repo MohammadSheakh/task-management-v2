@@ -961,6 +961,166 @@ const appleLogin = async ({ idToken, role, acceptTOC }: IGoogleLoginPayload) => 
   return { user: newUser, ...tokens, isNewUser: true };
 };
 
+/**
+ * Login for Individual User (Mobile App)
+ * Returns user info with subscription status and support style status
+ *
+ * Flow:
+ * 1. Authenticate user with email/password
+ * 2. Fetch user's active subscription from UserSubscription
+ * 3. Check if supportMode is set in UserProfile
+ * 4. Return user data with isSubscribed and isSupportStyleSet flags
+ *
+ * @param email - User email
+ * @param password - User password
+ * @param fcmToken - Optional FCM token for push notifications
+ * @param deviceInfo - Optional device information
+ * @returns User data with subscription and support style status
+ */
+const loginIndividualUser = async (
+  email: string,
+  reqpassword: string,
+  fcmToken?: string,
+  deviceInfo?: { deviceType?: string; deviceName?: string }
+) => {
+  const user: IUser = await User.findOne({ email })
+    .select('+password')
+    .populate('profileId');
+
+  if (!user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
+  }
+
+  if (user.isDeleted === true) {
+    throw new ApiError(
+      StatusCodes.UNAUTHORIZED,
+      'Your account is deleted. Please create a new account.'
+    );
+  }
+
+  validateUserStatus(user);
+
+  // ✅ Enforce email verification before login
+  if (!user.isEmailVerified) {
+    // ✅ Create verification token and OTP for user to verify email (Redis-based)
+    await Promise.all([
+      TokenService.createVerifyEmailToken(user),
+      otpService.sendVerificationOtp(user.email),
+    ]);
+
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Please verify your email before logging in. A verification OTP has been sent to your email.',
+    );
+  }
+
+  const isPasswordValid = await bcryptjs.compare(reqpassword, user.password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
+  }
+
+  const tokens = await TokenService.accessAndRefreshToken(user);
+
+  // ✅ Save FCM token in UserDevices
+  if (fcmToken) {
+    const deviceType = deviceInfo?.deviceType || 'mobile';
+    const deviceName = deviceInfo?.deviceName || 'Unknown Device';
+
+    // Find or create device record
+    let device: any = await UserDevices.findOne({
+      userId: user._id,
+      fcmToken,
+    });
+
+    if (!device) {
+      device = await UserDevices.create({
+        userId: user._id,
+        fcmToken,
+        deviceType,
+        deviceName,
+        lastActive: new Date(),
+      });
+    } else {
+      // Update last active
+      device.lastActive = new Date();
+      await device.save();
+    }
+  }
+
+  // 🔒 REDIS SESSION CACHING
+  // Cache user session for faster subsequent requests
+  try {
+    const sessionKey = `session:${user._id}:${fcmToken || 'mobile'}`;
+    const sessionData = {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      fcmToken,
+      deviceType: deviceInfo?.deviceType || 'mobile',
+      deviceName: deviceInfo?.deviceName || 'Unknown Device',
+      loginAt: new Date(),
+    };
+
+    // Cache session for 7 days (matches refresh token expiry)
+    await redisClient.setEx(
+      sessionKey,
+      AUTH_SESSION_CONFIG.SESSION_TTL,
+      JSON.stringify(sessionData)
+    );
+
+    logger.info(`Session cached for user ${user._id} (${sessionKey})`);
+  } catch (error) {
+    errorLogger.error('Failed to cache session:', error);
+    // Don't throw - login should succeed even if caching fails
+  }
+
+  // 📊 Fetch subscription status from UserSubscription collection
+  const activeSubscription = await UserSubscription.findOne({
+    userId: user._id,
+    status: { $in: ['active', 'trialing'] },
+    paymentGateway: 'revenuecat',
+    isDeleted: false,
+  })
+    .sort({ createdAt: -1 })
+    .populate('subscriptionPlanId');
+
+  // 🎯 Check if support style is set in UserProfile
+  const userProfile = user.profileId as any;
+  const isSupportStyleSet = !!(
+    userProfile?.supportMode &&
+    ['calm', 'encouraging', 'logical'].includes(userProfile.supportMode)
+  );
+
+  // Build response object
+  const { password, ...userWithoutPassword } = user.toObject();
+
+  return {
+    user: {
+      ...userWithoutPassword,
+      profile: userProfile,
+    },
+    tokens,
+    subscription: activeSubscription
+      ? {
+          isSubscribed: true,
+          status: activeSubscription.status,
+          plan: activeSubscription.subscriptionPlanId,
+          currentPeriodStartDate: activeSubscription.currentPeriodStartDate,
+          expirationDate: activeSubscription.expirationDate,
+          paymentGateway: activeSubscription.paymentGateway,
+          purchasePlatform: activeSubscription.purchasePlatform,
+        }
+      : {
+          isSubscribed: false,
+          status: null,
+          plan: null,
+          message: 'No active subscription found',
+        },
+    isSupportStyleSet,
+  };
+};
+
 export const AuthService = {
   googleLogin,
   appleLogin,
@@ -968,6 +1128,7 @@ export const AuthService = {
   createUserV2,
   login,
   loginV2,
+  loginIndividualUser, // 🆕 Individual user login with subscription status
   verifyEmail,
   resetPassword,
   forgotPassword,

@@ -58,7 +58,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'INITIAL_PURCHASE':
         console.log(`
           ////////////////////////////////////////
-          🪝🪝 INITIAL_PURCHASE
+          🪝🪝REVENUE_CAT INITIAL_PURCHASE
           ////////////////////////////////////////
         `);
         await handleInitialPurchase(event);
@@ -67,7 +67,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'RENEWAL':
         console.log(`
           ////////////////////////////////////////
-          🪝🪝 RENEWAL
+          🪝🪝REVENUE_CAT RENEWAL
           ////////////////////////////////////////
         `);
         await handleRenewal(event);
@@ -76,7 +76,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'CANCELLATION':
         console.log(`
           ////////////////////////////////////////
-          🪝 CANCELLATION
+          🪝REVENUE_CAT CANCELLATION
           ////////////////////////////////////////
         `);
         await handleCancellation(event);
@@ -85,7 +85,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'EXPIRATION':
         console.log(`
           ////////////////////////////////////////
-          🪝 EXPIRATION
+          🪝REVENUE_CAT EXPIRATION
           ////////////////////////////////////////
         `);
         await handleExpiration(event);
@@ -94,7 +94,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'REFUND':
         console.log(`
           ////////////////////////////////////////
-          🪝 REFUND
+          🪝REVENUE_CAT REFUND
           ////////////////////////////////////////
         `);
         await handleRefund(event);
@@ -103,7 +103,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'BILLING_ISSUE':
         console.log(`
           ////////////////////////////////////////
-          🪝 BILLING_ISSUE
+          🪝REVENUE_CAT BILLING_ISSUE
           ////////////////////////////////////////
         `);
         await handleBillingIssue(event);
@@ -112,7 +112,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
       case 'SUBSCRIPTION':
         console.log(`
           ////////////////////////////////////////
-          🪝 SUBSCRIPTION
+          🪝REVENUE_CAT SUBSCRIPTION
           ////////////////////////////////////////
         `);
         await handleSubscription(event);

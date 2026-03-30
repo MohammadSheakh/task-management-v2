@@ -161,6 +161,37 @@ const loginV2 = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * Login for Individual User (Mobile App)
+ * Returns user info with subscription status and support style status
+ * POST /api/v1/login/individual-user
+ *
+ * Response includes:
+ * - user: User object with profile
+ * - tokens: Access and refresh tokens
+ * - subscription: Subscription status (isSubscribed, status, plan, etc.)
+ * - isSupportStyleSet: Boolean indicating if support mode is configured
+ */
+const loginIndividualUser = catchAsync(async (req: Request, res: Response) => {
+  const { email, password, fcmToken } = req.body;
+
+  const result = await AuthService.loginIndividualUser(email, password, fcmToken);
+
+  //set refresh token in cookie
+  res.cookie('refreshToken', result.tokens.refreshToken, {
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // set maxAge to a number
+    sameSite: 'lax',
+  });
+
+  sendResponse(res, {
+    code: StatusCodes.OK,
+    message: 'Individual user logged in successfully',
+    data: result,
+    success: true,
+  });
+});
+
 // 💎✨🔍 -> V2 Found
 const googleLogin = async (
   idToken: string,
@@ -726,6 +757,7 @@ export const AuthController = {
   registerV2, // 🆕
   login,
   loginV2, // 🆕
+  loginIndividualUser, // 🆕 Individual user login
   googleLogin,
   googleLoginV2,
   googleAuthCallback, // this is updated code

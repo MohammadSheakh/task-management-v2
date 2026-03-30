@@ -56,6 +56,14 @@ router.post(
   AuthController.loginV2,
 );
 
+// 🆕 Individual user login for mobile app (returns subscription status)
+router.post(
+  '/login/individual-user',
+  loginLimiter,  // 🔒 Rate limiting: 5 attempts per 15 minutes
+  validateRequest(AuthValidation.individualUserLoginValidationSchema),
+  AuthController.loginIndividualUser,
+);
+
 // Route for Google login
 router.post(
   '/google-login',

@@ -7,6 +7,7 @@ import { UserSubscriptionStatusType } from '../../../subscription.module/userSub
 import { enqueueWebNotification } from '../../../../services/notification.service';
 import { TRole } from '../../../../middlewares/roles';
 import { TNotificationType } from '../../../notification/notification.constants';
+import { TSubscription } from '../../../../enums/subscription';
 
 /**
  * Handle REFUND Event
