@@ -15,8 +15,10 @@ import { TokenService } from '../../token/token.service';
 import { AuthService } from '../../auth/auth.service';
 import ApiError from '../../../errors/ApiError';
 import { TRole } from '../../../middlewares/roles';
-import { enqueueWebNotification } from '../../../services/notification.service';
-import { TNotificationType } from '../../notification/notification.constants';
+// import { enqueueWebNotification } from '../../../services/notification.service'; // ❌ Deprecated - migrated to notification.module
+// import { TNotificationType } from '../../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
+import { NotificationService } from '../../notification.module/notification/notification.service';
+import { NotificationType, NotificationChannel, NotificationPriority } from '../../notification.module/notification/notification.constant';
 //@ts-ignore
 import { Types } from 'mongoose';
 
@@ -75,16 +77,31 @@ export class UserController extends GenericController<
   sendTestingNotificationForAdmin = catchAsync(async (req: Request, res: Response) => {
     const id = (req.user as IUser).userId;
 
-    await enqueueWebNotification(
-      `Test notification send to admin from user id : ${id} : ${req.user.userName}`,
-      id, // senderId
-      null, // receiverId
-      TRole.admin, // receiverRole
-      TNotificationType.payment, // type
-      null, // idOfType
-      null, // linkFor
-      null // linkId
-    );
+    /*-─────────────────────────────────
+    |  ❌ OLD: enqueueWebNotification (Deprecated)
+    |  await enqueueWebNotification(
+    |    `Test notification send to admin from user id : ${id} : ${req.user.userName}`,
+    |    id, // senderId
+    |    null, // receiverId
+    |    TRole.admin, // receiverRole
+    |    TNotificationType.payment, // type
+    |    null, // idOfType
+    |    null, // linkFor
+    |    null // linkId
+    |  );
+    └──────────────────────────────────*/
+
+    // ✅ NEW: Scalable notification.module implementation
+    const notificationService = new NotificationService();
+    await notificationService.createNotification({
+      senderId: new Types.ObjectId(id as string),
+      receiverRole: 'admin',
+      title: 'Test Notification',
+      subTitle: `Test notification from user ${id} (${req.user.userName})`,
+      type: NotificationType.SYSTEM,
+      priority: NotificationPriority.NORMAL,
+      channels: [NotificationChannel.IN_APP],
+    });
 
     sendResponse(res, {
       code: StatusCodes.OK,

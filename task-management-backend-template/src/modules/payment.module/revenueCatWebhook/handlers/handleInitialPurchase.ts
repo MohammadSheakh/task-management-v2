@@ -5,9 +5,11 @@ import { TPaymentGateway, TPaymentStatus } from '../../paymentTransaction/paymen
 import { TTransactionFor } from '../../../../constants/TTransactionFor';
 import { UserSubscriptionStatusType } from '../../../subscription.module/userSubscription/userSubscription.constant';
 import { TSubscription } from '../../../../enums/subscription';
-import { enqueueWebNotification } from '../../../../services/notification.service';
-import { TRole } from '../../../../middlewares/roles';
-import { TNotificationType } from '../../../notification/notification.constants';
+// import { enqueueWebNotification } from '../../../../services/notification.service'; // ❌ Deprecated - migrated to notification.module
+// import { TRole } from '../../../../middlewares/roles'; // ❌ Deprecated - migrated to notification.module
+// import { TNotificationType } from '../../../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
+import { NotificationService } from '../../../notification.module/notification/notification.service';
+import { NotificationType, NotificationChannel, NotificationPriority } from '../../../notification.module/notification/notification.constant';
 
 /**
  * Handle INITIAL_PURCHASE Event
@@ -125,16 +127,38 @@ export const handleInitialPurchase = async (event: any): Promise<void> => {
 
     console.log('✅ User updated with subscription type:', subscriptionType);
 
-    // Send notification to user
-    await enqueueWebNotification(
-      `Your Individual subscription has been activated successfully!`,
-      user._id,
-      user._id,
-      TRole.user,
-      TNotificationType.payment,
-      null,
-      newUserSubscription._id
-    );
+    /*-─────────────────────────────────
+    |  ❌ OLD: enqueueWebNotification (Deprecated)
+    |  await enqueueWebNotification(
+    |    `Your Individual subscription has been activated successfully!`,
+    |    user._id,
+    |    user._id,
+    |    TRole.user,
+    |    TNotificationType.payment,
+    |    null,
+    |    newUserSubscription._id
+    |  );
+    └──────────────────────────────────*/
+
+    // ✅ NEW: Scalable notification.module implementation
+    const notificationService = new NotificationService();
+    await notificationService.createNotification({
+      receiverId: new Types.ObjectId(user._id as string),
+      senderId: new Types.ObjectId(user._id as string),
+      title: 'Subscription Activated',
+      subTitle: 'Your Individual subscription has been activated successfully!',
+      type: NotificationType.PAYMENT,
+      priority: NotificationPriority.NORMAL,
+      channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+      linkFor: 'subscription',
+      linkId: new Types.ObjectId(newUserSubscription._id as string),
+      referenceFor: 'subscription',
+      referenceId: new Types.ObjectId(newUserSubscription._id as string),
+      data: {
+        subscriptionId: newUserSubscription._id,
+        eventType: 'initial_purchase',
+      }
+    });
 
     console.log('✅ Notification sent to user');
   } catch (error) {

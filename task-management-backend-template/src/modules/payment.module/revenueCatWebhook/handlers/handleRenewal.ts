@@ -4,9 +4,11 @@ import { PaymentTransaction } from '../../paymentTransaction/paymentTransaction.
 import { TPaymentGateway, TPaymentStatus } from '../../paymentTransaction/paymentTransaction.constant';
 import { TTransactionFor } from '../../../../constants/TTransactionFor';
 import { UserSubscriptionStatusType } from '../../../subscription.module/userSubscription/userSubscription.constant';
-import { enqueueWebNotification } from '../../../../services/notification.service';
-import { TRole } from '../../../../middlewares/roles';
-import { TNotificationType } from '../../../notification/notification.constants';
+// import { enqueueWebNotification } from '../../../../services/notification.service'; // ❌ Deprecated - migrated to notification.module
+// import { TRole } from '../../../../middlewares/roles'; // ❌ Deprecated - migrated to notification.module
+// import { TNotificationType } from '../../../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
+import { NotificationService } from '../../../notification.module/notification/notification.service';
+import { NotificationType, NotificationChannel, NotificationPriority } from '../../../notification.module/notification/notification.constant';
 
 /**
  * Handle RENEWAL Event
@@ -76,16 +78,39 @@ export const handleRenewal = async (event: any): Promise<void> => {
 
     console.log('✅ Renewal PaymentTransaction created:', newPayment._id);
 
-    // Send notification to user
-    await enqueueWebNotification(
-      `Your subscription has been renewed successfully! Next billing date: ${userSubscription.expirationDate.toDateString()}`,
-      user._id,
-      user._id,
-      TRole.user,
-      TNotificationType.payment,
-      null,
-      userSubscription._id
-    );
+    /*-─────────────────────────────────
+    |  ❌ OLD: enqueueWebNotification (Deprecated)
+    |  await enqueueWebNotification(
+    |    `Your subscription has been renewed successfully! Next billing date: ${userSubscription.expirationDate.toDateString()}`,
+    |    user._id,
+    |    user._id,
+    |    TRole.user,
+    |    TNotificationType.payment,
+    |    null,
+    |    userSubscription._id
+    |  );
+    └──────────────────────────────────*/
+
+    // ✅ NEW: Scalable notification.module implementation
+    const notificationService = new NotificationService();
+    await notificationService.createNotification({
+      receiverId: new Types.ObjectId(user._id as string),
+      senderId: new Types.ObjectId(user._id as string),
+      title: 'Subscription Renewed',
+      subTitle: `Your subscription has been renewed successfully! Next billing date: ${userSubscription.expirationDate.toDateString()}`,
+      type: NotificationType.PAYMENT,
+      priority: NotificationPriority.NORMAL,
+      channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+      linkFor: 'subscription',
+      linkId: new Types.ObjectId(userSubscription._id as string),
+      referenceFor: 'subscription',
+      referenceId: new Types.ObjectId(userSubscription._id as string),
+      data: {
+        subscriptionId: userSubscription._id,
+        eventType: 'renewal',
+        nextBillingDate: userSubscription.expirationDate,
+      }
+    });
 
     console.log('✅ Renewal notification sent to user');
   } catch (error) {

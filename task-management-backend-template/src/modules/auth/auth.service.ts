@@ -41,9 +41,9 @@ import jwt, { Secret } from 'jsonwebtoken';
 
 //@ts-ignore
 import EventEmitter from 'events';
-import { enqueueWebNotification } from '../../services/notification.service';
+// import { enqueueWebNotification } from '../../services/notification.service'; // ❌ Deprecated - migrated to notification.module
 import { TRole } from '../../middlewares/roles';
-import { TNotificationType } from '../notification/notification.constants';
+// import { TNotificationType } from '../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
 import { UserProfile } from '../user.module/userProfile/userProfile.model';
 import { User } from '../user.module/user/user.model';
 import { UserDevices } from '../user.module/userDevices/userDevices.model';

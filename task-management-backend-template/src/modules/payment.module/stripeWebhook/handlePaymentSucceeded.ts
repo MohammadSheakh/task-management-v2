@@ -1,7 +1,9 @@
 import ApiError from "../../../errors/ApiError";
 import { TRole } from "../../../middlewares/roles";
-import { enqueueWebNotification } from "../../../services/notification.service";
-import { TNotificationType } from "../../notification/notification.constants";
+// import { enqueueWebNotification } from "../../../services/notification.service"; // ❌ Deprecated - migrated to notification.module
+// import { TNotificationType } from "../../notification/notification.constants"; // ❌ Deprecated - migrated to notification.module
+import { NotificationService } from "../../notification.module/notification/notification.service";
+import { NotificationType, NotificationChannel, NotificationPriority } from "../../notification.module/notification/notification.constant";
 import { IUser } from "../../token/token.interface";
 import { User } from "../../user.module/user/user.model";
 // import { WalletService } from "../../wallet.module/wallet/wallet.service"; // TODO: Wallet module not yet created

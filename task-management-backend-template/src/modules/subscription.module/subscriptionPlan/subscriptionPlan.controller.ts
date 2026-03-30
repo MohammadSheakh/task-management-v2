@@ -21,9 +21,11 @@ import { IUserSubscription } from '../userSubscription/userSubscription.interfac
 import { UserSubscriptionStatusType } from '../userSubscription/userSubscription.constant';
 import { UserSubscription } from '../userSubscription/userSubscription.model';
 import { config } from '../../../config';
-import { enqueueWebNotification } from '../../../services/notification.service';
-import { TRole } from '../../../middlewares/roles';
-import { TNotificationType } from '../../notification/notification.constants';
+// import { enqueueWebNotification } from '../../../services/notification.service'; // ❌ Deprecated - migrated to notification.module
+// import { TRole } from '../../../middlewares/roles'; // ❌ Deprecated - migrated to notification.module
+// import { TNotificationType } from '../../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
+import { NotificationService } from '../../notification.module/notification/notification.service';
+import { NotificationType, NotificationChannel, NotificationPriority } from '../../notification.module/notification/notification.constant';
 import { UserService } from '../../user.module/user/user.service';
 import stripe from '../../../config/paymentGateways/stripe.config';
 import { User } from '../../user.module/user/user.model';
@@ -199,24 +201,49 @@ export class SubscriptionController extends GenericController<
 
     // it will cancel the subscription at the end of the billing cycle
     await UserSubscription.findByIdAndUpdate(userSub._id, {
-      $set: { 
-        cancelledAtPeriodEnd: true, 
-        status: UserSubscriptionStatusType.cancelling 
+      $set: {
+        cancelledAtPeriodEnd: true,
+        status: UserSubscriptionStatusType.cancelling
       },
     });
 
     // TODO : MUST : Send Notification to admin that .. a person cancel subscription
 
-    await enqueueWebNotification(
-      // TODO : MUST : subscription plan name can not be shown from user.subscriptionPlan field .. we have to fetch current subscription status .. not from JWT token
-      `A User ${user.userId} ${user.subscriptionPlan} Cancel his subscription ${userSub.subscriptionPlanId} at ${new Date()}.`,
-      user.userId, // senderId
-      null, // receiverId
-      TRole.admin, // receiverRole
-      TNotificationType.payment, // type
-      null, // linkFor
-      null // linkId
-    );
+    /*-─────────────────────────────────
+    |  ❌ OLD: enqueueWebNotification (Deprecated)
+    |  await enqueueWebNotification(
+    |    // TODO : MUST : subscription plan name can not be shown from user.subscriptionPlan field .. we have to fetch current subscription status .. not from JWT token
+    |    `A User ${user.userId} ${user.subscriptionPlan} Cancel his subscription ${userSub.subscriptionPlanId} at ${new Date()}.`,
+    |    user.userId, // senderId
+    |    null, // receiverId
+    |    TRole.admin, // receiverRole
+    |    TNotificationType.payment, // type
+    |    null, // linkFor
+    |    null // linkId
+    |  );
+    └──────────────────────────────────*/
+
+    // ✅ NEW: Scalable notification.module implementation
+    const notificationService = new NotificationService();
+    await notificationService.createNotification({
+      senderId: new Types.ObjectId(user.userId as string),
+      receiverRole: 'admin',
+      title: 'Subscription Cancelled',
+      subTitle: `User cancelled their subscription`,
+      type: NotificationType.PAYMENT,
+      priority: NotificationPriority.NORMAL,
+      channels: [NotificationChannel.IN_APP],
+      linkFor: 'subscription',
+      linkId: userSub._id,
+      referenceFor: 'subscription',
+      referenceId: userSub._id,
+      data: {
+        userId: user.userId,
+        userEmail: user.email,
+        subscriptionId: userSub._id,
+        subscriptionPlanId: userSub.subscriptionPlanId,
+      }
+    });
 
     sendResponse(res, {
       code: StatusCodes.OK,

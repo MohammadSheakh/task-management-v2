@@ -4,9 +4,11 @@ import { PaymentTransaction } from '../../paymentTransaction/paymentTransaction.
 import { TPaymentGateway, TPaymentStatus } from '../../paymentTransaction/paymentTransaction.constant';
 import { TTransactionFor } from '../../../../constants/TTransactionFor';
 import { UserSubscriptionStatusType } from '../../../subscription.module/userSubscription/userSubscription.constant';
-import { enqueueWebNotification } from '../../../../services/notification.service';
-import { TRole } from '../../../../middlewares/roles';
-import { TNotificationType } from '../../../notification/notification.constants';
+// import { enqueueWebNotification } from '../../../../services/notification.service'; // ❌ Deprecated - migrated to notification.module
+// import { TRole } from '../../../../middlewares/roles'; // ❌ Deprecated - migrated to notification.module
+// import { TNotificationType } from '../../../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
+import { NotificationService } from '../../../notification.module/notification/notification.service';
+import { NotificationType, NotificationChannel, NotificationPriority } from '../../../notification.module/notification/notification.constant';
 import { TSubscription } from '../../../../enums/subscription';
 
 /**
@@ -75,27 +77,76 @@ export const handleRefund = async (event: any): Promise<void> => {
       });
     }
 
-    // Send notification to user
-    await enqueueWebNotification(
-      `A refund has been processed for your subscription. Your access has been ${userSubscription?.status === UserSubscriptionStatusType.cancelled ? 'revoked' : 'maintained until period end'}.`,
-      user._id,
-      user._id,
-      TRole.user,
-      TNotificationType.payment,
-      null,
-      userSubscription?._id
-    );
+    /*-─────────────────────────────────
+    |  ❌ OLD: enqueueWebNotification (Deprecated)
+    |  // Send notification to user
+    |  await enqueueWebNotification(
+    |    `A refund has been processed for your subscription. Your access has been ${userSubscription?.status === UserSubscriptionStatusType.cancelled ? 'revoked' : 'maintained until period end'}.`,
+    |    user._id,
+    |    user._id,
+    |    TRole.user,
+    |    TNotificationType.payment,
+    |    null,
+    |    userSubscription?._id
+    |  );
+    |
+    |  // Send notification to admin
+    |  await enqueueWebNotification(
+    |    `Refund processed for user ${user.email} - Order: ${orderId}`,
+    |    user._id,
+    |    null,
+    |    TRole.admin,
+    |    TNotificationType.payment,
+    |    null,
+    |    paymentTransaction._id
+    |  );
+    └──────────────────────────────────*/
 
-    // Send notification to admin
-    await enqueueWebNotification(
-      `Refund processed for user ${user.email} - Order: ${orderId}`,
-      user._id,
-      null,
-      TRole.admin,
-      TNotificationType.payment,
-      null,
-      paymentTransaction._id
-    );
+    // ✅ NEW: Scalable notification.module implementation
+    const notificationService = new NotificationService();
+
+    // Notification to user
+    const accessStatus = userSubscription?.status === UserSubscriptionStatusType.cancelled ? 'revoked' : 'maintained until period end';
+    await notificationService.createNotification({
+      receiverId: new Types.ObjectId(user._id as string),
+      senderId: new Types.ObjectId(user._id as string),
+      title: 'Refund Processed',
+      subTitle: `A refund has been processed for your subscription. Your access has been ${accessStatus}.`,
+      type: NotificationType.PAYMENT,
+      priority: NotificationPriority.HIGH,
+      channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL],
+      linkFor: 'subscription',
+      linkId: new Types.ObjectId(userSubscription?._id as string),
+      referenceFor: 'subscription',
+      referenceId: new Types.ObjectId(userSubscription?._id as string),
+      data: {
+        subscriptionId: userSubscription?._id,
+        eventType: 'refund',
+        accessStatus,
+      }
+    });
+
+    // Notification to admin
+    await notificationService.createNotification({
+      senderId: new Types.ObjectId(user._id as string),
+      receiverRole: 'admin',
+      title: 'Refund Processed',
+      subTitle: `Refund processed for user ${user.email} - Order: ${orderId}`,
+      type: NotificationType.PAYMENT,
+      priority: NotificationPriority.NORMAL,
+      channels: [NotificationChannel.IN_APP],
+      linkFor: 'payment',
+      linkId: new Types.ObjectId(paymentTransaction._id as string),
+      referenceFor: 'payment',
+      referenceId: new Types.ObjectId(paymentTransaction._id as string),
+      data: {
+        userId: user._id,
+        userEmail: user.email,
+        orderId,
+        paymentTransactionId: paymentTransaction._id,
+        eventType: 'refund',
+      }
+    });
 
     console.log('✅ Refund notifications sent');
   } catch (error) {
