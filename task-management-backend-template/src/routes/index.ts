@@ -23,6 +23,7 @@ import { ChildrenBusinessUserRoute } from '../modules/childrenBusinessUser.modul
 import { TaskProgressRoute } from '../modules/taskProgress.module/taskProgress.route';
 import { SubTaskRoute } from '../modules/task.module/subTask/subTask.route';
 import { SubTaskProgressRoute } from '../modules/task.module/subTaskProgress/subTaskProgress.route';
+import { activationRoutes } from '../modules/childrenBusinessUser.module/activation/activation.routes';
 
 // 🆕 RevenueCat Routes
 import revenueCatRoutes from '../modules/subscription.module/revenueCat/revenueCat.route';
@@ -56,16 +57,6 @@ const apiRoutes = [
     route: SubTaskRoute,
   },
 
-  /////////////////////////////////////////  ❌ REMOVED: Group/Team Management
-  // Group module removed - using childrenBusinessUser instead
-  // { // 🟢
-  //   path: '/groups',
-  //   route: GroupRoute,
-  // },
-  // { // 🟢
-  //   path: '/group-members',
-  //   route: GroupMemberRoute,
-  // },
 
   /////////////////////////////////////////  Notification & Reminders
   // { // 🟢 //--------------------------------------------------------------
@@ -87,6 +78,12 @@ const apiRoutes = [
   { // 🟢 NEW - Business user can manage children accounts
     path: '/children-business-users',
     route: ChildrenBusinessUserRoute,
+  },
+
+  /////////////////////////////////////////  Account Activation (Invitation Flow - Learning)
+  { // 🎓 LEARNING PURPOSE - Activation endpoints for invitation flow
+    path: '',
+    route: activationRoutes,
   },
 
   /////////////////////////////////////////  Task Progress Tracking

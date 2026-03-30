@@ -86,6 +86,23 @@ router.post(
   controller.reactivateChild
 );
 
+/*-───────────────────────────────── ✔️ NEW
+|  Business | ChildrenBusinessUser | edit-child-flow.png | Update child profile
+|  @desc Update child account details (name, email, phone, gender, supportMode, location, dob, password)
+|  @auth Business user (parent/teacher)
+|  @rateLimit 20 requests per hour (prevents abuse)
+|  @request PATCH /children-business-users/children/:childId
+|  @body name, email, phoneNumber, gender, supportMode, location, dateOfBirth, password
+|  @response Updated child user data with profile information
+└──────────────────────────────────*/
+router.patch(
+  '/children/:childId',
+  auth(TRole.business),
+  childrenLimiter,
+  validateRequest(validation.updateChildValidationSchema),
+  controller.updateChild
+);
+
 /*-─────────────────────────────────
 |  Business | ChildrenBusinessUser | dashboard-flow-01.png | Get children statistics
 |  @desc Get statistics about children accounts (active, inactive, removed)
@@ -268,6 +285,22 @@ router.get(
   auth(TRole.commonUser),
   childrenLimiter,
   controller.getMyFamilyMembers
+);
+
+/*-───────────────────────────────── 🎓 LEARNING PURPOSE ONLY
+|  Business | ChildrenBusinessUser | create-child-flow.png | Send invitation to child
+|  @desc Parent sends invitation to child (child sets own password via deep link)
+|  @auth Business user (parent/teacher)
+|  @rateLimit 5 requests per hour (prevents spam)
+|  @request POST /children-business-users/children/invite
+|  @response Invitation confirmation with expiration time
+└──────────────────────────────────*/
+router.post(
+  '/children/invite',
+  auth(TRole.business),
+  rateLimiter('strict'),
+  validateRequest(validation.inviteChildValidationSchema),
+  controller.inviteChild
 );
 
 export const ChildrenBusinessUserRoute = router;

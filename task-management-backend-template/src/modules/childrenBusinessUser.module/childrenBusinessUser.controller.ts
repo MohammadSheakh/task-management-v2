@@ -30,6 +30,7 @@ export class ChildrenBusinessUserController {
    *
    * @description Business user creates a child account and adds to family
    * @auth Business user with active business subscription
+   * @figmaIndex create-child-flow.png
    */
   createChild = catchAsync(async (req: Request, res: Response) => {
     /*-─────────────────────────────────
@@ -42,9 +43,19 @@ export class ChildrenBusinessUserController {
     }
 
     /*-─────────────────────────────────
-    |  Step 2: Extract child data from request body
+    |  Step 2: Extract ALL child data from request body
+    |  Figma: create-child-flow.png (all fields)
     └──────────────────────────────────*/
-    const childData = pick(req.body, ['name', 'email', 'password', 'phoneNumber']);
+    const childData = pick(req.body, [
+      'name',
+      'email',
+      'password',
+      'phoneNumber',
+      'location',        // Address field from Figma
+      'gender',          // Gender dropdown (Male/Female)
+      'dateOfBirth',     // Date of Birth field
+      'supportMode',     // Support Mode (Calm/Encouraging/Logical)
+    ]);
 
     /*-─────────────────────────────────
     |  Step 3: Call service to create child account
@@ -57,7 +68,7 @@ export class ChildrenBusinessUserController {
     sendResponse(res, {
       code: StatusCodes.CREATED,
       data: result,
-      message: 'Child account created successfully and added to family',
+      message: result.message || 'Child account created successfully and added to family',
       success: true,
     });
   });
@@ -205,6 +216,50 @@ export class ChildrenBusinessUserController {
       code: StatusCodes.OK,
       data: null,
       message: 'Child account reactivated successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Update child profile
+   * PATCH /children-business-users/children/:childId
+   *
+   * @description Update child account details (name, email, phone, gender, supportMode, location, dob, password)
+   * @auth Business user (Parent/Teacher)
+   * @figmaIndex edit-child-flow.png
+   */
+  updateChild = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID and child ID
+    └──────────────────────────────────*/
+    const businessUserId = req.user?.userId;
+    const { childId } = req.params;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Extract update data from request body
+    └──────────────────────────────────*/
+    const updateData = req.body;
+
+    /*-─────────────────────────────────
+    |  Step 3: Update child profile
+    └──────────────────────────────────*/
+    const result = await this.service.updateChildProfile(
+      businessUserId as string,
+      childId,
+      updateData
+    );
+
+    /*-─────────────────────────────────
+    |  Step 4: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Child profile updated successfully',
       success: true,
     });
   });
@@ -706,6 +761,53 @@ export class ChildrenBusinessUserController {
       code: StatusCodes.OK,
       data: result,
       message: 'Family members retrieved successfully',
+      success: true,
+    });
+  });
+
+  /** 🎓 LEARNING PURPOSE ONLY
+   * Send invitation to child
+   * POST /children-business-users/children/invite
+   *
+   * @description Parent sends invitation to child (child sets own password)
+   * @auth Business user (Parent/Teacher)
+   * @figmaIndex create-child-flow.png (Invitation flow variant)
+   */
+  inviteChild = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID from request
+    └──────────────────────────────────*/
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Extract invitation data from request body
+    └──────────────────────────────────*/
+    const invitationData = pick(req.body, [
+      'name',
+      'email',
+      'phoneNumber',
+      'location',
+      'gender',
+      'dateOfBirth',
+      'supportMode',
+    ]);
+
+    /*-─────────────────────────────────
+    |  Step 3: Send invitation
+    └──────────────────────────────────*/
+    const result = await this.service.inviteChildAccount(businessUserId, invitationData);
+
+    /*-─────────────────────────────────
+    |  Step 4: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.ACCEPTED,
+      data: result,
+      message: result.message || 'Invitation sent successfully',
       success: true,
     });
   });

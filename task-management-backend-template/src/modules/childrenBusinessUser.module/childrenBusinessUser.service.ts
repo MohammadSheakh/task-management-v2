@@ -23,6 +23,7 @@ import { redisClient } from '../../helpers/redis/redis';
 import { errorLogger, logger } from '../../shared/logger';
 import bcryptjs from 'bcryptjs';
 import { TaskStatus } from '../task.module/task/task.constant';
+import { SupportMode } from '../user.module/userProfile/userProfile.constant';
 
 /**
  * Children Business User Service
@@ -129,11 +130,19 @@ export class ChildrenBusinessUserService extends GenericService<
 
   /**
    * Create child account and add to family
+   * Figma: create-child-flow.png (Create Member screen)
    * This is the main method for business users to add children
    *
    * @param businessUserId - The business user creating the child
-   * @param childData - Child account details
+   * @param childData - Child account details (all fields from Figma)
    * @returns Created child user and relationship
+   *
+   * @description
+   * Creates User account with role 'child'
+   * Creates UserProfile with supportMode, location, dob, gender
+   * Creates ChildrenBusinessUser relationship
+   * Sends email with login credentials to child
+   * Invalidates Redis cache
    */
   async createChildAccount(
     businessUserId: string,
@@ -142,69 +151,27 @@ export class ChildrenBusinessUserService extends GenericService<
       email: string;
       password: string;
       phoneNumber?: string;
+      location?: string;
+      gender?: 'male' | 'female' ;
+      dateOfBirth?: string;
+      supportMode?: SupportMode; 
     },
   ): Promise<{
     childUser: any;
     relationship: IChildrenBusinessUserDocument;
-    familyGroup?: any;
+    message: string;
   }> {
     /*-─────────────────────────────────
-    |  Step 1: Verify business user exists and is a business user
+    |  Step 1: Verify business user exists and get name
     └──────────────────────────────────*/
-    const businessUser = await User.findById(businessUserId);
+    const businessUser = await User.findById(businessUserId).select('name email');
 
     if (!businessUser) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Business user not found');
     }
 
     /*-─────────────────────────────────
-    |  Step 2: Check if business user has active business subscription
-    └──────────────────────────────────*/
-    // const subscription = await UserSubscription.findOne({
-    //   userId: new Types.ObjectId(businessUserId),
-    //   status: UserSubscriptionStatusType.active,
-    //   isDeleted: false,
-    // });
-
-    // if (!subscription) {
-    //   throw new ApiError(
-    //     StatusCodes.BAD_REQUEST,
-    //     'You must have an active business subscription to add children accounts'
-    //   );
-    // }
-
-    /*-─────────────────────────────────
-    |  Step 3: Get subscription plan to check max children limit
-    └──────────────────────────────────*/
-    // const plan = await SubscriptionPlan.findById(subscription.subscriptionPlanId);
-
-    // if (!plan) {
-    //   throw new ApiError(StatusCodes.NOT_FOUND, 'Subscription plan not found');
-    // }
-
-    // // Verify this is a business subscription
-    // const businessSubscriptionTypes = ['business_starter', 'business_level1', 'business_level2'];
-    // if (!businessSubscriptionTypes.includes(plan.subscriptionType)) {
-    //   throw new ApiError(
-    //     StatusCodes.BAD_REQUEST,
-    //     'Only business subscriptions can add children accounts'
-    //   );
-    // }
-
-    /*-─────────────────────────────────
-    |  Step 4: Check current children count against subscription limit
-    └──────────────────────────────────*/
-    // const currentChildrenCount = await this.getChildrenCount(businessUserId);
-
-    // if (currentChildrenCount >= plan.maxChildrenAccount) {
-    //   throw new ApiError(
-    //     StatusCodes.BAD_REQUEST,
-    //     `You have reached the maximum limit of ${plan.maxChildrenAccount} children accounts for your ${plan.subscriptionName} subscription. Please upgrade your subscription to add more children.`
-    //   );
-    // }
-
-    /*-─────────────────────────────────
-    |  Step 5: Check if email already exists
+    |  Step 2: Check if email already exists
     └──────────────────────────────────*/
     const existingUser = await User.findOne({
       email: childData.email.toLowerCase(),
@@ -216,12 +183,26 @@ export class ChildrenBusinessUserService extends GenericService<
     }
 
     /*-─────────────────────────────────
-    |  Step 6: Hash password
+    |  Step 3: Hash password
     └──────────────────────────────────*/
     const hashedPassword = await bcryptjs.hash(childData.password, 12);
 
     /*-─────────────────────────────────
-    |  Step 7: Create child user account
+    |  Step 4: Create UserProfile first
+    |  Contains: supportMode, location, dob, gender
+    └──────────────────────────────────*/
+    const { UserProfile } = await import('../user.module/userProfile/userProfile.model');
+    
+    const userProfile = await UserProfile.create({
+      acceptTOC: true, // Auto-accept for child accounts created by parent
+      supportMode: childData.supportMode || SupportMode.CALM,
+      location: childData.location,
+      dob: childData.dateOfBirth ? new Date(childData.dateOfBirth) : undefined,
+      gender: childData.gender,
+    });
+
+    /*-─────────────────────────────────
+    |  Step 5: Create child user account
     |  Sets accountCreatorId = businessUserId (as per your requirement)
     └──────────────────────────────────*/
     const childUser = await User.create({
@@ -231,28 +212,54 @@ export class ChildrenBusinessUserService extends GenericService<
       phoneNumber: childData.phoneNumber,
       role: 'child',
       accountCreatorId: new Types.ObjectId(businessUserId), // ✅ KEY FIELD
-      profileId: businessUser.profileId, // Use same profile template
+      profileId: userProfile._id,
       subscriptionType: 'none', // Children don't need individual subscription
-      isEmailVerified: false, // Child should verify email
+      isEmailVerified: true, // Child should verify email
+      preferredTime: '07:00', // Default preferred time
     });
 
     /*-─────────────────────────────────
-    |  Step 8: Create parent-child relationship record
+    |  Step 6: Create parent-child relationship record
     └──────────────────────────────────*/
     const relationship = await this.model.create({
       parentBusinessUserId: new Types.ObjectId(businessUserId),
       childUserId: childUser._id,
       addedBy: new Types.ObjectId(businessUserId),
       status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+      isSecondaryUser: false, // Default: not secondary user
     });
 
     /*-─────────────────────────────────
-    |  Step 9: Invalidate cache
+    |  Step 7: Send email with login credentials
+    |  Figma: create-child-flow.png
+    └──────────────────────────────────*/
+    try {
+      const { sendChildAccountCredentialsEmail } = await import('../../helpers/emailService');
+      
+      // Send email asynchronously (don't block response)
+      sendChildAccountCredentialsEmail(
+        childUser.email,
+        childUser.name,
+        childData.password, // Plain text password for email
+        businessUser.name // Parent/Teacher name
+      ).catch((emailError) => {
+        errorLogger.error('Failed to send child account credentials email:', emailError);
+        // Don't throw - account creation should succeed even if email fails
+      });
+
+      logger.info(`Credentials email sent to child: ${childUser.email}`);
+    } catch (error) {
+      errorLogger.error('Email service error:', error);
+      // Don't throw - account creation should succeed even if email fails
+    }
+
+    /*-─────────────────────────────────
+    |  Step 8: Invalidate cache
     └──────────────────────────────────*/
     await this.invalidateCache(businessUserId);
 
     /*-─────────────────────────────────
-    |  Step 10: Return result (simplified - no group integration)
+    |  Step 9: Return result
     └──────────────────────────────────*/
     return {
       childUser: {
@@ -268,7 +275,9 @@ export class ChildrenBusinessUserService extends GenericService<
         childUserId: relationship.childUserId,
         addedAt: relationship.addedAt,
         status: relationship.status,
+        isSecondaryUser: relationship.isSecondaryUser,
       },
+      message: 'Child account created successfully. Login credentials have been sent to the child\'s email.',
     };
   }
 
@@ -1673,6 +1682,164 @@ export class ChildrenBusinessUserService extends GenericService<
     await this.invalidateCache(businessUserId, childUserId);
   }
 
+  /**
+   * Update child profile
+   * Figma: edit-child-flow.png (Update Profile form)
+   *
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param childUserId - Child user ID to update
+   * @param updateData - Fields to update (name, email, phone, gender, supportMode, location, dob, password)
+   * @returns Updated child user data
+   *
+   * @description
+   * Updates both User model fields and UserProfile model fields
+   * Handles password hashing if provided
+   * Invalidates Redis cache after update
+   */
+  async updateChildProfile(
+    businessUserId: string,
+    childUserId: string,
+    updateData: {
+      name?: string;
+      email?: string;
+      phoneNumber?: string;
+      gender?: 'male' | 'female' | 'other';
+      supportMode?: 'calm' | 'encouraging' | 'logical';
+      location?: string;
+      dateOfBirth?: string;
+      password?: string;
+      note?: string;
+    },
+  ): Promise<{
+    user: any;
+    profile: any;
+    relationship: any;
+  }> {
+    /*-─────────────────────────────────
+    |  Step 1: Verify child exists under this business user
+    └──────────────────────────────────*/
+    const relationship = await this.model.findOne({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: new Types.ObjectId(childUserId),
+      isDeleted: false,
+    });
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Child account not found or not associated with this business user',
+      );
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Check if email already exists (if email is being updated)
+    └──────────────────────────────────*/
+    if (updateData.email) {
+      const existingUser = await User.findOne({
+        email: updateData.email.toLowerCase(),
+        _id: { $ne: new Types.ObjectId(childUserId) },
+        isDeleted: false,
+      });
+
+      if (existingUser) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Email already exists. Please use a different email address.',
+        );
+      }
+    }
+
+    /*-─────────────────────────────────
+    |  Step 3: Prepare user update data
+    └──────────────────────────────────*/
+    const userUpdateData: any = {};
+
+    if (updateData.name) userUpdateData.name = updateData.name;
+    if (updateData.email) userUpdateData.email = updateData.email.toLowerCase();
+    if (updateData.phoneNumber) userUpdateData.phoneNumber = updateData.phoneNumber;
+    if (updateData.gender) userUpdateData.gender = updateData.gender;
+
+    // Hash password if provided
+    if (updateData.password) {
+      userUpdateData.password = await bcryptjs.hash(updateData.password, 12);
+    }
+
+    /*-─────────────────────────────────
+    |  Step 4: Update User model
+    └──────────────────────────────────*/
+    const updatedUser = await User.findByIdAndUpdate(
+      new Types.ObjectId(childUserId),
+      userUpdateData,
+      { new: true, runValidators: true },
+    ).select('-password');
+
+    if (!updatedUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 5: Update UserProfile if needed
+    └──────────────────────────────────*/
+    let updatedProfile = null;
+    const profileUpdateData: any = {};
+
+    if (updateData.supportMode) profileUpdateData.supportMode = updateData.supportMode;
+    if (updateData.location) profileUpdateData.location = updateData.location;
+    if (updateData.dateOfBirth) profileUpdateData.dob = updateData.dateOfBirth;
+
+    // Only update profile if there are profile fields to update
+    if (Object.keys(profileUpdateData).length > 0) {
+      updatedProfile = await (await import('../user.module/userProfile/userProfile.model')).UserProfile.findOneAndUpdate(
+        { userId: new Types.ObjectId(childUserId) },
+        profileUpdateData,
+        { new: true, upsert: true, runValidators: true },
+      );
+    }
+
+    /*-─────────────────────────────────
+    |  Step 6: Update relationship note if provided
+    └──────────────────────────────────*/
+    if (updateData.note) {
+      await this.model.findByIdAndUpdate(
+        relationship._id,
+        { note: updateData.note },
+        { new: true },
+      );
+    }
+
+    /*-─────────────────────────────────
+    |  Step 7: Invalidate cache
+    └──────────────────────────────────*/
+    await this.invalidateCache(businessUserId, childUserId);
+
+    logger.info(`Child profile updated: ${childUserId} by business user: ${businessUserId}`);
+
+    /*-─────────────────────────────────
+    |  Step 8: Return updated data
+    └──────────────────────────────────*/
+    return {
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phoneNumber: updatedUser.phoneNumber,
+        gender: updatedUser.gender,
+        profileImage: updatedUser.profileImage,
+      },
+      profile: updatedProfile ? {
+        supportMode: updatedProfile.supportMode,
+        location: updatedProfile.location,
+        dob: updatedProfile.dob,
+      } : null,
+      relationship: {
+        _id: relationship._id,
+        note: relationship.note,
+        isSecondaryUser: relationship.isSecondaryUser,
+        status: relationship.status,
+      },
+    };
+  }
+
   // ────────────────────────────────────────────────────────────────────────
   // Secondary User Management
   // Figma: dashboard-flow-03.png (Permissions section)
@@ -1925,5 +2092,110 @@ export class ChildrenBusinessUserService extends GenericService<
     ]);
 
     return familyMembers;
+  }
+
+  /** 🎓 LEARNING PURPOSE ONLY
+   * Send invitation to child (child sets own password)
+   * Figma: create-child-flow.png (Invitation flow variant)
+   *
+   * @param businessUserId - The business user sending invitation
+   * @param invitationData - Child account details (without password)
+   * @returns Invitation confirmation
+   *
+   * @description
+   * 1. Verify business user exists
+   * 2. Check email uniqueness
+   * 3. Generate activation token
+   * 4. Store token in Redis (24h TTL)
+   * 5. Send invitation email with deep link
+   * 6. Return confirmation
+   */
+  async inviteChildAccount(
+    businessUserId: string,
+    invitationData: {
+      name: string;
+      email: string;
+      phoneNumber?: string;
+      location?: string;
+      gender?: 'male' | 'female' | 'other';
+      dateOfBirth?: string;
+      supportMode?: 'calm' | 'encouraging' | 'logical';
+    },
+  ): Promise<{
+    message: string;
+    expiresAt: string;
+  }> {
+    /*-─────────────────────────────────
+    |  Step 1: Verify business user exists
+    └──────────────────────────────────*/
+    const businessUser = await User.findById(businessUserId).select('name email');
+
+    if (!businessUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Business user not found');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Check if email already exists
+    └──────────────────────────────────*/
+    const existingUser = await User.findOne({
+      email: invitationData.email.toLowerCase(),
+      isDeleted: false,
+    });
+
+    if (existingUser) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exists');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 3: Generate activation token
+    └──────────────────────────────────*/
+    const { ActivationTokenService } = await import('./activation/activation.token.service');
+    const tokenService = new ActivationTokenService();
+
+    const token = await tokenService.generateToken({
+      email: invitationData.email.toLowerCase(),
+      name: invitationData.name,
+      businessUserId,
+      childData: {
+        phoneNumber: invitationData.phoneNumber,
+        location: invitationData.location,
+        gender: invitationData.gender,
+        dateOfBirth: invitationData.dateOfBirth,
+        supportMode: invitationData.supportMode,
+      },
+    });
+
+    /*-─────────────────────────────────
+    |  Step 4: Send invitation email
+    └──────────────────────────────────*/
+    try {
+      const { sendInvitationEmail } = await import('../../helpers/emailService');
+      
+      // Send email asynchronously (don't block response)
+      sendInvitationEmail(
+        invitationData.email,
+        invitationData.name,
+        token,
+        businessUser.name
+      ).catch((emailError) => {
+        errorLogger.error('Failed to send invitation email:', emailError);
+        // Don't throw - invitation should succeed even if email fails
+      });
+
+      logger.info(`Invitation email sent to: ${invitationData.email}`);
+    } catch (error) {
+      errorLogger.error('Email service error:', error);
+      // Don't throw - invitation should succeed even if email fails
+    }
+
+    /*-─────────────────────────────────
+    |  Step 5: Return confirmation
+    └──────────────────────────────────*/
+    const expiresAt = new Date(Date.now() + 86400000).toISOString(); // 24 hours
+
+    return {
+      message: `Invitation sent to ${invitationData.email}. Token expires in 24 hours.`,
+      expiresAt,
+    };
   }
 }
