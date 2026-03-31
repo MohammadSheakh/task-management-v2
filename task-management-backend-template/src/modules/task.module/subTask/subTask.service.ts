@@ -76,7 +76,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
    * @param isCompleted - New completion status
    * @param userId - User performing the update
    * @returns Updated subtask
-   * 
+   *
    * NOTE: This method now ONLY creates/updates SubTaskProgress for the child.
    * It does NOT modify the global SubTask.isCompleted field.
    * Each child's completion is tracked independently in SubTaskProgress collection.
@@ -112,7 +112,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
 
     // Return the subtask definition (read-only)
     const updatedSubtask = await this.model.findById(subtaskId).select('-__v');
-    
+
     if (!updatedSubtask) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
     }
@@ -120,6 +120,94 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     console.log("updatedSubtask :: 🧪 ", updatedSubtask);
 
     return updatedSubtask;
+  }
+
+  /** ✔️🆕
+   * Toggle subtask completion status - V2 with improved error handling
+   * @param subtaskId - SubTask ID
+   * @param isCompleted - New completion status
+   * @param userId - User performing the update
+   * @returns Updated subtask
+   *
+   * IMPROVEMENTS:
+   * - Better error handling for SubTaskProgress creation
+   * - Validates subtask exists before processing
+   * - Graceful degradation if progress tracking fails
+   */
+  async toggleSubTaskStatusV2(
+    subtaskId: string,
+    isCompleted: boolean,
+    userId: Types.ObjectId
+  ): Promise<ISubTask> {
+    try {
+      // 1. Validate subtask exists first
+      const subtask = await this.model.findById(subtaskId);
+      
+      if (!subtask) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+      }
+
+      if (subtask.isDeleted) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Subtask has been deleted');
+      }
+
+      console.log("toggleSubTaskStatusV2 hit service 🪄🪄");
+      console.log(`Toggling subtask ${subtaskId} to ${isCompleted} for user ${userId}`);
+
+      // 2. Create/update SubTaskProgress for this child (with error handling)
+      try {
+        await this.createSubTaskProgressV2(
+          subtaskId,
+          userId,
+          isCompleted
+        );
+      } catch (progressError) {
+        errorLogger.error('[SubTask V2] Error creating SubTaskProgress:', progressError);
+        // Don't throw - continue with main flow (graceful degradation)
+      }
+
+      // 3. Update parent task progress (based on this child's progress)
+      try {
+        await this.updateParentTaskProgressFromChildProgress(subtaskId, userId);
+      } catch (progressUpdateError) {
+        errorLogger.error('[SubTask V2] Error updating parent task progress:', progressUpdateError);
+        // Don't throw - continue with main flow
+      }
+
+      // 4. For collaborative tasks, check if child completed ALL subtasks
+      try {
+        await this.checkAndSyncChildTaskProgress(
+          subtask.taskId.toString(),
+          userId
+        );
+      } catch (syncError) {
+        errorLogger.error('[SubTask V2] Error syncing child task progress:', syncError);
+        // Don't throw - continue with main flow
+      }
+
+      // 5. Return the subtask definition (read-only)
+      const updatedSubtask = await this.model.findById(subtaskId).select('-__v');
+
+      if (!updatedSubtask) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found after update');
+      }
+
+      console.log("updatedSubtask V2 :: 🧪 ", updatedSubtask);
+
+      return updatedSubtask;
+    } catch (error) {
+      errorLogger.error('[SubTask V2] Error in toggleSubTaskStatusV2:', error);
+      
+      // Re-throw ApiErrors, wrap others
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Failed to toggle subtask status'
+      );
+    }
   }
 
   /** ✔️
@@ -523,6 +611,58 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
   }
 
   /**
+   * Create or update SubTaskProgress for a child - V2 with better error handling
+   * Tracks per-child subtask completion independently
+   * @param subtaskId - SubTask ID
+   * @param userId - Child user ID
+   * @param isCompleted - Completion status
+   * @private
+   */
+  private async createSubTaskProgressV2(
+    subtaskId: string,
+    userId: Types.ObjectId,
+    isCompleted: boolean
+  ): Promise<void> {
+    // 1. Validate subtask exists
+    const subtask = await this.model.findById(subtaskId);
+    
+    if (!subtask) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+    }
+
+    if (subtask.isDeleted) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Subtask has been deleted');
+    }
+
+    // 2. Create or update SubTaskProgress
+    try {
+      await SubTaskProgress.findOneAndUpdate(
+        {
+          taskId: new Types.ObjectId(subtask.taskId),
+          subtaskId: new Types.ObjectId(subtaskId),
+          userId: userId,
+          isDeleted: false,
+        },
+        {
+          taskId: new Types.ObjectId(subtask.taskId),
+          subtaskId: new Types.ObjectId(subtaskId),
+          userId: userId,
+          isCompleted,
+          completedAt: isCompleted ? new Date() : undefined,
+        },
+        { upsert: true, new: true }
+      );
+
+      logger.info(
+        `[SubTask V2] SubTaskProgress ${isCompleted ? 'created/updated' : 'reset'} for child ${userId} on subtask ${subtaskId}`
+      );
+    } catch (error) {
+      errorLogger.error('[SubTask V2] Error in createSubTaskProgressV2:', error);
+      throw error; // Re-throw to be handled by caller
+    }
+  }
+
+  /**
    * Create or update SubTaskProgress for a child
    * Tracks per-child subtask completion independently
    * @param subtaskId - SubTask ID
@@ -557,7 +697,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
         },
         { upsert: true, new: true }
       );
-      
+
       logger.info(
         `[SubTask] SubTaskProgress ${isCompleted ? 'created/updated' : 'reset'} for child ${userId} on subtask ${subtaskId}`
       );

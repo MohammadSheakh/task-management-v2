@@ -31,12 +31,8 @@ approach is necessary, document why.
 
 | Module              | Status      | Location                         |
 | ------------------- | ----------- | -------------------------------- |
-| task.module         | ✅ Complete | src/modules/task.module/         |
-| group.module        | ✅ Complete | src/modules/group.module/        |
-| notification.module | ✅ Complete | src/modules/notification.module/ |
+|                     | ✅ Complete |                                 |
 
-> Before starting any session, check this table.
-> If a module is IN PROGRESS, resume from where it was left off.
 > Do NOT regenerate completed modules unless explicitly asked.
 
 ---
@@ -148,8 +144,14 @@ Format: `Role Name | Module Name | Figma Situation Or Screen Details | What we a
 /*-─────────────────────────────────
 |  Details...
 └──────────────────────────────────*/
-also this block can be used in controller and service before important logic to
+also this block can be used in service before so much important logic to
 express steps..
+
+otherwise normal comment with // or 
+/**
+ * 
+ * **/
+
 ```
 
 ### 6d. Middleware Usage
@@ -383,7 +385,7 @@ SESSION MANAGEMENT
 - Session keys: session:<userId>:<deviceId>
 
 FILE STORAGE
-- All uploaded files go to external storage (S3 / cloud)
+- All uploaded files go to external storage (S3 / cloud )
 - Never write to local disk in any module
 
 CRON JOBS / SCHEDULED TASKS

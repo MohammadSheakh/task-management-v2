@@ -43,7 +43,7 @@ const userProfileSchema = new Schema<IUserProfile>({
     supportMode: {
         type: String,
         enum: Object.values(SupportMode),
-        default: SupportMode.CALM,
+        // default: SupportMode.CALM,
     },
 
     /**

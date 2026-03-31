@@ -58,6 +58,7 @@ import { logger, errorLogger } from '../../shared/logger';
 import { AUTH_SESSION_CONFIG } from './auth.constants';
 import { OAuthAccountService } from '../user.module/oauthAccount/oauthAccount.service';
 import { Token } from '../token/token.model';
+import { UserSubscription } from '../subscription.module/userSubscription/userSubscription.model';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Service Instances
@@ -179,10 +180,13 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
       //create verification email token
       const verificationToken =
         await TokenService.createVerifyEmailToken(existingUser);
+
+      // 🆕 DEFENSIVE: Clear stale OTP data before sending new OTP (fixes re-registration issue)
+      await otpService.clearOtpData(existingUser.email);
       
       // ✅ Create verification email OTP (Redis-based)
       await otpService.sendVerificationOtp(existingUser.email);
-      
+
       return { verificationToken };
     }
   }
@@ -199,6 +203,9 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
     userProfileId,
     userId : user._id
   });
+
+  // 🆕 DEFENSIVE: Clear any stale OTP data before sending new OTP (fixes re-registration issue)
+  await otpService.clearOtpData(user.email);
 
   // ✅ Create verification token and OTP in parallel (Redis-based)
   const [verificationToken] = await Promise.all([
@@ -364,6 +371,14 @@ const loginV2 = async (email: string,
     throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid credentials');
   }
 
+  // 🆕 NEW: Clear any remaining cooldown on successful login (improves UX)
+  try {
+    await otpService.clearCooldown(user.email);
+  } catch (error) {
+    // Don't fail login if cooldown clear fails
+    errorLogger.error('Failed to clear cooldown on login:', error);
+  }
+
   const tokens = await TokenService.accessAndRefreshToken(user);
 
   // ✅ Save FCM token in UserDevices
@@ -443,6 +458,9 @@ const verifyEmail = async (email: string, token: string, otp: string) => {
   // ✅ Verify OTP (Redis-based)
   await otpService.verifyOtp(user.email, otp);
 
+  // 🆕 NEW: Clear cooldown on successful verification (fixes immediate login issue)
+  await otpService.clearCooldown(user.email);
+
   user.isEmailVerified = true;
   await user.save();
 
@@ -489,10 +507,19 @@ const resendOtp = async (email: string) => {
   if (user?.isResetPassword) {
     const resetPasswordToken =
       await TokenService.createResetPasswordToken(user);
+    
+    // 🆕 DEFENSIVE: Clear stale OTP data before sending new OTP
+    await otpService.clearOtpData(user.email);
+    
     await otpService.sendResetPasswordOtp(user.email);
     return { resetPasswordToken };
   }
+  
   const verificationToken = await TokenService.createVerifyEmailToken(user);
+  
+  // 🆕 DEFENSIVE: Clear stale OTP data before sending new OTP
+  await otpService.clearOtpData(user.email);
+  
   await otpService.sendVerificationOtp(user.email);
   return { verificationToken };
 };

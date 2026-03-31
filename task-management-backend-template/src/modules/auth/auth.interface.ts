@@ -8,9 +8,8 @@ export interface IRegisterData {
     password:string,
     role: TRole.business | TRole.child,
     phoneNumber: number,
-    location: string, 
-    lat: number, 
-    lng : number,
+    age: string,
+    gender: string, // it can be male / female
     dob : string,
     acceptTOC: boolean  
 }

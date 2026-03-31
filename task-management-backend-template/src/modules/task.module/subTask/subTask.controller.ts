@@ -101,7 +101,8 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       throw new ApiError(StatusCodes.BAD_REQUEST, 'isCompleted status is required');
     }
 
-    const result = await this.subTaskService.toggleSubTaskStatus(
+    // 🆕 V2: Use improved error handling version
+    const result = await this.subTaskService.toggleSubTaskStatusV2(
       subtaskId,
       isCompleted,
       userId

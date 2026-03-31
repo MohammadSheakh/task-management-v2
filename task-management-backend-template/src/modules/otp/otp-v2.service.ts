@@ -47,7 +47,7 @@ export class OtpV2WithRedis {
   // ═══════════════════════════════════════════════════════════════════════════════
   
   private readonly OTP_TTL = 600;                    // 10 minutes (in seconds)
-  private readonly OTP_COOLDOWN_TTL = 60;            // 1 minute between resend
+  private readonly OTP_COOLDOWN_TTL = 10;            // 10 seconds between resend // actual was 60 second
   private readonly OTP_SEND_LIMIT = 3;               // Max sends per hour
   private readonly OTP_SEND_LIMIT_TTL = 3600;        // 1 hour (in seconds)
   private readonly OTP_MAX_ATTEMPTS = 5;             // Max verify attempts
@@ -390,7 +390,7 @@ export class OtpV2WithRedis {
 
   /**
    * Clear all OTP data for an email (admin/emergency use)
-   * 
+   *
    * @param email - User's email address
    */
   async clearOtpData(email: string): Promise<void> {
@@ -404,5 +404,24 @@ export class OtpV2WithRedis {
 
     await redisClient.del(keys);
     logger.info(`All OTP data cleared for ${lowerEmail}`);
+  }
+
+  /**
+   * Clear cooldown only (for successful verification or re-registration)
+   * This allows immediate OTP resend after email verification
+   *
+   * @param email - User's email address
+   *
+   * @example
+   * // After successful email verification
+   * await otpService.clearCooldown(user.email);
+   *
+   * // Before re-registration (defensive)
+   * await otpService.clearCooldown(user.email);
+   */
+  async clearCooldown(email: string): Promise<void> {
+    const lowerEmail = email.toLowerCase().trim();
+    await redisClient.del(`otp:cooldown:${lowerEmail}`);
+    logger.info(`Cooldown cleared for ${lowerEmail}`);
   }
 }

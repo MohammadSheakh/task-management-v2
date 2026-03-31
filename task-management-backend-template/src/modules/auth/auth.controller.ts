@@ -81,7 +81,7 @@ const registerV2 = catchAsync(async (req: Request, res: Response) => {
 
   if (!data.acceptTOC) {
     return sendResponse(res, {
-      code: StatusCodes.CREATED,
+      code: StatusCodes.BAD_REQUEST,
       message: `Please Read Terms and Conditions and Accept it.`,
       data: null,
       success: true,
@@ -90,6 +90,9 @@ const registerV2 = catchAsync(async (req: Request, res: Response) => {
 
   const userProfile: IUserProfile = await UserProfile.create({
     acceptTOC: data.acceptTOC,
+    age: data.age,
+    dob: data.dob ? new Date(data.dob) : undefined,
+    gender : data.gender,
   });
 
   // req.body.profileId = userProfile._id;

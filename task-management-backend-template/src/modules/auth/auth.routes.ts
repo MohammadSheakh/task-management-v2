@@ -93,7 +93,17 @@ router.post(
   AuthController.forgotPassword,
 );
 
-router.post('/resend-otp', authLimiter);  // 🔒 Rate limiting: 100 per minute
+/*-─────────────────────────────────
+|  Role: User | Module: Auth | Resend OTP for email verification
+|  Action: Resend verification OTP to user's email
+|  Auth: Not required (user may not have token)
+|  Rate Limit: 100 req/min (same as general API)
+└──────────────────────────────────*/
+router.post(
+  '/resend-otp',
+  authLimiter,  // 🔒 Rate limiting: 100 per minute
+  AuthController.resendOtp
+);
 
 //[🚧][🧑‍💻✅][🧪] // 🆗
 router.post(
