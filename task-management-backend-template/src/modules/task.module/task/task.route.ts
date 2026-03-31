@@ -331,6 +331,26 @@ router
     controller.updateStatus,
   );
 
+/*-───────────────────────────────── 🆕 V2
+|  Child | Business | Task | edit-update-task-flow.png, response-based-on-mode.png | Update task status with creative response
+|  @desc Update task status and receive personalized response based on support mode and completion percentage
+|  @auth All authenticated users (child, business)
+|  @access Task creator, owner, or assigned users only
+|  @returns Creative response with mode-specific messaging (calm, encouraging, logical)
+|  @note Triggers popup at 50% and 100% completion milestones
+|  @see Figma: response-based-on-mode.png for message templates
+└──────────────────────────────────*/
+router
+  .route('/:id/status/v2')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskStatusValidationSchema),
+    validateStatusTransition,
+    controller.updateStatusV2,
+  );
+
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | edit-update-task-flow.png | Update subtask progress
 |  @desc Update subtask list and auto-calculate completion percentage

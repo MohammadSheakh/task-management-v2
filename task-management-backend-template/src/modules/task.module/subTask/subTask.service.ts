@@ -139,75 +139,67 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     isCompleted: boolean,
     userId: Types.ObjectId
   ): Promise<ISubTask> {
-    try {
-      // 1. Validate subtask exists first
-      const subtask = await this.model.findById(subtaskId);
-      
-      if (!subtask) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
-      }
-
-      if (subtask.isDeleted) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, 'Subtask has been deleted');
-      }
-
-      console.log("toggleSubTaskStatusV2 hit service 🪄🪄");
-      console.log(`Toggling subtask ${subtaskId} to ${isCompleted} for user ${userId}`);
-
-      // 2. Create/update SubTaskProgress for this child (with error handling)
-      try {
-        await this.createSubTaskProgressV2(
-          subtaskId,
-          userId,
-          isCompleted
-        );
-      } catch (progressError) {
-        errorLogger.error('[SubTask V2] Error creating SubTaskProgress:', progressError);
-        // Don't throw - continue with main flow (graceful degradation)
-      }
-
-      // 3. Update parent task progress (based on this child's progress)
-      try {
-        await this.updateParentTaskProgressFromChildProgress(subtaskId, userId);
-      } catch (progressUpdateError) {
-        errorLogger.error('[SubTask V2] Error updating parent task progress:', progressUpdateError);
-        // Don't throw - continue with main flow
-      }
-
-      // 4. For collaborative tasks, check if child completed ALL subtasks
-      try {
-        await this.checkAndSyncChildTaskProgress(
-          subtask.taskId.toString(),
-          userId
-        );
-      } catch (syncError) {
-        errorLogger.error('[SubTask V2] Error syncing child task progress:', syncError);
-        // Don't throw - continue with main flow
-      }
-
-      // 5. Return the subtask definition (read-only)
-      const updatedSubtask = await this.model.findById(subtaskId).select('-__v');
-
-      if (!updatedSubtask) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found after update');
-      }
-
-      console.log("updatedSubtask V2 :: 🧪 ", updatedSubtask);
-
-      return updatedSubtask;
-    } catch (error) {
-      errorLogger.error('[SubTask V2] Error in toggleSubTaskStatusV2:', error);
-      
-      // Re-throw ApiErrors, wrap others
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      
-      throw new ApiError(
-        StatusCodes.INTERNAL_SERVER_ERROR,
-        'Failed to toggle subtask status'
-      );
+    // 1. Validate subtask exists first (CRITICAL - throw if not found)
+    const subtask = await this.model.findById(subtaskId);
+    
+    if (!subtask) {
+      const errorMsg = `Subtask not found: ${subtaskId}`;
+      console.error(`[SubTask V2] ${errorMsg}`);
+      throw new ApiError(StatusCodes.NOT_FOUND, errorMsg);
     }
+
+    if (subtask.isDeleted) {
+      const errorMsg = `Subtask has been deleted: ${subtaskId}`;
+      console.error(`[SubTask V2] ${errorMsg}`);
+      throw new ApiError(StatusCodes.BAD_REQUEST, errorMsg);
+    }
+
+    console.log("toggleSubTaskStatusV2 hit service 🪄🪄");
+    console.log(`Toggling subtask ${subtaskId} to ${isCompleted} for user ${userId}`);
+
+    // 2. Create/update SubTaskProgress for this child (with error handling)
+    try {
+      await this.createSubTaskProgressV2(
+        subtaskId,
+        userId,
+        isCompleted
+      );
+    } catch (progressError) {
+      console.error('[SubTask V2] Error creating SubTaskProgress:', progressError);
+      // Don't throw - continue with main flow (graceful degradation)
+    }
+
+    // 3. Update parent task progress (based on this child's progress)
+    try {
+      await this.updateParentTaskProgressFromChildProgress(subtaskId, userId);
+    } catch (progressUpdateError) {
+      console.error('[SubTask V2] Error updating parent task progress:', progressUpdateError);
+      // Don't throw - continue with main flow
+    }
+
+    // 4. For collaborative tasks, check if child completed ALL subtasks
+    try {
+      await this.checkAndSyncChildTaskProgress(
+        subtask.taskId.toString(),
+        userId
+      );
+    } catch (syncError) {
+      console.error('[SubTask V2] Error syncing child task progress:', syncError);
+      // Don't throw - continue with main flow
+    }
+
+    // 5. Return the subtask definition (read-only)
+    const updatedSubtask = await this.model.findById(subtaskId).select('-__v');
+
+    if (!updatedSubtask) {
+      const errorMsg = `Subtask not found after update: ${subtaskId}`;
+      console.error(`[SubTask V2] ${errorMsg}`);
+      throw new ApiError(StatusCodes.NOT_FOUND, errorMsg);
+    }
+
+    console.log("updatedSubtask V2 :: 🧪 ", updatedSubtask);
+
+    return updatedSubtask;
   }
 
   /** ✔️
@@ -627,11 +619,15 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     const subtask = await this.model.findById(subtaskId);
     
     if (!subtask) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
+      const errorMsg = `Subtask not found in createSubTaskProgressV2: ${subtaskId}`;
+      console.error(`[SubTask V2] ${errorMsg}`);
+      throw new ApiError(StatusCodes.NOT_FOUND, errorMsg);
     }
 
     if (subtask.isDeleted) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Subtask has been deleted');
+      const errorMsg = `Subtask has been deleted: ${subtaskId}`;
+      console.error(`[SubTask V2] ${errorMsg}`);
+      throw new ApiError(StatusCodes.BAD_REQUEST, errorMsg);
     }
 
     // 2. Create or update SubTaskProgress
@@ -653,11 +649,11 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
         { upsert: true, new: true }
       );
 
-      logger.info(
+      console.log(
         `[SubTask V2] SubTaskProgress ${isCompleted ? 'created/updated' : 'reset'} for child ${userId} on subtask ${subtaskId}`
       );
     } catch (error) {
-      errorLogger.error('[SubTask V2] Error in createSubTaskProgressV2:', error);
+      console.error('[SubTask V2] Error in createSubTaskProgressV2:', error);
       throw error; // Re-throw to be handled by caller
     }
   }

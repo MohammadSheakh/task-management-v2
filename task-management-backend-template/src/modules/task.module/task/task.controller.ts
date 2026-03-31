@@ -213,6 +213,44 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
+  /**
+   * Update task status with creative response based on support mode
+   * Specialized V2 endpoint with personalized messaging
+   *
+   * @description
+   * This endpoint provides creative, mode-specific responses based on:
+   * - Child's support mode (calm, encouraging, logical)
+   * - Task completion percentage (50%, 100%)
+   *
+   * @see Figma: response-based-on-mode.png
+   */
+  updateStatusV2 = catchAsync(async (req: Request, res: Response) => {
+    const taskId = req.params.id;
+    const { status } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    if (!status) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
+    }
+
+    const result = await this.taskService.updateTaskStatusV2(
+      taskId,
+      status,
+      userId,
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task status updated successfully with creative response',
+      success: true,
+    });
+  });
+
   /** ✔️
    * Update subtask progress
    * Automatically recalculates completion percentage

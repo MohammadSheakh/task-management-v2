@@ -20,9 +20,36 @@ import { NotificationService } from '../../notification.module/notification/noti
 import { ACTIVITY_TYPE } from '../../notification.module/notification/notification.constant';
 import { TaskProgressService } from '../../taskProgress.module/taskProgress.service';
 import { socketService } from '../../../helpers/socket/socketForChatV3';
+import { UserProfile } from '../../user.module/userProfile/userProfile.model';
+import { SupportMode, TSupportMode } from '../../user.module/userProfile/userProfile.constant';
 
 const notificationService = new NotificationService();
 const taskProgressService = new TaskProgressService();
+
+/**
+ * Creative Response Interface
+ */
+interface ICreativeResponse {
+  mode: TSupportMode;
+  milestone: '50_percent' | '100_percent' | 'started';
+  popup: {
+    title: string;
+    message: string;
+    icon?: string;
+    color?: string;
+    buttonText?: string;
+  };
+  showPopup: boolean;
+}
+
+/**
+ * Progress Stats Interface
+ */
+interface IProgressStats {
+  completedPercentage: number;
+  totalSubtasks: number;
+  completedSubtasks: number;
+}
 
 /**
  * Task Service
@@ -602,6 +629,153 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     });
 
     return updatedTask;
+  }
+
+  /**
+   * Update task status with creative response based on support mode
+   * @param taskId - Task ID
+   * @param status - New status
+   * @param userId - User performing the update
+   * @returns Updated task with creative response and progress stats
+   *
+   * @description
+   * This V2 endpoint provides personalized responses based on:
+   * - Child's support mode (calm, encouraging, logical)
+   * - Task completion percentage (50%, 100%)
+   * - Task status (completed, inProgress)
+   *
+   * @see Figma: response-based-on-mode.png
+   */
+  async updateTaskStatusV2(
+    taskId: string,
+    status: TTaskStatus,
+    userId: Types.ObjectId,
+  ): Promise<{
+    task: ITask;
+    creativeResponse: ICreativeResponse;
+    progressStats?: IProgressStats;
+  }> {
+    // 1. Update task status (reuse existing logic)
+    const task = await this.updateTaskStatus(taskId, status, userId);
+
+    // 2. Get user's support mode from UserProfile
+    const userProfile = await UserProfile.findOne({ userId }).lean();
+    const supportMode: TSupportMode = 
+      userProfile?.supportMode || SupportMode.LOGICAL;
+
+    // 3. Calculate completion percentage
+    const totalSubtasks = task.totalSubtasks || 0;
+    const completedSubtasks = task.completedSubtasks || 0;
+    const completionPercentage = totalSubtasks > 0
+      ? (completedSubtasks / totalSubtasks) * 100
+      : 0;
+
+    // 4. Determine milestone
+    let milestone: '50_percent' | '100_percent' | 'started' = 'started';
+    
+    if (status === TaskStatus.COMPLETED || completionPercentage >= 100) {
+      milestone = '100_percent';
+    } else if (completionPercentage >= 50) {
+      milestone = '50_percent';
+    }
+
+    // 5. Generate creative response based on support mode and milestone
+    const creativeResponse = this.generateCreativeResponse(
+      supportMode,
+      milestone
+    );
+
+    // 6. Return task with creative response and progress stats
+    return {
+      task,
+      creativeResponse,
+      progressStats: milestone !== 'started' ? {
+        completedPercentage: Math.round(completionPercentage),
+        totalSubtasks,
+        completedSubtasks,
+      } : undefined,
+    };
+  }
+
+  /**
+   * Generate creative response based on support mode and milestone
+   * @param supportMode - User's support mode preference
+   * @param milestone - Completion milestone (50%, 100%)
+   * @returns Creative response with mode-specific messaging
+   *
+   * @see Figma: response-based-on-mode.png
+   */
+  private generateCreativeResponse(
+    supportMode: TSupportMode,
+    milestone: '50_percent' | '100_percent' | 'started'
+  ): ICreativeResponse {
+    // Messages configuration by support mode and milestone
+    const messages = {
+      [SupportMode.LOGICAL]: {
+        '50_percent': {
+          title: 'Progress update',
+          message: '50% of the assigned work has been completed.',
+          icon: '📋',
+          buttonText: 'Continue',
+        },
+        '100_percent': {
+          title: 'Task completed',
+          message: "All scheduled tasks have been completed. Today's productivity goal has been achieved.",
+          icon: '🐧',
+          buttonText: 'Well done',
+        },
+      },
+      [SupportMode.CALM]: {
+        '50_percent': {
+          title: 'Good job! 🌸',
+          message: "You're halfway there. Take it step by step — you're doing just fine.",
+          icon: '📊',
+          buttonText: 'Continue',
+        },
+        '100_percent': {
+          title: 'Task completed',
+          message: "You've completed all your tasks for today. Take a moment to breathe — you did well.",
+          icon: '🐧',
+          buttonText: 'Continue',
+        },
+      },
+      [SupportMode.ENCOURAGING]: {
+        '50_percent': {
+          title: 'Great job! 🌟',
+          message: "You've completed 50% of your work — keep going!",
+          icon: '📝',
+          buttonText: 'Keep it up!',
+        },
+        '100_percent': {
+          title: 'Amazing work! 🎊',
+          message: "You completed all your tasks today. Keep the momentum going — you're on fire! 🔥",
+          icon: '🐧',
+          buttonText: 'Awesome!',
+        },
+      },
+    };
+
+    // Mode-specific colors
+    const colors = {
+      [SupportMode.LOGICAL]: '#4ADE80',    // Green
+      [SupportMode.CALM]: '#93C5FD',       // Light blue
+      [SupportMode.ENCOURAGING]: '#C4B5FD', // Purple
+    };
+
+    const selectedMessage = messages[supportMode][milestone] || messages[supportMode]['50_percent'];
+
+    return {
+      mode: supportMode,
+      milestone,
+      popup: {
+        title: selectedMessage.title,
+        message: selectedMessage.message,
+        icon: selectedMessage.icon,
+        color: colors[supportMode],
+        buttonText: selectedMessage.buttonText,
+      },
+      showPopup: milestone !== 'started',
+    };
   }
 
   /** ✔️

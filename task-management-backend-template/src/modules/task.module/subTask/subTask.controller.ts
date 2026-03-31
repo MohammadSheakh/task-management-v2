@@ -6,6 +6,7 @@ import { ISubTask } from './subTask.interface';
 import ApiError from '../../../errors/ApiError';
 import { SubTaskService } from './subTask.service';
 import sendResponse from '../../../shared/sendResponse';
+import catchAsync from '../../../shared/catchAsync';
 
 /**
  * SubTask Controller
@@ -22,7 +23,7 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
   /** ✔️
    * Create a new subtask
    */
-  create = async (req: Request, res: Response) => {
+  create = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -38,12 +39,12 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtask created successfully',
       success: true,
     });
-  };
+  });
 
   /** ✔️
    * Get all subtasks for a specific task
    */
-  getSubTasksByTask = async (req: Request, res: Response) => {
+  getSubTasksByTask = catchAsync(async (req: Request, res: Response) => {
     const taskId = req.params.taskId;
     const filters = req.query;
 
@@ -55,12 +56,12 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtasks retrieved successfully',
       success: true,
     });
-  };
+  });
 
   /** ✔️
    * Get subtasks with pagination
    */
-  getSubTasksWithPagination = async (req: Request, res: Response) => {
+  getSubTasksWithPagination = catchAsync(async (req: Request, res: Response) => {
     const taskId = req.params.taskId;
     const filters = req.query;
     const options = {
@@ -81,12 +82,12 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtasks retrieved successfully with pagination',
       success: true,
     });
-  };
+  });
 
   /** ✔️
    * Toggle subtask completion status
    */
-  toggleStatus = async (req: Request, res: Response) => {
+  toggleStatus = catchAsync(async (req: Request, res: Response) => {
     const subtaskId = req.params.id;
     const { isCompleted } = req.body;
     const userId = req.user?.userId;
@@ -115,12 +116,12 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtask status updated successfully',
       success: true,
     });
-  };
+  });
 
-  /** 
+  /**
    * Get subtask statistics for the logged-in user
    */
-  getStatistics = async (req: Request, res: Response) => {
+  getStatistics = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -135,13 +136,13 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtask statistics retrieved successfully',
       success: true,
     });
-  };
+  });
 
   /** ✔️
    * Update a subtask
    * Overrides generic update to handle parent task updates
    */
-  updateById = async (req: Request, res: Response) => {
+  updateById = catchAsync(async (req: Request, res: Response) => {
     const subtaskId = req.params.id;
     const updateData = req.body;
     const userId = req.user?.userId;
@@ -158,12 +159,12 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtask updated successfully',
       success: true,
     });
-  };
+  });
 
   /**
    * Delete a subtask
    */
-  deleteById = async (req: Request, res: Response) => {
+  deleteById = catchAsync(async (req: Request, res: Response) => {
     const subtaskId = req.params.id;
 
     const result = await this.subTaskService.deleteSubTask(subtaskId);
@@ -174,5 +175,5 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       message: 'Subtask deleted successfully',
       success: true,
     });
-  };
+  });
 }
