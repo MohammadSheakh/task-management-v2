@@ -912,6 +912,359 @@ export class AdminAnalyticsService {
   async getPredictiveAnalytics(months: number = 3): Promise<any> {
     return { forecast: [], insights: [] };
   }
+
+  /**
+   * Get user counts by role with growth percentages
+   * @returns User counts for each role with growth percentages
+   * 
+   * @see Figma: dashboard-section-flow.png (4 user count cards)
+   */
+  async getUserCounts(): Promise<{
+    children: { count: number; growthPercentage: number };
+    business: { count: number; growthPercentage: number };
+    individual: { count: number; growthPercentage: number };
+    admin: { count: number; growthPercentage: number };
+    total: { count: number; growthPercentage: number };
+  }> {
+    const cacheKey = this.getCacheKey('user-counts');
+
+    // Try cache first
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const now = new Date();
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+    const currentMonthStart = startOfMonth(now);
+
+    // Get current user counts by role
+    const usersByRole = await User.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const getCount = (role: string) => 
+      usersByRole.find((r: any) => r._id === role)?.count || 0;
+
+    // Get last month's counts for growth calculation
+    const lastMonthUsersByRole = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $lt: currentMonthStart },
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const getLastMonthCount = (role: string) => 
+      lastMonthUsersByRole.find((r: any) => r._id === role)?.count || 0;
+
+    // Calculate growth percentage
+    const calculateGrowth = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const currentTotal = getCount('individual') + getCount('child') + getCount('business') + getCount('admin');
+    const previousTotal = getLastMonthCount('individual') + getLastMonthCount('child') + getLastMonthCount('business') + getLastMonthCount('admin');
+
+    const result = {
+      children: {
+        count: getCount('child'),
+        growthPercentage: calculateGrowth(getCount('child'), getLastMonthCount('child')),
+      },
+      business: {
+        count: getCount('business'),
+        growthPercentage: calculateGrowth(getCount('business'), getLastMonthCount('business')),
+      },
+      individual: {
+        count: getCount('individual'),
+        growthPercentage: calculateGrowth(getCount('individual'), getLastMonthCount('individual')),
+      },
+      admin: {
+        count: getCount('admin'),
+        growthPercentage: calculateGrowth(getCount('admin'), getLastMonthCount('admin')),
+      },
+      total: {
+        count: currentTotal,
+        growthPercentage: calculateGrowth(currentTotal, previousTotal),
+      },
+    };
+
+    // Cache for 5 minutes
+    await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.USER_METRICS);
+    return result;
+  }
+
+  /**
+   * Get income summary with formatted messages
+   * @returns Income data with pre-formatted messages for UI
+   * 
+   * @see Figma: dashboard-section-flow.png (Monthly income section)
+   */
+  async getIncomeSummary(): Promise<{
+    today: { amount: number; formatted: string; trend: 'up' | 'down' | 'stable' };
+    weekly: { amount: number; formatted: string; trend: 'up' | 'down' | 'stable' };
+    monthly: { amount: number; formatted: string; trend: 'up' | 'down' | 'stable' };
+    growthRate: number;
+    percentageDisplay: string;
+    message: string;
+    shortMessage: string;
+  }> {
+    const cacheKey = this.getCacheKey('income-summary');
+
+    // Try cache first
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const now = new Date();
+    const { PaymentTransaction } = await import('../../payment.module/paymentTransaction/paymentTransaction.model');
+
+    const todayStart = startOfDay(now);
+    const weekStart = startOfWeek(now);
+    const monthStart = startOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+    // Get income data
+    const [todayData, weekData, monthData, lastMonthData] = await Promise.all([
+      PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: todayStart },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: weekStart },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: monthStart },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      PaymentTransaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+            paymentStatus: 'success',
+            isDeleted: false,
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+    ]);
+
+    const todayAmount = todayData[0]?.total || 0;
+    const weeklyAmount = weekData[0]?.total || 0;
+    const monthlyAmount = monthData[0]?.total || 0;
+    const lastMonthAmount = lastMonthData[0]?.total || 0;
+
+    // Calculate growth rate
+    const growthRate = lastMonthAmount > 0 
+      ? ((monthlyAmount - lastMonthAmount) / lastMonthAmount) * 100 
+      : 0;
+
+    const percentageDisplay = growthRate.toFixed(2);
+    const trend = growthRate > 0 ? 'up' : growthRate < 0 ? 'down' : 'stable';
+
+    // Format amounts
+    const formatAmount = (amount: number) => {
+      if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
+      if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
+      return `$${amount.toFixed(0)}`;
+    };
+
+    // Generate messages
+    const comparisonText = growthRate > 0 
+      ? `higher than last month` 
+      : growthRate < 0 
+        ? `lower than last month` 
+        : `same as last month`;
+
+    const encouragementText = growthRate > 0 
+      ? `Keep up your good work!` 
+      : growthRate < 0 
+        ? `Let's improve this month!` 
+        : `Consistent performance!`;
+
+    const message = `You earn $${todayAmount.toLocaleString()} today, it's ${comparisonText}. ${encouragementText}`;
+    const shortMessage = comparisonText;
+
+    const result = {
+      today: {
+        amount: todayAmount,
+        formatted: formatAmount(todayAmount),
+        trend: trend as 'up' | 'down' | 'stable',
+      },
+      weekly: {
+        amount: weeklyAmount,
+        formatted: formatAmount(weeklyAmount),
+        trend: trend as 'up' | 'down' | 'stable',
+      },
+      monthly: {
+        amount: monthlyAmount,
+        formatted: formatAmount(monthlyAmount),
+        trend: trend as 'up' | 'down' | 'stable',
+      },
+      growthRate: Math.abs(Math.round(growthRate)),
+      percentageDisplay: percentageDisplay,
+      message: message,
+      shortMessage: shortMessage,
+    };
+
+    // Cache for 10 minutes
+    await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.REVENUE);
+    return result;
+  }
+
+  /**
+   * Get user registration chart data for bar chart (Figma: User ratio section)
+   * @param type - 'monthly' (current year) or 'yearly' (last 5 years)
+   * @param year - Optional year filter (defaults to current year for monthly)
+   * @returns User registration counts by month or year
+   * 
+   * @see Figma: dashboard-section-flow.png (User ratio bar chart)
+   */
+  async getUserRegistrationChartData(
+    type: 'monthly' | 'yearly' = 'monthly',
+    year?: number
+  ): Promise<{
+    type: 'monthly' | 'yearly';
+    data: {
+      period: string;
+      label: string;
+      count: number;
+    }[];
+  }> {
+    const cacheKey = this.getCacheKey(`user-registration-${type}-${year || 'current'}`);
+
+    // Try cache first
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    if (type === 'monthly') {
+      // Get monthly registrations for current year (or specified year)
+      const targetYear = year || currentYear;
+      const yearStart = new Date(targetYear, 0, 1);
+      const yearEnd = new Date(targetYear + 1, 0, 1);
+
+      const monthlyRegistrations = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: yearStart, $lt: yearEnd },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.month': 1 } },
+      ]);
+
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dataMap = new Map(monthlyRegistrations.map((d: any) => [d._id.month, d.count]));
+
+      const data = monthNames.map((name, index) => ({
+        period: (index + 1).toString(),
+        label: name,
+        count: dataMap.get(index + 1) || 0,
+      }));
+
+      const result = {
+        type: 'monthly' as const,
+        data,
+      };
+
+      // Cache for 15 minutes
+      await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.CHART_DATA);
+      return result;
+
+    } else {
+      // Get yearly registrations for last 5 years
+      const fiveYearsAgo = subYears(now, 5);
+
+      const yearlyRegistrations = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fiveYearsAgo },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.year': 1 } },
+      ]);
+
+      const dataMap = new Map(yearlyRegistrations.map((d: any) => [d._id.year, d.count]));
+      const currentYear = now.getFullYear();
+
+      const data = Array.from({ length: 5 }, (_, i) => {
+        const year = currentYear - 4 + i;
+        return {
+          period: year.toString(),
+          label: year.toString(),
+          count: dataMap.get(year) || 0,
+        };
+      });
+
+      const result = {
+        type: 'yearly' as const,
+        data,
+      };
+
+      // Cache for 15 minutes
+      await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.CHART_DATA);
+      return result;
+    }
+  }
 }
 
 export const adminAnalyticsService = new AdminAnalyticsService();

@@ -18,7 +18,8 @@ const settingsSchema = new Schema<ISettings>(
             )}`],
     },
     details: {
-      type: String,
+      // type: String,
+      type: Schema.Types.Mixed,
       required: false,
     },
   },

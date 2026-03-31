@@ -106,7 +106,7 @@ export class AdminAnalyticsController {
    */
   getIncomeChart = catchAsync(async (req: Request, res: Response) => {
     const { type = 'monthly' } = req.query;
-    
+
     const result = await adminAnalyticsService.getIncomeChartData(
       type as 'monthly' | 'yearly'
     );
@@ -115,6 +115,62 @@ export class AdminAnalyticsController {
       code: StatusCodes.OK,
       data: result,
       message: 'Income chart data retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get user counts by role with growth percentages
+   * Perfect for dashboard user count cards
+   *
+   * @see Figma: dashboard-section-flow.png
+   */
+  getUserCounts = catchAsync(async (req: Request, res: Response) => {
+    const result = await adminAnalyticsService.getUserCounts();
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'User counts retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get income summary with formatted messages
+   * Returns pre-formatted income data ready for UI display
+   *
+   * @see Figma: dashboard-section-flow.png (Monthly income section)
+   */
+  getIncomeSummary = catchAsync(async (req: Request, res: Response) => {
+    const result = await adminAnalyticsService.getIncomeSummary();
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Income summary retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get user registration chart data for bar chart
+   * Query: type='monthly' | 'yearly', year=optional
+   *
+   * @see Figma: dashboard-section-flow.png (User ratio bar chart)
+   */
+  getUserRegistrationChart = catchAsync(async (req: Request, res: Response) => {
+    const { type = 'monthly', year } = req.query;
+
+    const result = await adminAnalyticsService.getUserRegistrationChartData(
+      type as 'monthly' | 'yearly',
+      year ? parseInt(year as string) : undefined
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'User registration chart data retrieved successfully',
       success: true,
     });
   });

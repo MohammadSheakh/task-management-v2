@@ -13,6 +13,7 @@ import { logger, errorLogger } from '../../../shared/logger';
 import { Types } from 'mongoose';
 import sendResponse from '../../../shared/sendResponse';
 import { TaskStatus } from './task.constant';
+import catchAsync from '../../../shared/catchAsync';
 
 /**
  * Task Controller
@@ -605,31 +606,31 @@ export class TaskController extends GenericController<typeof Task, ITask> {
   // ────────────────────────────────────────────────────────────────────────
 
   /** ----------------------------------------------
-   * @role User (Primary/Secondary)
+   * @role User (Primary/Secondary) Same endpoint found .. so comment this one 
    * @Section Home
    * @module Task
    * @figmaIndex 01
    * @desc Get daily progress (Figma: home-flow.png)
    *----------------------------------------------*/
-  getDailyProgress = async (req: Request, res: Response) => {
-    const userId = req.user?.userId;
+  // getDailyProgress = async (req: Request, res: Response) => {
+  //   const userId = req.user?.userId;
 
-    if (!userId) {
-      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
-    }
+  //   if (!userId) {
+  //     throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+  //   }
 
-    const dateParam = req.query.date as string;
-    const date = dateParam ? new Date(dateParam) : new Date();
+  //   const dateParam = req.query.date as string;
+  //   const date = dateParam ? new Date(dateParam) : new Date();
 
-    const result = await this.taskService.getDailyProgress(userId, date);
+  //   const result = await this.taskService.getDailyProgress(userId, date);
 
-    sendResponse(res, {
-      code: StatusCodes.OK,
-      data: result,
-      message: 'Daily progress retrieved successfully',
-      success: true,
-    });
-  };
+  //   sendResponse(res, {
+  //     code: StatusCodes.OK,
+  //     data: result,
+  //     message: 'Daily progress retrieved successfully',
+  //     success: true,
+  //   });
+  // };
 
   // ────────────────────────────────────────────────────────────────────────
   // Parent Dashboard: Get All Children's Tasks

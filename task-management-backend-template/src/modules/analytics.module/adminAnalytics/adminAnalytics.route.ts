@@ -82,4 +82,44 @@ router.get('/admin/income-chart',
   controller.getIncomeChart
 );
 
+/*-───────────────────────────────── 🆕
+|  Admin | Admin Analytics | dashboard-section-flow.png | Get user counts by role
+|  @desc Returns: User count cards data (children, business, individual, admin) with growth percentages
+|  @response children.count, children.growthPercentage
+|  @response business.count, business.growthPercentage
+|  @response individual.count, individual.growthPercentage
+|  @response admin.count, admin.growthPercentage
+|  @response total.count, total.growthPercentage
+└──────────────────────────────────*/
+router.get('/admin/user-counts',
+  auth(TRole.admin),
+  controller.getUserCounts
+);
+
+/*-───────────────────────────────── 🆕
+|  Admin | Admin Analytics | dashboard-section-flow.png | Get income summary with formatted messages
+|  @desc Returns: Today/weekly/monthly income with pre-formatted messages for UI
+|  @response today.amount, today.formatted, today.trend
+|  @response weekly.amount, weekly.formatted, weekly.trend
+|  @response monthly.amount, monthly.formatted, monthly.trend
+|  @response message - "You earn $X today, it's higher than last month. Keep up your good work!"
+|  @response growthRate, percentageDisplay
+└──────────────────────────────────*/
+router.get('/admin/income-summary',
+  auth(TRole.admin),
+  controller.getIncomeSummary
+);
+
+/*-───────────────────────────────── 🆕
+|  Admin | Admin Analytics | dashboard-section-flow.png | Get user registration chart data
+|  @desc Returns: User registration count by month/year for bar chart (User ratio section)
+|  @query type - 'monthly' (current year months Jan-Dec) or 'yearly' (last 5 years)
+|  @query year - Optional year filter (defaults to current year for monthly type)
+|  @response data[].period, data[].label, data[].count
+└──────────────────────────────────*/
+router.get('/admin/user-registration-chart',
+  auth(TRole.admin),
+  controller.getUserRegistrationChart
+);
+
 export const AdminAnalyticsRoutes = router;

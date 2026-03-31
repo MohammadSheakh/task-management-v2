@@ -228,4 +228,65 @@ export interface IAdminAnalyticsService {
   getCohortAnalysis(months?: number): Promise<ICohortData[]>;
   getChurnAnalytics(period?: TAnalyticsReportPeriod): Promise<IChurnAnalytics>;
   getPredictiveAnalytics(months?: number): Promise<IPredictiveAnalytics>;
+  
+  // 🆕 NEW: User counts and income summary (for dashboard cards)
+  getUserCounts(): Promise<IUserCountsByRole>;
+  getIncomeSummary(): Promise<IIncomeSummary>;
+}
+
+/**
+ * User Counts by Role Interface
+ * For dashboard user count cards
+ * 
+ * @see Figma: dashboard-section-flow.png (4 user count cards)
+ */
+export interface IUserCountsByRole {
+  children: {
+    count: number;
+    growthPercentage: number;
+  };
+  business: {
+    count: number;
+    growthPercentage: number;
+  };
+  individual: {
+    count: number;
+    growthPercentage: number;
+  };
+  admin: {
+    count: number;
+    growthPercentage: number;
+  };
+  total: {
+    count: number;
+    growthPercentage: number;
+  };
+}
+
+/**
+ * Income Summary Interface
+ * For monthly income section with formatted messages
+ * 
+ * @see Figma: dashboard-section-flow.png (Monthly income section)
+ */
+export interface IIncomeSummary {
+  today: {
+    amount: number;
+    formatted: string;  // e.g., "$20K"
+    trend: 'up' | 'down' | 'stable';
+  };
+  weekly: {
+    amount: number;
+    formatted: string;
+    trend: 'up' | 'down' | 'stable';
+  };
+  monthly: {
+    amount: number;
+    formatted: string;
+    trend: 'up' | 'down' | 'stable';
+  };
+  growthRate: number;  // Absolute percentage (e.g., 20 for 20%)
+  percentageDisplay: string;  // Formatted (e.g., "45.75%")
+  message: string;  // Full message for UI
+  shortMessage: string;  // Short comparison text
 }
