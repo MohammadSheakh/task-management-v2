@@ -14,9 +14,9 @@ When a JWT access token expires, the backend was logging the error but the front
 
 ## Solution
 
-The `handleJWTError` utility now includes an `errorType` code in the error response, allowing the frontend to detect token expiration programmatically.
+The `auth` middleware now catches `TokenExpiredError` and `JsonWebTokenError` explicitly and returns a response using `sendResponse` format for consistency with other API responses.
 
-**Note:** This uses the existing `globalErrorHandler` structure - no changes to middleware flow.
+**Note:** This uses your existing `sendResponse` structure - same format as successful API responses.
 
 ---
 
@@ -28,13 +28,10 @@ The `handleJWTError` utility now includes an `errorType` code in the error respo
 {
   "code": 401,
   "message": "Your session has expired. Please log in again.",
-  "error": [
-    {
-      "path": "token",
-      "message": "Your session has expired. Please log in again.",
-      "code": "TOKEN_EXPIRED"
-    }
-  ]
+  "data": {
+    "attributes": null
+  },
+  "success": false
 }
 ```
 
@@ -44,30 +41,10 @@ The `handleJWTError` utility now includes an `errorType` code in the error respo
 {
   "code": 401,
   "message": "Invalid authentication token.",
-  "error": [
-    {
-      "path": "token",
-      "message": "Invalid authentication token.",
-      "code": "INVALID_TOKEN"
-    }
-  ]
-}
-```
-
-### Development Mode (with stack trace)
-
-```json
-{
-  "code": 401,
-  "message": "Your session has expired. Please log in again.",
-  "error": [
-    {
-      "path": "token",
-      "message": "Your session has expired. Please log in again.",
-      "code": "TOKEN_EXPIRED"
-    }
-  ],
-  "stack": "TokenExpiredError: jwt expired\n    at..."
+  "data": {
+    "attributes": null
+  },
+  "success": false
 }
 ```
 
@@ -75,7 +52,7 @@ The `handleJWTError` utility now includes an `errorType` code in the error respo
 
 ## Frontend Implementation Guide
 
-### Option 1: Check `error[].code` and Auto-Logout
+### Option 1: Check `success` field and Auto-Logout
 
 ```typescript
 // Example: Axios interceptor
@@ -83,18 +60,11 @@ axiosInstance.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      const errorCode = error.response?.data?.error?.[0]?.code;
+      const responseData = error.response?.data;
       
-      if (errorCode === 'TOKEN_EXPIRED') {
-        // Token expired - clear session and redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
-        return;
-      }
-      
-      if (errorCode === 'INVALID_TOKEN') {
-        // Invalid token - clear session and redirect to login
+      // Check if it's a token expiration (success: false, data.attributes: null)
+      if (responseData?.success === false && responseData?.data?.attributes === null) {
+        // Token expired or invalid - clear session and redirect to login
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         window.location.href = '/login';
@@ -107,45 +77,48 @@ axiosInstance.interceptors.response.use(
 );
 ```
 
-### Option 2: Try Refresh Token First
+### Option 2: Check Message Content
 
 ```typescript
-// Example: Axios interceptor with refresh token logic
+// Example: Axios interceptor with message checking
 axiosInstance.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config;
     
     if (error.response?.status === 401) {
-      const errorCode = error.response?.data?.error?.[0]?.code;
+      const message = error.response?.data?.message;
       
-      if (errorCode === 'TOKEN_EXPIRED' && !originalRequest._retry) {
-        originalRequest._retry = true;
-        
-        try {
-          // Try to refresh the token
-          const refreshToken = localStorage.getItem('refreshToken');
-          const response = await axios.post('/api/v1/auth/refresh-token', {
-            refreshToken
-          });
+      if (message === 'Your session has expired. Please log in again.') {
+        // Token expired - try refresh or logout
+        if (!originalRequest._retry) {
+          originalRequest._retry = true;
           
-          // Save new access token
-          localStorage.setItem('accessToken', response.data.data.attributes.accessToken);
-          
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${response.data.data.attributes.accessToken}`;
-          return axiosInstance(originalRequest);
-          
-        } catch (refreshError) {
-          // Refresh failed - logout user
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
-          return Promise.reject(refreshError);
+          try {
+            // Try to refresh the token
+            const refreshToken = localStorage.getItem('refreshToken');
+            const response = await axios.post('/api/v1/auth/refresh-token', {
+              refreshToken
+            });
+            
+            // Save new access token
+            localStorage.setItem('accessToken', response.data.data.attributes.accessToken);
+            
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${response.data.data.attributes.accessToken}`;
+            return axiosInstance(originalRequest);
+            
+          } catch (refreshError) {
+            // Refresh failed - logout user
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }
         }
       }
       
-      if (errorCode === 'INVALID_TOKEN') {
+      if (message === 'Invalid authentication token.') {
         // Invalid token - logout immediately
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -171,17 +144,20 @@ async function fetchTasks() {
       }
     });
     
+    const data = await response.json();
+    
     if (!response.ok) {
-      const data = await response.json();
-      
-      if (data.error?.[0]?.code === 'TOKEN_EXPIRED') {
-        // Handle token expiration
-        logout();
-        return;
+      // Check for token expiration
+      if (data.success === false && data.data.attributes === null) {
+        if (data.message === 'Your session has expired. Please log in again.') {
+          // Handle token expiration
+          logout();
+          return;
+        }
       }
     }
     
-    return await response.json();
+    return data;
   } catch (error) {
     console.error('Error fetching tasks:', error);
   }
@@ -192,60 +168,66 @@ async function fetchTasks() {
 
 ## Backend Implementation Details
 
-### File: `src/errors/handleJWTError.ts`
+### File: `src/middlewares/auth.ts`
 
-**Enhanced to include error code:**
+**Token verification with error handling:**
 
 ```typescript
-import { IErrorMessage } from "../types/errors.types";
-
-export default function handleJWTError(error: any) {
-  const isTokenExpired = error.name === "TokenExpiredError";
+try {
+  const verifyUser = await TokenService.verifyToken(
+    token,
+    config.jwt.accessSecret as Secret,
+    TokenType.ACCESS
+  );
+  // ... rest of auth logic
+  next();
+} catch (error: any) {
+  // ✅ Handle JWT verification errors with sendResponse format
+  if (error.name === 'TokenExpiredError') {
+    return sendResponse(res, {
+      code: StatusCodes.UNAUTHORIZED,
+      message: 'Your session has expired. Please log in again.',
+      success: false,
+      data: null,
+    });
+  }
   
-  const message = isTokenExpired
-    ? "Your session has expired. Please log in again."
-    : "Invalid authentication token.";
-
-  const errorMessages: IErrorMessage[] = [
-    { 
-      path: "token", 
-      message,
-      // Add error code for frontend to detect token expiration programmatically
-      code: isTokenExpired ? "TOKEN_EXPIRED" : "INVALID_TOKEN"
-    }
-  ];
-
-  return { 
-    code: 401, 
-    message, 
-    errorMessages,
-  };
+  if (error.name === 'JsonWebTokenError') {
+    return sendResponse(res, {
+      code: StatusCodes.UNAUTHORIZED,
+      message: 'Invalid authentication token.',
+      success: false,
+      data: null,
+    });
+  }
+  
+  // Re-throw other errors to be handled by global error handler
+  throw error;
 }
 ```
 
-### Flow: `auth` middleware → `globalErrorHandler`
+### Flow: `auth` middleware → `sendResponse`
 
 ```typescript
-// src/middlewares/auth.ts
-const verifyUser = await TokenService.verifyToken(
-  token,
-  config.jwt.accessSecret as Secret,
-  TokenType.ACCESS
-);
-// If token is expired, jwt.verify() throws TokenExpiredError
-// This gets caught by catchAsync → passed to globalErrorHandler
-// globalErrorHandler calls handleJWTError → returns structured response
+// jwt.verify() throws TokenExpiredError
+// ↓
+// catch block in auth middleware
+// ↓
+// sendResponse() with standardized format
+// ↓
+// Frontend receives consistent response structure
 ```
 
 ---
 
-## Error Codes Reference
+## Response Structure Reference
 
-| Error Code | HTTP Status | Meaning | Recommended Action |
-|------------|-------------|---------|-------------------|
-| `TOKEN_EXPIRED` | 401 | Access token has expired | Try refresh token OR logout |
-| `INVALID_TOKEN` | 401 | Token is malformed or tampered | Logout immediately |
-| (none) | 401 | Other auth error | Check error message |
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | number | HTTP status code (401 for unauthorized) |
+| `message` | string | Human-readable error message |
+| `data.attributes` | null | Always null for error responses |
+| `success` | boolean | `false` for error responses |
 
 ---
 
@@ -260,7 +242,6 @@ curl -X POST http://localhost:5000/api/v1/auth/login \
   -d '{"email":"user@example.com","password":"password123"}'
 
 # 2. Wait for token to expire (default: 15 minutes)
-# OR manually modify token to be expired
 
 # 3. Make request with expired token
 curl -X GET http://localhost:5000/api/v1/tasks \
@@ -270,13 +251,10 @@ curl -X GET http://localhost:5000/api/v1/tasks \
 # {
 #   "code": 401,
 #   "message": "Your session has expired. Please log in again.",
-#   "error": [
-#     {
-#       "path": "token",
-#       "message": "Your session has expired. Please log in again.",
-#       "code": "TOKEN_EXPIRED"
-#     }
-#   ]
+#   "data": {
+#     "attributes": null
+#   },
+#   "success": false
 # }
 ```
 
@@ -284,32 +262,31 @@ curl -X GET http://localhost:5000/api/v1/tasks \
 
 ## Response Structure Compatibility
 
-This implementation is **100% compatible** with the existing `globalErrorHandler`:
+This implementation uses your **existing `sendResponse` format**:
 
-- ✅ Uses same response format (`code`, `message`, `error[]`)
-- ✅ No changes to middleware flow
-- ✅ Works with existing error handling
-- ✅ Adds `code` field to error array for programmatic detection
+- ✅ Same structure as successful API responses
+- ✅ Consistent `code`, `message`, `data`, `success` fields
+- ✅ `data.attributes` is `null` for errors
+- ✅ `success: false` indicates error state
+- ✅ No changes to `globalErrorHandler` needed
 
 ---
 
 ## Related Files
 
-- `src/middlewares/auth.ts` - Main auth middleware
-- `src/middlewares/globalErrorHandler.ts` - Global error handler
-- `src/errors/handleJWTError.ts` - JWT error formatter (✅ Enhanced)
-- `src/types/errors.types.ts` - Error message type definition (✅ Enhanced)
+- `src/middlewares/auth.ts` - Main auth middleware (✅ Enhanced)
+- `src/shared/sendResponse.ts` - Standard response formatter
+- `src/middlewares/globalErrorHandler.ts` - Global error handler (unchanged)
 - `src/modules/token/token.service.ts` - Token verification logic
-- `src/errors/ApiError.ts` - Custom error class
 
 ---
 
 ## Notes
 
 - Token expiration is **expected behavior** (access tokens expire after 15 minutes by default)
-- Frontend should **always** handle 401 responses gracefully
+- Frontend should **always** check for 401 responses
 - Consider implementing **refresh token rotation** for better UX
-- For production, consider using **refresh token** to get new access token before forcing logout
-- The `error[].code` field is **optional** - existing error handling continues to work
+- Response format matches your existing API responses for consistency
+- Other errors (not token-related) still use `globalErrorHandler`
 
 ---

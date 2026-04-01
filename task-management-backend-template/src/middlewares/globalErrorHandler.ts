@@ -140,6 +140,7 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
       : message;
 
   // ✅ Ensure CORS headers are set for error responses
+  // (Note: Token expiration errors now use sendResponse in auth middleware)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
