@@ -303,6 +303,10 @@ export class UserService extends GenericService<typeof User, IUser> {
       updateUserProfile.dob = data.dob;
     }
 
+    if(data.location){
+      updateUserProfile.location = data.location;
+    }
+
     const res =  await updateUserProfile.save();
 
     // 🔒 Invalidate cache after update
