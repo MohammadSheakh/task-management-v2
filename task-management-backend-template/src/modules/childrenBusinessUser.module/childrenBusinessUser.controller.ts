@@ -377,6 +377,44 @@ export class ChildrenBusinessUserController {
   });
 
   /** ✔️
+   * Set/Unset child as Secondary User (V2 - Auto-switch)
+   * PUT /children-business-users/children/:childId/secondary-user/v2
+   *
+   * @description Designate a child as Secondary User (automatically removes existing)
+   * @auth Business user (Parent/Teacher) only
+   * @figmaIndex dashboard-flow-03.png, permission-flow-02.png
+   */
+  setSecondaryUserV2 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID and child ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+    const { childId } = req.params;
+    const { isSecondaryUser } = req.body;
+
+    /*-─────────────────────────────────
+    |  Step 2: Set as Secondary User (auto-switch)
+    └──────────────────────────────────*/
+    const result = await this.service.setSecondaryUserV2(
+      businessUserId as string,
+      childId,
+      isSecondaryUser
+    );
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: result.previousSecondaryUser
+        ? `Secondary user updated. Previous user (${result.previousSecondaryUser.name}) permissions revoked.`
+        : 'Child set as Secondary User successfully',
+      success: true,
+    });
+  });
+
+  /** ✔️
    * Get Secondary User for current business user
    * GET /children-business-users/secondary-user
    *
@@ -402,6 +440,84 @@ export class ChildrenBusinessUserController {
       code: StatusCodes.OK,
       data: result || { childUserId: null, isSecondaryUser: false },
       message: 'Secondary user retrieved successfully',
+      success: true,
+    });
+  });
+
+  /*-─────────────────────────────────
+  |  NEW: Get ALL children who ARE secondary users (have permissions)
+  |  GET /children-business-users/secondary-users
+  |  For: permission-flow.png - showing users with permissions
+  └──────────────────────────────────*/
+  /**
+   * Get all secondary users
+   * GET /children-business-users/secondary-users
+   *
+   * @description Get all children who have secondary user permissions
+   * @auth Business user (Parent/Teacher)
+   * @figmaIndex permission-flow.png
+   */
+  getAllSecondaryUsers = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get all secondary users
+    └──────────────────────────────────*/
+    const result = await this.service.getAllSecondaryUsers(businessUserId as string);
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Secondary users retrieved successfully',
+      success: true,
+    });
+  });
+
+  /*-─────────────────────────────────
+  |  NEW: Get ALL children who are NOT secondary users (available to grant permission)
+  |  GET /children-business-users/available-secondary-users
+  |  For: permission-flow-02.png - modal showing available users to select
+  └──────────────────────────────────*/
+  /**
+   * Get all available secondary users
+   * GET /children-business-users/available-secondary-users
+   *
+   * @description Get all children who don't have secondary user permissions yet
+   * @auth Business user (Parent/Teacher)
+   * @figmaIndex permission-flow-02.png
+   */
+  getAvailableSecondaryUsers = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get available secondary users
+    └──────────────────────────────────*/
+    const result = await this.service.getAvailableSecondaryUsers(businessUserId as string);
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Available secondary users retrieved successfully',
       success: true,
     });
   });

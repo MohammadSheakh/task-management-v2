@@ -132,6 +132,24 @@ router.put(
   controller.setSecondaryUser
 );
 
+/*-───────────────────────────────── ✔️ NEW V2
+|  Business | ChildrenBusinessUser | dashboard-flow-03.png, permission-flow-02.png | Set Secondary User (Auto-switch)
+|  @desc Designate a child as Secondary User (automatically removes existing secondary user)
+|  @desc Smooth transition - no need to manually remove previous user
+|  @auth Business user (parent/teacher) only
+|  @rateLimit 20 requests per hour (prevent frequent changes)
+|  @request PUT /children-business-users/children/:childId/secondary-user/v2
+|  @body { isSecondaryUser: true }
+|  @response Updated secondary user + info about previous user (if replaced)
+└──────────────────────────────────*/
+router.put(
+  '/children/:childId/secondary-user/v2',
+  auth(TRole.business),
+  childrenLimiter,
+  validateRequest(validation.updateChildPermissionsValidationSchema),
+  controller.setSecondaryUserV2
+);
+
 /*-───────────────────────────────── ✔️
 |  Business | ChildrenBusinessUser | dashboard-flow-03.png | Get Secondary User
 |  @desc Get the current Secondary User (Task Manager) for this business user
@@ -143,6 +161,36 @@ router.get(
   auth(TRole.business),
   childrenLimiter,
   controller.getSecondaryUser
+);
+
+/*-───────────────────────────────── ✔️ NEW
+|  Business | ChildrenBusinessUser | permission-flow.png | Get all users with permissions
+|  @desc Get all children who have secondary user permissions (isSecondaryUser = true)
+|  @desc Shows in "Permissions access" page - list of users who can create tasks
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @response Array of children with secondary user permissions
+└──────────────────────────────────*/
+router.get(
+  '/secondary-users',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getAllSecondaryUsers
+);
+
+/*-───────────────────────────────── ✔️ NEW
+|  Business | ChildrenBusinessUser | permission-flow-02.png | Get available users for permission
+|  @desc Get all children who don't have secondary user permissions yet
+|  @desc Shows in "Permission Member" modal - users available to grant permissions
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @response Array of children available to grant permissions
+└──────────────────────────────────*/
+router.get(
+  '/available-secondary-users',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getAvailableSecondaryUsers
 );
 
 /*-───────────────────────────────── ✔️ NEW

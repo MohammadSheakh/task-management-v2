@@ -1917,6 +1917,114 @@ export class ChildrenBusinessUserService extends GenericService<
   }
 
   /** ✔️
+   * Set/Unset child as Secondary User (V2 - Auto-switch)
+   * PUT /children-business-users/children/:childId/secondary-user/v2
+   *
+   * @description Designate a child as Secondary User (Task Manager)
+   *              Automatically removes existing secondary user if another is set
+   *              Only ONE child per business user can be Secondary User at a time
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param childUserId - Child user ID to set as secondary user
+   * @param isSecondaryUser - true to set as secondary user (false not supported in V2)
+   * @returns Updated secondary user status and info about previous user
+   */
+  async setSecondaryUserV2(
+    businessUserId: string,
+    childUserId: string,
+    isSecondaryUser: boolean,
+  ): Promise<{
+    childUserId: string;
+    isSecondaryUser: boolean;
+    updatedAt: Date;
+    previousSecondaryUser?: {
+      childUserId: string;
+      name: string;
+      email: string;
+    } | null;
+  }> {
+    logger.info(`V2: Setting child ${childUserId} as Secondary User: ${isSecondaryUser}`);
+
+    // Only support setting as secondary user (not unsetting)
+    if (!isSecondaryUser) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'V2 API only supports setting isSecondaryUser to true. Use V1 API to unset.',
+      );
+    }
+
+    // Check if there's already another secondary user
+    const existingSecondary = await this.model.findOne({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      isSecondaryUser: true,
+      childUserId: { $ne: new Types.ObjectId(childUserId) },
+      isDeleted: false,
+    }).populate<{ childUserId: User }>('childUserId', 'name email');
+
+    let previousSecondaryUser = null;
+
+    // If another child is already secondary, remove their status
+    if (existingSecondary) {
+      previousSecondaryUser = {
+        childUserId: existingSecondary.childUserId._id.toString(),
+        name: existingSecondary.childUserId.name,
+        email: existingSecondary.childUserId.email,
+      };
+
+      // Remove secondary user status from existing user
+      await this.model.updateMany(
+        {
+          parentBusinessUserId: new Types.ObjectId(businessUserId),
+          isSecondaryUser: true,
+          isDeleted: false,
+        },
+        { isSecondaryUser: false }
+      );
+
+      logger.info(
+        `V2: Removed secondary user status from ${previousSecondaryUser.childUserId}`
+      );
+
+      // Invalidate cache for previous user
+      await this.invalidateCache(businessUserId, previousSecondaryUser.childUserId);
+    }
+
+    // Set new child as secondary user
+    const result = await this.model
+      .findOneAndUpdate(
+        {
+          parentBusinessUserId: new Types.ObjectId(businessUserId),
+          childUserId: new Types.ObjectId(childUserId),
+          isDeleted: false,
+        },
+        { isSecondaryUser },
+        { new: true, runValidators: true },
+      )
+      .select('isSecondaryUser updatedAt');
+
+    if (!result) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Child account not found or not associated with this business user',
+      );
+    }
+
+    // Invalidate cache for new user
+    await this.invalidateCache(businessUserId, childUserId);
+
+    logger.info(
+      `V2: Set child ${childUserId} as Secondary User: ${isSecondaryUser}` +
+      (previousSecondaryUser ? ` (replaced ${previousSecondaryUser.childUserId})` : '')
+    );
+
+    return {
+      childUserId,
+      isSecondaryUser,
+      updatedAt: result.updatedAt,
+      ...(previousSecondaryUser && { previousSecondaryUser }),
+    };
+  }
+
+  /** ✔️
    * Get Secondary User for a business user
    *
    * @param businessUserId - Business user ID
@@ -1944,6 +2052,141 @@ export class ChildrenBusinessUserService extends GenericService<
       childUserId: relationship.childUserId.toString(),
       isSecondaryUser: true,
     };
+  }
+
+  /*-─────────────────────────────────
+  |  NEW: Get ALL children who ARE secondary users (have permissions)
+  |  GET /children-business-users/secondary-users
+  |  For: permission-flow.png - showing users with permissions
+  └──────────────────────────────────*/
+  /**
+   * Get all secondary users for business user
+   * GET /children-business-users/secondary-users
+   *
+   * @description Get all children who have secondary user permissions (isSecondaryUser = true)
+   * @param businessUserId - Business user ID
+   * @returns Array of children with secondary user permissions
+   */
+  async getAllSecondaryUsers(businessUserId: string) {
+    const cacheKey = `business:${businessUserId}:secondary-users`;
+
+    // Try cache first
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        logger.debug(`Cache hit for secondary users: ${cacheKey}`);
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      errorLogger.error('Redis GET error in getAllSecondaryUsers:', error);
+    }
+
+    // Cache miss - query database
+    const relationships = await this.model
+      .find({
+        parentBusinessUserId: new Types.ObjectId(businessUserId),
+        isSecondaryUser: true,
+        isDeleted: false,
+        status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+      })
+      .populate<{ childUserId: User }>('childUserId', 'name email profileImage role')
+      .select('childUserId status addedAt')
+      .lean();
+
+    // Format response
+    const result = relationships.map(rel => ({
+      childUserId: rel.childUserId._id,
+      name: rel.childUserId.name,
+      email: rel.childUserId.email,
+      profileImage: rel.childUserId.profileImage,
+      role: rel.childUserId.role,
+      status: rel.status,
+      addedAt: rel.addedAt,
+    }));
+
+    // Cache the result
+    try {
+      await redisClient.setEx(
+        cacheKey,
+        CHILDREN_CACHE_CONFIG.LIST_TTL, // 10 minutes
+        JSON.stringify(result)
+      );
+      logger.debug(`Secondary users cached: ${cacheKey}`);
+    } catch (error) {
+      errorLogger.error('Redis SET error in getAllSecondaryUsers:', error);
+    }
+
+    return result;
+  }
+
+  /*-─────────────────────────────────
+  |  NEW: Get ALL children who are NOT secondary users (available to grant permission)
+  |  GET /children-business-users/available-secondary-users
+  |  For: permission-flow-02.png - modal showing available users to select
+  └──────────────────────────────────*/
+  /**
+   * Get all available children (not secondary users) for business user
+   * GET /children-business-users/available-secondary-users
+   *
+   * @description Get all children who don't have secondary user permissions yet
+   *              (isSecondaryUser = false or null)
+   * @param businessUserId - Business user ID
+   * @returns Array of children available to grant permissions
+   */
+  async getAvailableSecondaryUsers(businessUserId: string) {
+    const cacheKey = `business:${businessUserId}:available-secondary-users`;
+
+    // Try cache first
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        logger.debug(`Cache hit for available secondary users: ${cacheKey}`);
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      errorLogger.error('Redis GET error in getAvailableSecondaryUsers:', error);
+    }
+
+    // Cache miss - query database
+    const relationships = await this.model
+      .find({
+        parentBusinessUserId: new Types.ObjectId(businessUserId),
+        $or: [
+          { isSecondaryUser: false },
+          { isSecondaryUser: null },
+          { isSecondaryUser: { $exists: false } }
+        ],
+        isDeleted: false,
+        status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+      })
+      .populate<{ childUserId: User }>('childUserId', 'name email profileImage role')
+      .select('childUserId status addedAt')
+      .lean();
+
+    // Format response
+    const result = relationships.map(rel => ({
+      childUserId: rel.childUserId._id,
+      name: rel.childUserId.name,
+      email: rel.childUserId.email,
+      profileImage: rel.childUserId.profileImage,
+      role: rel.childUserId.role,
+      status: rel.status,
+      addedAt: rel.addedAt,
+    }));
+
+    // Cache the result
+    try {
+      await redisClient.setEx(
+        cacheKey,
+        CHILDREN_CACHE_CONFIG.LIST_TTL, // 10 minutes
+        JSON.stringify(result)
+      );
+      logger.debug(`Available secondary users cached: ${cacheKey}`);
+    } catch (error) {
+      errorLogger.error('Redis SET error in getAvailableSecondaryUsers:', error);
+    }
+
+    return result;
   }
 
   /**✔️
