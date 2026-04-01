@@ -38,14 +38,21 @@ app.use(Morgan.errorHandler);
 // body parser
 app.use(
   cors({
-    origin:
-         "*",
-    // [
-    //   'http://localhost:8084',
-    // ],
+    origin: '*',
     credentials: true,
+    exposedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   })
 );
+
+// ✅ Ensure CORS headers are set for ALL responses (including errors)
+// This middleware runs after CORS to ensure headers are always present
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Type, Authorization, X-Request-Id');
+  next();
+});
 
 
 app.post('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }), webhookHandler);

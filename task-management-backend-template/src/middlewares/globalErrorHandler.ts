@@ -35,11 +35,11 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
     errorMessages = simplifiedError.errorMessages;
   }
   /**********
-   * 
+   *
    * Mongoose duplicate key ..
    * if(error.code === 11000)
    * duplicate field value entered
-   * 
+   *
    * ********** */
   // Handle CastError (Invalid MongoDB ObjectId)
   else if (error.name === 'CastError') {
@@ -138,6 +138,12 @@ const globalErrorHandler: ErrorRequestHandler = (error, req, res, next) => {
     errorMessages.length > 1
       ? errorMessages.map(err => err.message).join(', ')
       : message;
+
+  // ✅ Ensure CORS headers are set for error responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Type, Authorization');
 
   // Send response with statusCode, success, message, and error
   res.status(code).json({
