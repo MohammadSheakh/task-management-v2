@@ -194,15 +194,15 @@ task-management-backend/
 
 ### Volume 1: Foundation Concepts
 
-| Concept | Importance | Frequency of Use |
-|---------|------------|------------------|
-| findMany / findUnique | ⭐⭐⭐⭐⭐ | Daily |
-| include / select | ⭐⭐⭐⭐⭐ | Daily |
-| where filters | ⭐⭐⭐⭐⭐ | Daily |
-| create / update / delete | ⭐⭐⭐⭐⭐ | Daily |
-| Transactions | ⭐⭐⭐⭐ | Weekly |
-| Raw SQL | ⭐⭐⭐ | Monthly |
-| Aggregations | ⭐⭐⭐⭐ | Weekly |
+|         Concept          | Importance | Frequency of Use |
+| ------------------------ | ---------- | ---------------- |
+| findMany / findUnique    | ⭐⭐⭐⭐⭐      | Daily            |
+| include / select         | ⭐⭐⭐⭐⭐      | Daily            |
+| where filters            | ⭐⭐⭐⭐⭐      | Daily            |
+| create / update / delete | ⭐⭐⭐⭐⭐      | Daily            |
+| Transactions             | ⭐⭐⭐⭐       | Weekly           |
+| Raw SQL                  | ⭐⭐⭐        | Monthly          |
+| Aggregations             | ⭐⭐⭐⭐       | Weekly           |
 
 ### Volume 2: Advanced Concepts
 
