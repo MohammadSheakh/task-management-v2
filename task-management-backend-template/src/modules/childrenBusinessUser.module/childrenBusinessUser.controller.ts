@@ -990,8 +990,8 @@ export class ChildrenBusinessUserController {
     |  Step 2: Update child profile from service
     └──────────────────────────────────*/
     const result = await this.service.updateChildProfileV2(
-      childId,
       businessUserId as string,
+      childId,
       req.body,
     );
 

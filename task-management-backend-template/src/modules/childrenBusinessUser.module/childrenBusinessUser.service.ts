@@ -1947,6 +1947,8 @@ export class ChildrenBusinessUserService extends GenericService<
       { new: true, runValidators: true },
     ).select('-password');
 
+    console.log("updatedUser 👤", updatedUser);
+
     if (!updatedUser) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
     }
@@ -1970,16 +1972,6 @@ export class ChildrenBusinessUserService extends GenericService<
       );
     }
 
-    /*-─────────────────────────────────
-    |  Step 6: Update relationship note if provided
-    └──────────────────────────────────*/
-    if (updateData.note) {
-      await this.model.findByIdAndUpdate(
-        relationship._id,
-        { note: updateData.note },
-        { new: true },
-      );
-    }
 
     /*-─────────────────────────────────
     |  Step 7: Invalidate cache

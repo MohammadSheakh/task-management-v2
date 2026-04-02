@@ -140,7 +140,9 @@ export const updateChildValidationSchema = z.object({
  */
 export const removeChildValidationSchema = z.object({
   params: z.object({
-    childId: z.string().uuid('Invalid child ID format'),
+    childId: z
+      .string()
+      .regex(/^[0-9a-fA-F]{24}$/, 'Invalid child ID format. Must be a valid MongoDB ObjectId'),
   }),
   body: z.object({
     note: z
