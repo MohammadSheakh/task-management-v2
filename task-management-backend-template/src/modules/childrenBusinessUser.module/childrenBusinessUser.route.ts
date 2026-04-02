@@ -103,6 +103,43 @@ router.patch(
   controller.updateChild
 );
 
+/*-───────────────────────────────── ✔️ NEW V2
+|  Business | ChildrenBusinessUser | edit-child-flow.png | Update child profile V2
+|  @desc V2 ENHANCEMENT: Update child profile and return complete data for edit form
+|  @desc No need for separate GET call after update - returns all fields needed for form
+|  @auth Business user (parent/teacher)
+|  @rateLimit 20 requests per hour (prevents abuse)
+|  @request PATCH /children-business-users/children/:childId/v2
+|  @body name, email, phoneNumber, gender, supportMode, location, dateOfBirth, password
+|  @response Complete child data (same as GET /team-members/:childId/edit)
+|  @version 2.0.0
+|  @author Senior Engineering Team
+|  @date 02-04-26
+└──────────────────────────────────*/
+router.patch(
+  '/children/:childId/v2',
+  auth(TRole.business),
+  childrenLimiter,
+  validateRequest(validation.updateChildValidationSchema),
+  controller.updateChildV2
+);
+
+/*-───────────────────────────────── ✔️ NEW
+|  Business | ChildrenBusinessUser | edit-child-flow.png | Get child details for edit form
+|  @desc Get child profile data to populate edit form fields
+|  @desc Returns: name, email, phone, gender, dob, age, location, address, supportMode, roleType
+|  @auth Business user (parent/teacher)
+|  @rateLimit 100 requests per minute
+|  @param childId - Child user ID to edit
+|  @response Child profile data for edit form
+└──────────────────────────────────*/
+router.get(
+  '/team-members/:childId/edit',
+  auth(TRole.business),
+  childrenLimiter,
+  controller.getChildForEdit
+);
+
 /*-─────────────────────────────────
 |  Business | ChildrenBusinessUser | dashboard-flow-01.png | Get children statistics
 |  @desc Get statistics about children accounts (active, inactive, removed)

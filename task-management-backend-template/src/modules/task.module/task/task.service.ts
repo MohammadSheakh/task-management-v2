@@ -886,10 +886,23 @@ export class TaskService extends GenericService<typeof Task, ITask> {
    */
 
   /*┌──────────────────────────┐
-    │ Daily Progress           │ 
+    │ Daily Progress           │
     │ ██████████░░░░  40%      │
     └──────────────────────────┘*/
 
+  /**
+   * Get daily progress for dashboard home screen
+   * Figma: app-user/group-children-user/home-flow.png
+   * 
+   * Response matches Daily Progress card UI:
+   * - Progress: "1/5" (completed/total)
+   * - Progress bar percentage
+   * - Remaining tasks message: "4 tasks remaining. You've got this!"
+   * 
+   * @param userId - User ID
+   * @param date - Target date (default: today)
+   * @returns Daily progress summary with task list
+   */
   async getDailyProgress(userId: Types.ObjectId, date?: Date) {
     const targetDate = date || new Date();
     const dateKey = targetDate.toISOString().split('T')[0];
@@ -900,10 +913,10 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     );
 
     // Try cache first
-    // const cached = await this.getFromCache(cacheKey);
-    // if (cached) {
-    //   return cached;
-    // }
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -935,6 +948,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       (t: any) => t.status === TaskStatus.IN_PROGRESS,
     ).length;
     const pending = tasks.filter(t => t.status === TaskStatus.PENDING).length;
+    const remaining = total - completed;
 
     // Build task list with subtask info
     const taskList = tasks.map(task => ({
@@ -961,17 +975,164 @@ export class TaskService extends GenericService<typeof Task, ITask> {
             : 0,
     }));
 
+    // Generate encouragement message based on progress
+    let encouragementMessage = '';
+    if (completed === 0) {
+      encouragementMessage = `No tasks completed yet. Let's get started!`;
+    } else if (completed === total && total > 0) {
+      encouragementMessage = `All tasks completed! Amazing work! 🎉`;
+    } else {
+      encouragementMessage = `${remaining} task${remaining !== 1 ? 's' : ''} remaining. You've got this!`;
+    }
+
     const result = {
       date: dateKey,
-      total,
-      completed,
-      pending,
-      inProgress,
-      progressPercentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+      // Figma-aligned format
+      progress: {
+        completed,
+        total,
+        display: `${completed}/${total}`, // "1/5" format for UI
+        percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+      },
+      // Statistics
+      statistics: {
+        total,
+        completed,
+        pending,
+        inProgress,
+        remaining,
+      },
+      // Encouragement message for UI
+      message: encouragementMessage,
+      // Task list
       tasks: taskList,
     };
 
     // Cache the result
+    await this.setInCache(cacheKey, result, TASK_CACHE_CONFIG.DAILY_PROGRESS);
+
+    return result;
+  }
+
+  /**
+   * Get daily progress V2 - Enhanced for Figma home screen
+   * Figma: app-user/group-children-user/home-flow.png
+   *
+   * V2 Changes:
+   * - Explicit progress.display format: "1/5" for UI
+   * - Separate statistics object
+   * - Dynamic encouragement message
+   * - Better cache TTL for frequently changing data
+   *
+   * @param userId - User ID
+   * @param date - Target date (default: today)
+   * @returns Enhanced daily progress summary
+   * @version 2.0.0
+   */
+  async getDailyProgressV2(userId: Types.ObjectId, date?: Date) {
+    const targetDate = date || new Date();
+    const dateKey = targetDate.toISOString().split('T')[0];
+    const cacheKey = this.getCacheKey(
+      'daily-progress-v2',
+      dateKey,
+      userId.toString(),
+    );
+
+    // Try cache first
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Get ALL tasks for the user on this date
+    const tasks = await this.model
+      .find({
+        $or: [{ ownerUserId: userId }, { assignedUserIds: userId }],
+        startTime: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+        isDeleted: false,
+      })
+      .sort({ startTime: 1 })
+      .lean();
+
+    // Calculate statistics
+    const total = tasks.length;
+    const completed = tasks.filter(
+      (t: any) => t.status === TaskStatus.COMPLETED,
+    ).length;
+    const inProgress = tasks.filter(
+      (t: any) => t.status === TaskStatus.IN_PROGRESS,
+    ).length;
+    const pending = tasks.filter(t => t.status === TaskStatus.PENDING).length;
+    const remaining = total - completed;
+
+    // Build task list with subtask info
+    const taskList = tasks.map(task => ({
+      _id: task._id.toString(),
+      title: task.title,
+      status: task.status,
+      startTime: task.startTime,
+      taskType: task.taskType,
+      assignedBy: task.createdById,
+      subtasks:
+        task.totalSubtasks > 0
+          ? {
+              total: task.totalSubtasks || 0,
+              completed: task.completedSubtasks || 0,
+            }
+          : undefined,
+      progressPercentage:
+        task.totalSubtasks && task.totalSubtasks > 0
+          ? Math.round(
+              ((task.completedSubtasks || 0) / task.totalSubtasks) * 100,
+            )
+          : task.status === TaskStatus.COMPLETED
+            ? 100
+            : 0,
+    }));
+
+    // Generate encouragement message based on progress
+    let encouragementMessage = '';
+    if (completed === 0) {
+      encouragementMessage = `No tasks completed yet. Let's get started!`;
+    } else if (completed === total && total > 0) {
+      encouragementMessage = `All tasks completed! Amazing work! 🎉`;
+    } else {
+      encouragementMessage = `${remaining} task${remaining !== 1 ? 's' : ''} remaining. You've got this!`;
+    }
+
+    const result = {
+      date: dateKey,
+      // Figma-aligned progress display
+      progress: {
+        completed,
+        total,
+        display: `${completed}/${total}`,
+        percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+      },
+      // Detailed statistics
+      statistics: {
+        total,
+        completed,
+        pending,
+        inProgress,
+        remaining,
+      },
+      // Encouragement message for UI
+      message: encouragementMessage,
+      // Task list
+      tasks: taskList,
+    };
+
+    // Cache the result with shorter TTL (data changes frequently)
     await this.setInCache(cacheKey, result, TASK_CACHE_CONFIG.DAILY_PROGRESS);
 
     return result;

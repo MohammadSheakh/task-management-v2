@@ -155,6 +155,38 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
+  /** ✔️ V2
+   * Get daily progress V2 - Figma aligned for home screen
+   * Figma: app-user/group-children-user/home-flow.png
+   *
+   * V2 Response Format:
+   * - progress.display: "1/5" format for UI
+   * - statistics: Detailed breakdown
+   * - message: Dynamic encouragement message
+   *
+   * @route GET /tasks/daily-progress/v2
+   * @version 2.0.0
+   */
+  getDailyProgressV2 = async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const date = req.query.date
+      ? new Date(req.query.date as string)
+      : new Date();
+    const result = await this.taskService.getDailyProgressV2(userId, date);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Daily progress retrieved successfully',
+      success: true,
+    });
+  };
+
   /** ✔️
    * Update task status
    * Specialized endpoint for status changes

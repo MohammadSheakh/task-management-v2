@@ -260,13 +260,46 @@ router
   .route('/statistics')
   .get(auth(TRole.commonUser), taskLimiter, controller.getStatistics);
 
-/*-─────────────────────────────────
-|  Child | Business | Task | home-flow.png | Get daily progress
-|  @desc Get task completion progress for a specific date
+/*-───────────────────────────────── ✔️✔️
+|  Child | Business | Task | home-flow.png | Get daily progress (Figma aligned)
+|  @desc Get daily task progress for dashboard display (Daily Progress card)
+|  @desc Returns: total tasks, completed count, progress bar %, remaining tasks message
 |  @auth All authenticated users (child, business)
 |  @rateLimit 100 requests per minute
+|  @query date - Optional: Date in YYYY-MM-DD format (default: today)
+|  @example /tasks/daily-progress?date=2026-03-17
+|  @figma app-user/group-children-user/home-flow.png (Daily Progress section)
 └──────────────────────────────────*/
-// NOTE: Route removed - see line 253 for active definition
+router
+  .route('/daily-progress')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateFiltersForQuery(optionValidationChecking(['date'])),
+    controller.getDailyProgress,
+  );
+
+/*-───────────────────────────────── ✔️✔️ V2
+|  Child | Business | Task | home-flow.png | Get daily progress V2 (Enhanced Figma aligned)
+|  @desc V2 ENHANCEMENT: Get daily task progress with Figma-aligned response format
+|  @desc Returns: progress.display "1/5" format, statistics object, dynamic encouragement message
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+|  @query date - Optional: Date in YYYY-MM-DD format (default: today)
+|  @example /tasks/daily-progress/v2?date=2026-03-17
+|  @figma app-user/group-children-user/home-flow.png (Daily Progress section)
+|  @version 2.0.0
+|  @author Senior Engineering Team
+|  @date 02-04-26
+└──────────────────────────────────*/
+router
+  .route('/daily-progress/v2')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateFiltersForQuery(optionValidationChecking(['date'])),
+    controller.getDailyProgressV2,
+  );
 
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | home-flow.png | Get task details by ID
@@ -405,19 +438,9 @@ router
 router.use('/:id/subtasks', SubTaskRoute);
 
 // ────────────────────────────────────────────────────────────────────────
-// Figma-Aligned Routes: Daily Progress
-// Figma: app-user/group-children-user/home-flow.png
-//        teacher-parent-dashboard/dashboard/dashboard-flow-01.png
+// Figma-Aligned Routes: Preferred Time Suggestion
+// Figma: app-user/group-children-user/create-task-flow.png
 // ────────────────────────────────────────────────────────────────────────
-
-/*-───────────────────────────────── ✔️✔️ 03|03-individual
-|  Child | Business | Task | home-flow.png | Get daily progress (Figma aligned)
-|  @desc Get daily task progress for dashboard display
-|  @auth All authenticated users (child, business)
-└──────────────────────────────────*/
-router
-  .route('/daily-progress')
-  .get(auth(TRole.commonUser), controller.getDailyProgress);
 
 /*-─────────────────────────────────
 |  Child | Business | User | Task | create-task-flow.png | Get preferred time suggestion

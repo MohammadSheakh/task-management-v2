@@ -131,7 +131,7 @@ export const updateChildValidationSchema = z.object({
       .describe('New password (optional, only if changing password)'),
   }),
   params: z.object({
-    childId: z.string().uuid('Invalid child ID format'),
+    childId: z.string('Invalid child ID format'),
   }),
 });
 

@@ -50,9 +50,10 @@ export class ChildrenBusinessUserService extends GenericService<
    * Cache Key Generator
    */
   private getCacheKey(
-    type: 'children' | 'count' | 'parent',
+    type: 'children' | 'count' | 'parent' | 'child-edit' | 'team-members' | 'team-statistics' | 'team-list' | 'team-list-v2' | 'member-details',
     businessUserId?: string,
     childUserId?: string,
+    extra?: string,
   ): string {
     const prefix = CHILDREN_CACHE_CONFIG.PREFIX;
     if (type === 'children' && businessUserId) {
@@ -63,6 +64,24 @@ export class ChildrenBusinessUserService extends GenericService<
     }
     if (type === 'parent' && childUserId) {
       return `${prefix}:child:${childUserId}:parent`;
+    }
+    if (type === 'child-edit' && businessUserId && childUserId) {
+      return `${prefix}:business:${businessUserId}:child:${childUserId}:edit`;
+    }
+    if (type === 'team-members' && businessUserId) {
+      return `${prefix}:business:${businessUserId}:team-members`;
+    }
+    if (type === 'team-statistics' && businessUserId) {
+      return `${prefix}:business:${businessUserId}:team-statistics`;
+    }
+    if (type === 'team-list' && businessUserId && extra) {
+      return `${prefix}:business:${businessUserId}:team-list:${extra}`;
+    }
+    if (type === 'team-list-v2' && businessUserId && extra) {
+      return `${prefix}:business:${businessUserId}:team-list-v2:${extra}`;
+    }
+    if (type === 'member-details' && businessUserId && childUserId) {
+      return `${prefix}:business:${businessUserId}:member:${childUserId}:details`;
     }
     return `${prefix}:unknown`;
   }
@@ -119,6 +138,7 @@ export class ChildrenBusinessUserService extends GenericService<
 
       if (childUserId) {
         keysToDelete.push(this.getCacheKey('parent', undefined, childUserId));
+        keysToDelete.push(this.getCacheKey('child-edit', businessUserId, childUserId));
       }
 
       await redisClient.del(keysToDelete);
@@ -1840,6 +1860,177 @@ export class ChildrenBusinessUserService extends GenericService<
     };
   }
 
+  /**
+   * Update child profile V2 - Returns complete child data for edit form
+   * PATCH /children-business-users/children/:childId/v2
+   *
+   * @param businessUserId - Parent/Teacher business user ID
+   * @param childUserId - Child user ID to update
+   * @param updateData - Fields to update (name, email, phone, gender, supportMode, location, dob, password)
+   * @returns Complete child data (same as getChildForEdit) for immediate form refresh
+   *
+   * @description
+   * V2 Improvement: After update, returns all child data needed for edit form
+   * No need for separate GET call after update
+   * Reuses getChildForEdit logic to build complete response
+   */
+  async updateChildProfileV2(
+    businessUserId: string,
+    childUserId: string,
+    updateData: {
+      name?: string;
+      email?: string;
+      phoneNumber?: string;
+      gender?: 'male' | 'female' | 'other';
+      supportMode?: 'calm' | 'encouraging' | 'logical';
+      location?: string;
+      dateOfBirth?: string;
+      password?: string;
+      note?: string;
+    },
+  ): Promise<any> {
+    /*-─────────────────────────────────
+    |  Step 1: Verify child exists under this business user
+    └──────────────────────────────────*/
+    const relationship = await this.model.findOne({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: new Types.ObjectId(childUserId),
+      isDeleted: false,
+    });
+
+    // if (!relationship) {
+    //   throw new ApiError(
+    //     StatusCodes.NOT_FOUND,
+    //     'Child account not found or not associated with this business user',
+    //   );
+    // }
+
+    /*-─────────────────────────────────
+    |  Step 2: Check if email already exists (if email is being updated)
+    └──────────────────────────────────*/
+    if (updateData.email) {
+      const existingUser = await User.findOne({
+        email: updateData.email.toLowerCase(),
+        _id: { $ne: new Types.ObjectId(childUserId) },
+        isDeleted: false,
+      });
+
+      if (existingUser) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Email already exists. Please use a different email address.',
+        );
+      }
+    }
+
+    /*-─────────────────────────────────
+    |  Step 3: Prepare user update data
+    └──────────────────────────────────*/
+    const userUpdateData: any = {};
+
+    if (updateData.name) userUpdateData.name = updateData.name;
+    if (updateData.email) userUpdateData.email = updateData.email.toLowerCase();
+    if (updateData.phoneNumber) userUpdateData.phoneNumber = updateData.phoneNumber;
+    if (updateData.gender) userUpdateData.gender = updateData.gender;
+
+    // Hash password if provided
+    if (updateData.password) {
+      userUpdateData.password = await bcryptjs.hash(updateData.password, 12);
+    }
+
+    /*-─────────────────────────────────
+    |  Step 4: Update User model
+    └──────────────────────────────────*/
+    const updatedUser = await User.findByIdAndUpdate(
+      new Types.ObjectId(childUserId),
+      userUpdateData,
+      { new: true, runValidators: true },
+    ).select('-password');
+
+    if (!updatedUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 5: Update UserProfile if needed
+    └──────────────────────────────────*/
+    let updatedProfile = null;
+    const profileUpdateData: any = {};
+
+    if (updateData.supportMode) profileUpdateData.supportMode = updateData.supportMode;
+    if (updateData.location) profileUpdateData.location = updateData.location;
+    if (updateData.dateOfBirth) profileUpdateData.dob = updateData.dateOfBirth;
+
+    // Only update profile if there are profile fields to update
+    if (Object.keys(profileUpdateData).length > 0) {
+      updatedProfile = await (await import('../user.module/userProfile/userProfile.model')).UserProfile.findOneAndUpdate(
+        { userId: new Types.ObjectId(childUserId) },
+        profileUpdateData,
+        { new: true, upsert: true, runValidators: true },
+      );
+    }
+
+    /*-─────────────────────────────────
+    |  Step 6: Update relationship note if provided
+    └──────────────────────────────────*/
+    if (updateData.note) {
+      await this.model.findByIdAndUpdate(
+        relationship._id,
+        { note: updateData.note },
+        { new: true },
+      );
+    }
+
+    /*-─────────────────────────────────
+    |  Step 7: Invalidate cache
+    └──────────────────────────────────*/
+    await this.invalidateCache(businessUserId, childUserId);
+
+    logger.info(`Child profile V2 updated: ${childUserId} by business user: ${businessUserId}`);
+
+    /*-─────────────────────────────────
+    |  Step 8: Build complete response (same as getChildForEdit)
+    └──────────────────────────────────*/
+    // Calculate age from DOB
+    let age: number | null = null;
+    const dobValue = updatedProfile?.dob || (updatedUser as any).profileId?.dob;
+    if (dobValue) {
+      const dob = new Date(dobValue);
+      const diff = Date.now() - dob.getTime();
+      age = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+    }
+
+    // const isSecondaryUser = relationship.isSecondaryUser || false;
+
+    // Return complete child data for edit form (no need for separate GET call)
+    const result = {
+      // Basic Information
+      _id: updatedUser._id.toString(),
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phoneNumber: updatedUser.phoneNumber || '',
+      
+      // Profile Information
+      gender: updatedUser.gender || null,
+      dateOfBirth: dobValue || null,
+      age: age,
+      location: updatedProfile?.location || (updatedUser as any).profileId?.location || '',
+      address: (updatedUser as any).profileId?.address || '',
+      
+      // Support Mode
+      supportMode: updatedProfile?.supportMode || (updatedUser as any).supportMode || SupportMode.CALM,
+      
+      // Role Type
+      // roleType: isSecondaryUser ? 'Secondary' : 'Primary',
+      // isSecondaryUser: isSecondaryUser,
+      
+      // Profile Image
+      profileImage: updatedUser.profileImage || null,
+    };
+
+    return result;
+  }
+
   // ────────────────────────────────────────────────────────────────────────
   // Secondary User Management
   // Figma: dashboard-flow-03.png (Permissions section)
@@ -2440,5 +2631,117 @@ export class ChildrenBusinessUserService extends GenericService<
       message: `Invitation sent to ${invitationData.email}. Token expires in 24 hours.`,
       expiresAt,
     };
+  }
+
+  /**
+   * Get child details for edit form
+   * Figma: teacher-parent-dashboard/team-members/edit-child-flow.png
+   *
+   * @param childUserId - Child user ID to edit
+   * @param businessUserId - Parent/Teacher business user ID (for authorization)
+   * @returns Child profile data for edit form (name, email, phone, gender, dob, supportMode, etc.)
+   *
+   * @description
+   * Returns all fields needed to populate edit form:
+   * - Basic info: name, email, phoneNumber
+   * - Profile info: gender, dateOfBirth, location, address
+   * - Support mode: supportMode preference
+   * - Age: Calculated from DOB
+   * - Role type: Primary/Secondary user status
+   */
+  async getChildForEdit(
+    childUserId: string,
+    businessUserId: string,
+  ): Promise<any> {
+    const cacheKey = this.getCacheKey(
+      'child-edit',
+      businessUserId,
+      childUserId,
+    );
+
+    // Try cache first (5 minutes - edit data changes infrequently)
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   logger.debug(`Cache hit for child edit details: ${cacheKey}`);
+    //   return cached;
+    // }
+
+    /*-─────────────────────────────────
+    |  Step 1: Verify child belongs to this business user
+    └──────────────────────────────────*/
+    const relationship = await this.model.findOne({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: new Types.ObjectId(childUserId),
+      status: ChildrenBusinessUserStatus.ACTIVE,
+      isDeleted: false,
+    }).lean();
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Child not found or not part of your team',
+      );
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get child user details with profile
+    └──────────────────────────────────*/
+    const childUser = await User.findById(childUserId)
+      .select('name email phoneNumber gender profileImage profileId supportMode')
+      .populate('profileId', 'location dob address')
+      .lean();
+
+    if (!childUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Child user not found');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 3: Calculate age from DOB
+    └──────────────────────────────────*/
+    let age: number | null = null;
+    if (childUser.profileId?.dob) {
+      const dob = new Date(childUser.profileId.dob);
+      const diff = Date.now() - dob.getTime();
+      age = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+    }
+
+    /*-─────────────────────────────────
+    |  Step 4: Check if child is Secondary User
+    └──────────────────────────────────*/
+    const isSecondaryUser = relationship.isSecondaryUser || false;
+
+    /*-─────────────────────────────────
+    |  Step 5: Build response for edit form
+    └──────────────────────────────────*/
+    const result = {
+      // Basic Information
+      _id: childUser._id.toString(),
+      name: childUser.name,
+      email: childUser.email,
+      phoneNumber: childUser.phoneNumber || '',
+      
+      // Profile Information
+      gender: childUser.gender || null,
+      dateOfBirth: childUser.profileId?.dob || null,
+      age: age,
+      location: childUser.profileId?.location || '',
+      address: childUser.profileId?.address || '',
+      
+      // Support Mode
+      supportMode: childUser.supportMode || SupportMode.CALM,
+      
+      // Role Type
+      roleType: isSecondaryUser ? 'Secondary' : 'Primary',
+      isSecondaryUser: isSecondaryUser,
+      
+      // Profile Image
+      profileImage: childUser.profileImage || null,
+    };
+
+    // Cache the result
+    await this.setInCache(cacheKey, result, 300); // 5 minutes
+
+    logger.info(`Child edit details retrieved for: ${childUserId}`);
+    return result;
   }
 }

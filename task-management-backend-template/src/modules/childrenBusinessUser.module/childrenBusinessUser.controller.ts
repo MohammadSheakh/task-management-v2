@@ -927,6 +927,84 @@ export class ChildrenBusinessUserController {
       success: true,
     });
   });
+
+  /**
+   * Get child details for edit form
+   * GET /children-business-users/team-members/:childId/edit
+   *
+   * @description Get child profile data to populate edit form
+   * @auth Business user (parent/teacher)
+   * @figmaIndex edit-child-flow.png
+   */
+  getChildForEdit = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID and child ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+    const { childId } = req.params;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get child details from service
+    └──────────────────────────────────*/
+    const result = await this.service.getChildForEdit(
+      childId,
+      businessUserId as string,
+    );
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Child details retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Update child profile V2 - Returns complete data for edit form
+   * PATCH /children-business-users/children/:childId/v2
+   *
+   * @description Update child profile and return complete data (no need for separate GET)
+   * @auth Business user (parent/teacher)
+   * @figmaIndex edit-child-flow.png
+   * @version 2.0.0
+   */
+  updateChildV2 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID and child ID
+    └──────────────────────────────────*/
+    const businessUserId = (req.user as IUser).userId;
+    const { childId } = req.params;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Update child profile from service
+    └──────────────────────────────────*/
+    const result = await this.service.updateChildProfileV2(
+      childId,
+      businessUserId as string,
+      req.body,
+    );
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Child profile updated successfully',
+      success: true,
+    });
+  });
 }
 
 export const childrenBusinessUserController = new ChildrenBusinessUserController();

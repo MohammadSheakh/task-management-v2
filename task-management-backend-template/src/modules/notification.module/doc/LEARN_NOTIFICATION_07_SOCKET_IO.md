@@ -77,7 +77,7 @@ Child completes task...
 ---
 
 ### **Real-time Use Cases in Our System**
-
+ 
 | Use Case | Event | Latency Requirement |
 |----------|-------|---------------------|
 | Task completion | `task:completed` | < 500ms |
