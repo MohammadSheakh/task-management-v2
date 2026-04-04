@@ -89,9 +89,11 @@ export class OtpV2WithRedis {
     // ─────────────────────────────────────────────────────────────────────────────
     const cooldown = await redisClient.get(`otp:cooldown:${lowerEmail}`);
     if (cooldown) {
+      const remainingSec = await redisClient.ttl(`otp:cooldown:${lowerEmail}`);
+      const remaining = remainingSec > 0 ? remainingSec : this.OTP_COOLDOWN_TTL;
       throw new ApiError(
         StatusCodes.TOO_MANY_REQUESTS,
-        `Please wait ${this.OTP_COOLDOWN_TTL} seconds before requesting another OTP`
+        `Please wait ${remaining} seconds before requesting another OTP`
       );
     }
 
@@ -100,9 +102,12 @@ export class OtpV2WithRedis {
     // ─────────────────────────────────────────────────────────────────────────────
     const sendCount = await redisClient.get(`otp:send_count:${lowerEmail}`);
     if (sendCount && parseInt(sendCount) >= this.OTP_SEND_LIMIT) {
+      const remainingSec = await redisClient.ttl(`otp:send_count:${lowerEmail}`);
+      const remaining = remainingSec > 0 ? remainingSec : this.OTP_SEND_LIMIT_TTL;
+      const minutes = Math.ceil(remaining / 60);
       throw new ApiError(
         StatusCodes.TOO_MANY_REQUESTS,
-        `Max ${this.OTP_SEND_LIMIT} OTP sends per hour reached. Try again in an hour.`
+        `Max ${this.OTP_SEND_LIMIT} OTP sends reached. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`
       );
     }
 
@@ -251,9 +256,11 @@ export class OtpV2WithRedis {
     /*-------- commented by sheakh
     const cooldown = await redisClient.get(`otp:cooldown:${lowerEmail}`);
     if (cooldown) {
+      const remainingSec = await redisClient.ttl(`otp:cooldown:${lowerEmail}`);
+      const remaining = remainingSec > 0 ? remainingSec : this.OTP_COOLDOWN_TTL;
       throw new ApiError(
         StatusCodes.TOO_MANY_REQUESTS,
-        `Please wait ${this.OTP_COOLDOWN_TTL} seconds before requesting another OTP`
+        `Please wait ${remaining} seconds before requesting another OTP`
       );
     }
     -----------*/
@@ -263,9 +270,12 @@ export class OtpV2WithRedis {
     // ─────────────────────────────────────────────────────────────────────────────
     const sendCount = await redisClient.get(`otp:send_count:${lowerEmail}`);
     if (sendCount && parseInt(sendCount) >= this.OTP_SEND_LIMIT) {
+      const remainingSec = await redisClient.ttl(`otp:send_count:${lowerEmail}`);
+      const remaining = remainingSec > 0 ? remainingSec : this.OTP_SEND_LIMIT_TTL;
+      const minutes = Math.ceil(remaining / 60);
       throw new ApiError(
         StatusCodes.TOO_MANY_REQUESTS,
-        `Max ${this.OTP_SEND_LIMIT} OTP sends per hour reached. Try again in an hour.`
+        `Max ${this.OTP_SEND_LIMIT} OTP sends reached. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`
       );
     }
 

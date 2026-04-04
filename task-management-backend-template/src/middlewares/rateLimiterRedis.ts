@@ -191,7 +191,7 @@ export function rateLimiter(
 
         return res.status(429).json({
           success: false,
-          message: preset.message.message,
+          message: `${preset.message.message}. Retry after ${result.reset}.`,
           retryAfter: result.reset,
         });
       }
@@ -252,7 +252,7 @@ export function createCustomRateLimiter(
 
         return res.status(429).json({
           success: false,
-          message: errorMessage,
+          message: `${errorMessage}. Retry after ${result.reset}.`,
           retryAfter: result.reset,
         });
       }
