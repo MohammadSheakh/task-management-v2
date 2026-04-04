@@ -20,14 +20,12 @@ import {
   startOfDay,
   endOfDay,
   startOfWeek,
-  endOfWeek,
   startOfMonth,
   endOfMonth,
   subDays,
   subMonths,
   subYears,
   format,
-  eachDayOfInterval,
 } from 'date-fns';
 import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
 
@@ -58,6 +56,7 @@ export class AdminAnalyticsService {
     }
   }
 
+  // reviewed
   async getDashboardOverview(): Promise<IAdminDashboardAnalytics> {
     const cacheKey = this.getCacheKey('dashboard');
 

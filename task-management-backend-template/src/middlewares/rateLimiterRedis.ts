@@ -61,7 +61,7 @@ export const RATE_LIMIT_PRESETS = {
 
   strict: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 30, // 3 requests per hour // TODO : 
+    max: 10, // 3 requests per hour // TODO : 
     message: {
       success: false,
       message: 'Too many sensitive operations, please try again later',
@@ -116,18 +116,27 @@ async function checkRateLimit(
     // Count requests in current window
     pipeline.zCard(key);
 
+    // Get oldest entry's score to calculate actual remaining time
+    pipeline.zRangeWithScores(key, 0, 0);
+
     // Execute pipeline
     const results = await pipeline.exec();
 
-    // Get the count (last result)
+    // Get the count (4th result)
     const count = (results?.[3] as number) || 0;
     const remaining = Math.max(0, max - count);
-    const reset = Math.ceil((now + windowMs) / 1000);
 
-    const nowSec = Math.floor(now / 1000);
-
-    const remainingTimeSec = Math.max(0, reset - nowSec);
+    // Calculate actual remaining time from oldest request in window
+    const oldestEntries = results?.[4] as { score: number; value: string }[] | undefined;
+    let remainingTimeSec = Math.ceil(windowMs / 1000);  // default to full window
+    if (oldestEntries && oldestEntries.length > 0 && oldestEntries[0]?.score) {
+      const oldestScore = oldestEntries[0].score;
+      const windowExpiresAt = oldestScore + windowMs;
+      remainingTimeSec = Math.max(0, Math.ceil((windowExpiresAt - now) / 1000));
+    }
     const remainingTimeFormatted = formatTime(remainingTimeSec);
+
+    console.log(count, "", remaining, " ", remainingTimeFormatted, " ", remainingTimeSec);
 
     return {
       success: count <= max,

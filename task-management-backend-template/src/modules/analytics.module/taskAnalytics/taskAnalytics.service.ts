@@ -6,9 +6,6 @@ import { redisClient } from '../../../helpers/redis/redis';
 import { logger, errorLogger } from '../../../shared/logger';
 import { Task } from '../../task.module/task/task.model';
 import { TaskProgress } from '../../taskProgress.module/taskProgress.model';
-// ❌ REMOVED: Group module not needed
-// import { Group } from '../../group.module/group/group.model';
-// import { GroupMember } from '../../group.module/groupMember/groupMember.model';
 import {
   IStatusDistribution,
   ITaskOverviewAnalytics,
@@ -23,14 +20,9 @@ import {
 import {
   startOfDay,
   endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  subDays,
   format,
 } from 'date-fns';
-import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
+import { TaskStatus } from '../../task.module/task/task.constant';
 import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
 
 /**

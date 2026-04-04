@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { Types } from 'mongoose';
 import ApiError from '../../../errors/ApiError';
 import { redisClient } from '../../../helpers/redis/redis';
-import { logger, errorLogger } from '../../../shared/logger';
+import {  errorLogger } from '../../../shared/logger';
 import { ChildrenBusinessUser } from '../../childrenBusinessUser.module/childrenBusinessUser.model';
 import { User } from '../../user.module/user/user.model';
 import { Task } from '../../task.module/task/task.model';
@@ -21,8 +21,7 @@ import {
   ACTIVITY_FEED_CONFIG,
 } from '../analytics.constant';
 import { startOfDay, subDays } from 'date-fns';
-import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
-import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
+import { TaskStatus } from '../../task.module/task/task.constant';
 
 /**
  * Group Analytics Service

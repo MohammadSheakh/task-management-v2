@@ -21,20 +21,12 @@ import { ChildrenBusinessUser } from '../../childrenBusinessUser.module/children
 import { redisClient } from '../../../helpers/redis/redis';
 import { logger, errorLogger } from '../../../shared/logger';
 import {
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
   subDays,
   subMonths,
   format,
-  eachDayOfInterval,
-  differenceInDays,
+  eachDayOfInterval
 } from 'date-fns';
-import { TaskStatus, TaskType } from '../../task.module/task/task.constant';
-import { TaskProgressStatus } from '../../taskProgress.module/taskProgress.constant';
+import { TaskStatus } from '../../task.module/task/task.constant';
 
 /**
  * Chart Data Interfaces
