@@ -21,6 +21,7 @@ import { NotificationService } from '../../notification.module/notification/noti
 import { NotificationType, NotificationChannel, NotificationPriority } from '../../notification.module/notification/notification.constant';
 //@ts-ignore
 import { Types } from 'mongoose';
+import { ChildrenBusinessUser } from '../../childrenBusinessUser.module/childrenBusinessUser.model';
 
 const userService = new UserService();
 
@@ -111,7 +112,7 @@ export class UserController extends GenericController<
   });
 
 
-  /** ---------------------------------------------- kaj Bd
+  /** ---------------------------------------------- kaj Bd nd Task Management askfemi
    * @role Admin
    * @Section Settings
    * @module |
@@ -150,6 +151,57 @@ export class UserController extends GenericController<
       message: `${this.modelName} retrieved successfully`,
     });
   });
+
+
+  /** ---------------------------------------------- kaj Bd nd Task Management askfemi
+   * @role Admin
+   * @Section Settings
+   * @module |
+   * @figmaIndex 08-01
+   * @desc Get Profile Information as logged in user
+   *----------------------------------------------*/
+  getByIdV2 = catchAsync(async (req: Request, res: Response) => {
+    const id = (req.user as IUser).userId;
+
+    // TODO : ⚠️ need to optimize this populate options ..
+    const populateOptions = [
+      'profileId',
+      {
+        path: 'profileId',
+        select: '-attachments -__v', // TODO MUST : when create profile .. must initiate address and description
+        // populate: {
+        //   path: 'profileId',
+        // }
+      }
+    ];
+
+    const select = 'name profileImage email phoneNumber role accountCreatorId';
+
+    const result : any = await this.service.getById(id, populateOptions, select);
+
+    if (!result) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        `Object with ID ${id} not found`
+      );
+    }
+
+    const isAccountSecondary = !!(await ChildrenBusinessUser.exists({
+      childUserId: id,
+      parentBusinessUserId : new Types.ObjectId(result.accountCreatorId as string),
+      isDeleted: false,
+      isSecondaryUser : true,
+    }));
+
+    console.log(result, isAccountSecondary);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: { result, isAccountSecondary },
+      message: `${this.modelName} retrieved successfully`,
+    });
+  });
+
 
 
   // send Invitation Link for a admin

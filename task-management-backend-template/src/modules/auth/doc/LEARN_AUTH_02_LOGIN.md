@@ -600,13 +600,13 @@ Encoded: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NGY...
 
 **Token Comparison:**
 
-| Feature | Access Token | Refresh Token |
-|---------|-------------|---------------|
-| **Expiry** | 15 minutes | 7 days |
-| **Purpose** | API access | Get new access token |
-| **Storage** | Memory (client) | HTTP-only cookie |
-| **Rotation** | No | Yes (on use) |
-| **Blacklist** | Yes (on logout) | Yes (on logout) |
+|    Feature    |  Access Token   |    Refresh Token     |
+| ------------- | --------------- | -------------------- |
+| **Expiry**    | 15 minutes      | 7 days               |
+| **Purpose**   | API access      | Get new access token |
+| **Storage**   | Memory (client) | HTTP-only cookie     |
+| **Rotation**  | No              | Yes (on use)         |
+| **Blacklist** | Yes (on logout) | Yes (on logout)      |
 
 ---
 

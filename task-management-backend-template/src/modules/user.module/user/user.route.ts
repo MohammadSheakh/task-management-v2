@@ -127,6 +127,14 @@ router.route('/profile').get(
   controller.getById
 );
 
+/*-───────────────────────────────── tas mgmt
+|  Child  with have permission or not
+└──────────────────────────────────*/
+router.route('/profile/v2').get(
+  auth(TRole.common), 
+  controller.getByIdV2
+);
+
 
 router.route('/notification-test').get(
   auth(TRole.common), // any logged in user can see any user profile ..

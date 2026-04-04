@@ -6,7 +6,8 @@
       "Bash(mkdir *)",
       "Bash(sort)",
       "Bash(comm *)",
-      "Bash(find *)"
+      "Bash(find *)",
+      "Bash(sed *)"
     ]
   },
   "$version": 3
