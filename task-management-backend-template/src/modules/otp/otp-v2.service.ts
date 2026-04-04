@@ -48,7 +48,7 @@ export class OtpV2WithRedis {
   
   private readonly OTP_TTL = 600;                    // 10 minutes (in seconds)
   private readonly OTP_COOLDOWN_TTL = 10;            // 10 seconds between resend // actual was 60 second
-  private readonly OTP_SEND_LIMIT = 3;               // Max sends per hour
+  private readonly OTP_SEND_LIMIT = 10;               // Max sends per hour
   private readonly OTP_SEND_LIMIT_TTL = 3600;        // 1 hour (in seconds)
   private readonly OTP_MAX_ATTEMPTS = 5;             // Max verify attempts
   private readonly BCRYPT_SALT_ROUNDS = 10;

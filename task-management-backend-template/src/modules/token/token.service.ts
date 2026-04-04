@@ -75,6 +75,42 @@ const verifyToken = async (
   return decoded;
 };
 
+/**
+ * Verify token without knowing the type upfront.
+ * Decodes JWT → looks up token in DB by raw token string → uses stored type.
+ * Used when a single endpoint (/verify-email) handles multiple token types
+ * (e.g., VERIFY from registration, RESET_PASSWORD from forgot-password).
+ */
+const verifyTokenByType = async (
+  token: string,
+  secret: Secret,
+) => {
+
+  const decoded = jwt.verify(token, secret) as JwtPayload;
+
+  // Look up by raw token string only — let DB tell us the type
+  const storedToken = await Token.findOne({
+    token,
+    user: decoded.userId,
+  });
+
+  if (!storedToken) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Token is invalid or already used'
+    );
+  }
+
+  if (storedToken.expiresAt < new Date()) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Token has expired');
+  }
+
+  storedToken.verified = true;
+  await storedToken.save();
+
+  return { decoded, tokenType: storedToken.type };
+};
+
 const createVerifyEmailToken = async (user: IUserMain) => {
 
   const payload = { userId: user._id, email: user.email, role: user.role };
@@ -223,6 +259,7 @@ const accessAndRefreshToken = async (user: IUserMain) => {
 export const TokenService = {
   createToken,
   verifyToken,
+  verifyTokenByType,
   createVerifyEmailToken,
   createResetPasswordToken,
   accessAndRefreshToken,

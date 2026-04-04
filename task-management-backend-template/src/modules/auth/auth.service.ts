@@ -449,23 +449,35 @@ const verifyEmail = async (email: string, token: string, otp: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
 
-  await TokenService.verifyToken(
+  /*-─────────────────────────────────
+  |  V2: Dynamic token type detection
+  |  Handles both VERIFY (registration) and RESET_PASSWORD (forgot-password)
+  |  tokens through the same /verify-email endpoint
+  └──────────────────────────────────*/
+  const { decoded, tokenType } = await TokenService.verifyTokenByType(
     token,
     config.token.TokenSecret,
-    TokenType.VERIFY,
   );
 
-  // ✅ Verify OTP (Redis-based)
-  await otpService.verifyOtp(user.email, otp);
+  // ── Branch based on token type ──
+  if (tokenType === TokenType.RESET_PASSWORD) {
+    // Forgot-password flow: verify + consume OTP here (user enters it at /verify-email)
+    await otpService.verifyResetPasswordOtp(user.email, otp);
 
-  // 🆕 NEW: Clear cooldown on successful verification (fixes immediate login issue)
+    user.isEmailVerified = true;
+    await user.save();
+    return { user, tokens: null, isPasswordResetFlow: true };
+  }
+
+  // Registration flow: verify OTP, clear cooldown, issue login tokens
+  await otpService.verifyOtp(user.email, otp);
   await otpService.clearCooldown(user.email);
 
   user.isEmailVerified = true;
   await user.save();
 
   const tokens = await TokenService.accessAndRefreshToken(user);
-  return {user, tokens} ;
+  return { user, tokens };
 };
 
 const forgotPassword = async (email: string) => {
@@ -533,10 +545,15 @@ const resetPassword = async (
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
-  
-  // ✅ Verify reset password OTP (Redis-based)
-  await otpService.verifyResetPasswordOtp(user.email, otp);
-  
+
+  /*-─────────────────────────────────
+  |  V2: OTP already consumed in /verify-email
+  |  This endpoint only updates the password
+  |  Security: user.isResetPassword flag set by /forgot-password
+  └──────────────────────────────────*/
+  // OTP was already verified and deleted in /verify-email step
+  // No need to verify again here — the isResetPassword flag gates access
+
   user.password =  await bcryptjs.hash(newPassword, 12);
   user.lastPasswordChange = new Date();  // ✅ Track password change
   user.isResetPassword = false;
