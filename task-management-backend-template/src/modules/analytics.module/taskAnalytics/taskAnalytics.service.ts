@@ -127,7 +127,7 @@ export class TaskAnalyticsService {
 
     await this.setInCache(cacheKey, analytics, ANALYTICS_CACHE_CONFIG.TASK_OVERVIEW);
     return analytics;
-  }
+  } 
 
   /**
    * Get Status Distribution

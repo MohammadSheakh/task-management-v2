@@ -179,13 +179,13 @@ export class UserController {
 
 **HTTP Method Matrix**:
 
-| Decorator | HTTP Method | Use Case | Idempotent |
-|-----------|-------------|----------|------------|
-| `@Get()` | GET | Retrieve data | ✅ Yes |
-| `@Post()` | POST | Create resource | ❌ No |
-| `@Put()` | PUT | Replace resource | ✅ Yes |
-| `@Patch()` | PATCH | Partial update | ❌ No |
-| `@Delete()` | DELETE | Remove resource | ✅ Yes |
+|  Decorator  | HTTP Method |     Use Case     | Idempotent |
+| ----------- | ----------- | ---------------- | ---------- |
+| `@Get()`    | GET         | Retrieve data    | ✅ Yes      |
+| `@Post()`   | POST        | Create resource  | ❌ No       |
+| `@Put()`    | PUT         | Replace resource | ✅ Yes      |
+| `@Patch()`  | PATCH       | Partial update   | ❌ No       |
+| `@Delete()` | DELETE      | Remove resource  | ✅ Yes      |
 
 ---
 

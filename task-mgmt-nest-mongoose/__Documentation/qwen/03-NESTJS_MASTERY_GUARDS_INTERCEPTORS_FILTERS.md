@@ -74,15 +74,15 @@ sequenceDiagram
 
 **Key Phases**:
 
-| Phase | Component | Purpose | Can Short-Circuit? |
-|-------|-----------|---------|-------------------|
-| **1. Route Matching** | Router | Find correct handler | ✅ Yes (404) |
-| **2. Authentication** | Guards | Check permissions | ✅ Yes (403) |
-| **3. Pre-Processing** | Interceptors | Logging, caching | ✅ Yes |
-| **4. Validation** | Pipes | Validate input | ✅ Yes (400) |
-| **5. Business Logic** | Controller/Service | Process request | ❌ No |
-| **6. Post-Processing** | Interceptors | Transform response | ❌ No |
-| **7. Error Handling** | Exception Filters | Format errors | ✅ Yes |
+|         Phase          |     Component      |       Purpose        | Can Short-Circuit? |
+| ---------------------- | ------------------ | -------------------- | ------------------ |
+| **1. Route Matching**  | Router             | Find correct handler | ✅ Yes (404)        |
+| **2. Authentication**  | Guards             | Check permissions    | ✅ Yes (403)        |
+| **3. Pre-Processing**  | Interceptors       | Logging, caching     | ✅ Yes              |
+| **4. Validation**      | Pipes              | Validate input       | ✅ Yes (400)        |
+| **5. Business Logic**  | Controller/Service | Process request      | ❌ No               |
+| **6. Post-Processing** | Interceptors       | Transform response   | ❌ No               |
+| **7. Error Handling**  | Exception Filters  | Format errors        | ✅ Yes              |
 
 ---
 

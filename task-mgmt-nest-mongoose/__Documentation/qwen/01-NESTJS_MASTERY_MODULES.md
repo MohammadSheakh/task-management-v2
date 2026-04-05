@@ -173,16 +173,16 @@ sequenceDiagram
 
 ### **Responsibility Matrix**
 
-| Responsibility | Controller | Service |
-|----------------|------------|---------|
-| HTTP Status Codes | ✅ | ❌ |
-| Request Validation | ✅ (DTO) | ❌ |
-| Response Transformation | ✅ | ❌ |
-| Business Logic | ❌ | ✅ |
-| Database Queries | ❌ | ✅ |
-| Cache Management | ❌ | ✅ |
-| External API Calls | ❌ | ✅ |
-| Error Handling | ✅ (HTTP) | ✅ (Business) |
+|     Responsibility      | Controller |   Service    |
+| ----------------------- | ---------- | ------------ |
+| HTTP Status Codes       | ✅          | ❌            |
+| Request Validation      | ✅ (DTO)    | ❌            |
+| Response Transformation | ✅          | ❌            |
+| Business Logic          | ❌          | ✅            |
+| Database Queries        | ❌          | ✅            |
+| Cache Management        | ❌          | ✅            |
+| External API Calls      | ❌          | ✅            |
+| Error Handling          | ✅ (HTTP)   | ✅ (Business) |
 
 ---
 
@@ -396,11 +396,11 @@ export class EmailSenderService {
 
 **Scope Selection Guide**:
 
-| Scope | Use Case | Performance | Memory |
-|-------|----------|-------------|--------|
-| **DEFAULT** (Singleton) | Services, repositories, utils | ⚡ Fastest | 💾 Lowest |
-| **REQUEST** | Request-specific data, user context | 🐌 Slower | 💾 Medium |
-| **TRANSIENT** | Stateful services, unique instances | 🐌 Slowest | 💾 Highest |
+|          Scope          |              Use Case               | Performance |  Memory   |
+| ----------------------- | ----------------------------------- | ----------- | --------- |
+| **DEFAULT** (Singleton) | Services, repositories, utils       | ⚡ Fastest   | 💾 Lowest  |
+| **REQUEST**             | Request-specific data, user context | 🐌 Slower    | 💾 Medium  |
+| **TRANSIENT**           | Stateful services, unique instances | 🐌 Slowest   | 💾 Highest |
 
 ---
 

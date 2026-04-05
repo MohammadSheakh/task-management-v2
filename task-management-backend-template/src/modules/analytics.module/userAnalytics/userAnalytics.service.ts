@@ -196,7 +196,7 @@ export class UserAnalyticsService {
     if (cached) {
       return cached;
     }
-
+    
     const now = new Date();
     const stats = await this.getTaskStatsForPeriod(userId, startOfDay(now), endOfDay(now));
 
