@@ -201,10 +201,6 @@ export class UserService extends GenericService<typeof User, IUser> {
     return result;
   };
 
-
-
-  
-
   // ☑️☑️☑️☑️☑️☑️☑️☑️
   async getAllWithAggregationWithStatistics_V2_ProviderCountFix(
       filters: any, 
@@ -299,6 +295,8 @@ export class UserService extends GenericService<typeof User, IUser> {
       }
     );
 
+    console.log("updateUserProfile -> ", updateUserProfile);
+
     if(data.dob){
       updateUserProfile.dob = data.dob;
     }
@@ -307,7 +305,12 @@ export class UserService extends GenericService<typeof User, IUser> {
       updateUserProfile.location = data.location;
     }
 
+    console.log("updateUserProfile after update -> ", updateUserProfile);
+
     const res =  await updateUserProfile.save();
+
+
+    console.log("updateUserProfile after save -> ", res);
 
     // 🔒 Invalidate cache after update
     try {

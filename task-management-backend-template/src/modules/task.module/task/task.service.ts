@@ -698,6 +698,94 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   }
 
   /**
+   * Update task status V3 - Auto-complete subtasks for personal/singleAssignment tasks
+   * @param taskId - Task ID
+   * @param status - New task status
+   * @param userId - User ID
+   * @returns Updated task with creative response
+   *
+   * @description
+   * This V3 endpoint extends updateTaskStatusV2 with additional logic:
+   * - For personal/singleAssignment tasks with subtasks
+   * - When status is changed to 'completed'
+   * - Automatically marks all subtasks' isCompleted as true
+   */
+  async updateTaskStatusV3(
+    taskId: string,
+    status: TTaskStatus,
+    userId: Types.ObjectId,
+  ): Promise<{
+    task: ITask;
+    creativeResponse: ICreativeResponse;
+    progressStats?: IProgressStats;
+    autoCompletedSubtasks?: number;
+  }> {
+    // 1. First, get the task to check its type and subtasks
+    const task = await this.model.findById(taskId);
+    
+    if (!task) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
+
+    let autoCompletedSubtasksCount = 0;
+
+    // 2. If status is COMPLETED and task is personal/singleAssignment with subtasks
+    if (
+      status === TaskStatus.COMPLETED &&
+      (task.taskType === TaskType.PERSONAL || task.taskType === TaskType.SINGLE_ASSIGNMENT)
+    ) {
+      // Import SubTask model
+      const { SubTask } = await import('../subTask/subTask.model');
+
+      // Find all incomplete subtasks for this task
+      const incompleteSubtasks = await SubTask.find({
+        taskId: new Types.ObjectId(taskId),
+        isCompleted: false,
+        isDeleted: false,
+      });
+
+      // Mark all subtasks as completed
+      if (incompleteSubtasks.length > 0) {
+        const now = new Date();
+        await SubTask.updateMany(
+          {
+            taskId: new Types.ObjectId(taskId),
+            isCompleted: false,
+            isDeleted: false,
+          },
+          {
+            $set: {
+              isCompleted: true,
+              completedAt: now,
+            },
+          },
+        );
+
+        autoCompletedSubtasksCount = incompleteSubtasks.length;
+        logger.info(
+          `[updateStatusV3] Auto-completed ${autoCompletedSubtasksCount} subtasks for task ${taskId}`,
+        );
+      }
+
+      // Update task's subtask counts to reflect all completed
+      task.completedSubtasks = task.totalSubtasks || 0;
+    }
+
+    // 3. Now call updateTaskStatusV2 to handle the rest (status update, creative response, etc.)
+    const result = await this.updateTaskStatusV2(taskId, status, userId);
+
+    // 4. Add auto-completed subtasks count to response if applicable
+    if (autoCompletedSubtasksCount > 0) {
+      return {
+        ...result,
+        autoCompletedSubtasks: autoCompletedSubtasksCount,
+      };
+    }
+
+    return result;
+  }
+
+  /**
    * Generate creative response based on support mode and milestone
    * @param supportMode - User's support mode preference
    * @param milestone - Completion milestone (50%, 100%)

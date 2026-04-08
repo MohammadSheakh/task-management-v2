@@ -74,12 +74,12 @@ export class SettingsService extends GenericService<
 
     } else {
       // For all other types, details must be a string
-      if (typeof details !== 'string') {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          `For ${type} type, details must be a string`
-        );
-      }
+      // if (typeof details !== 'string') {
+      //   throw new ApiError(
+      //     StatusCodes.BAD_REQUEST,
+      //     `For ${type} type, details must be a string`
+      //   );
+      // }
 
       // Optional: Validate string is not empty
       if (details.trim().length === 0) {

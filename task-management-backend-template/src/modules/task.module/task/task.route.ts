@@ -384,6 +384,27 @@ router
     controller.updateStatusV2,
   );
 
+/*-───────────────────────────────── 🆕 V3
+|  Child | Business | Task | edit-update-task-flow.png | Update task status with auto-completed subtasks
+|  @desc Update task status V3: For personal/singleAssignment tasks, automatically marks all subtasks as completed when task is completed
+|  @auth All authenticated users (child, business)
+|  @access Task creator, owner, or assigned users only
+|  @returns Updated task with creative response and count of auto-completed subtasks
+|  @note Only applies to personal/singleAssignment tasks with subtasks when status is set to 'completed'
+|  @version 3.0.0
+|  @author Senior Engineering Team
+└──────────────────────────────────*/
+router
+  .route('/:id/status/v3')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskStatusValidationSchema),
+    validateStatusTransition,
+    controller.updateStatusV3,
+  );
+
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | edit-update-task-flow.png | Update subtask progress
 |  @desc Update subtask list and auto-calculate completion percentage

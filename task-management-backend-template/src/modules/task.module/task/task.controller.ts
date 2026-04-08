@@ -284,6 +284,46 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   });
 
+  /**
+   * Update task status V3 - Auto-complete subtasks for personal/singleAssignment tasks
+   * Specialized V3 endpoint that marks all subtasks as completed when task is completed
+   *
+   * @description
+   * This endpoint extends updateStatusV2 with additional logic:
+   * - For personal/singleAssignment tasks with subtasks
+   * - When status is changed to 'completed'
+   * - Automatically marks all subtasks' isCompleted as true
+   *
+   * @route PATCH /tasks/:id/status/v3
+   * @version 3.0.0
+   */
+  updateStatusV3 = catchAsync(async (req: Request, res: Response) => {
+    const taskId = req.params.id;
+    const { status } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    if (!status) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
+    }
+
+    const result = await this.taskService.updateTaskStatusV3(
+      taskId,
+      status,
+      userId,
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task status updated successfully with auto-completed subtasks',
+      success: true,
+    });
+  });
+
   /** ✔️
    * Update subtask progress
    * Automatically recalculates completion percentage
