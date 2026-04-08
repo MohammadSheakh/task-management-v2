@@ -222,14 +222,14 @@ Transform the codebase from "functional" to "production-ready" by:
 
 #### Week 2: Database Indexing & Query Optimization
 
-| Task | File(s) | Effort | Priority | Dependencies |
-|------|---------|--------|----------|--------------|
-| Add `.lean()` to all read-only queries | All service files | 1 day | P1 | None |
-| Add partial indexes for active tasks | `task.model.ts` | 2 hours | P0 | None |
-| Add text index for task search | `task.model.ts` | 1 hour | P0 | None |
-| Add compound index for messages | `message.model.ts` | 1 hour | P1 | None |
-| Add missing indexes (from Section 4.2 of analysis) | All model files | 0.5 days | P0 | None |
-| Verify indexes with `.explain('executionStats')` | MongoDB shell | 0.5 days | P0 | Indexes added |
+|                        Task                        |      File(s)       |  Effort  | Priority | Dependencies  |
+| -------------------------------------------------- | ------------------ | -------- | -------- | ------------- |
+| Add `.lean()` to all read-only queries             | All service files  | 1 day    | P1       | None          |
+| Add partial indexes for active tasks               | `task.model.ts`    | 2 hours  | P0       | None          |
+| Add text index for task search                     | `task.model.ts`    | 1 hour   | P0       | None          |
+| Add compound index for messages                    | `message.model.ts` | 1 hour   | P1       | None          |
+| Add missing indexes (from Section 4.2 of analysis) | All model files    | 0.5 days | P0       | None          |
+| Verify indexes with `.explain('executionStats')`   | MongoDB shell      | 0.5 days | P0       | Indexes added |
 
 **Deliverables:**
 - ✅ `.lean()` on all read-only queries (2-3x memory reduction)
@@ -246,20 +246,20 @@ Transform the codebase from "functional" to "production-ready" by:
 
 **Audit Checklist:**
 
-| Write Operation | Cache Key to Invalidate | Status |
-|-----------------|------------------------|--------|
-| Create Task | `parent:{parentId}:tasks:list`, `child:{childId}:tasks:home` | ⏸️ To Do |
-| Update Task | `task:{taskId}:detail`, `parent:{parentId}:tasks:list`, `child:{childId}:tasks:home` | ⏸️ To Do |
-| Delete Task | `task:{taskId}:detail`, `parent:{parentId}:tasks:list`, `child:{childId}:tasks:home` | ⏸️ To Do |
-| Update Task Status | `task:{taskId}:detail`, `parent:{parentId}:dashboard:overview`, `child:{childId}:tasks:home` | ⏸️ To Do |
-| Create SubTask Progress | `task:{taskId}:detail`, `parent:{parentId}:tasks:list` | ⏸️ To Do |
-| Update User Profile | `user:{userId}:profile`, `parent:{parentId}:dashboard:overview` | ⏸️ To Do |
-| Create Notification | `child:{childId}:notifications:unread` | ⏸️ To Do |
-| Mark Notification Read | `child:{childId}:notifications:unread` | ⏸️ To Do |
-| Create ChildrenBusinessUser | `parent:{parentId}:team:members`, `parent:{parentId}:dashboard:overview` | ⏸️ To Do |
-| Update Permissions | `child:{childId}:permissions` | ⏸️ To Do |
-| Create Payment | `admin:dashboard:overview`, `parent:{parentId}:subscription:details` | ⏸️ To Do |
-| Update Subscription | `parent:{parentId}:subscription:details`, `user:{userId}:subscription` | ⏸️ To Do |
+|       Write Operation       |                                   Cache Key to Invalidate                                    |  Status  |
+| --------------------------- | -------------------------------------------------------------------------------------------- | -------- |
+| Create Task                 | `parent:{parentId}:tasks:list`, `child:{childId}:tasks:home`                                 | ⏸️ To Do |
+| Update Task                 | `task:{taskId}:detail`, `parent:{parentId}:tasks:list`, `child:{childId}:tasks:home`         | ⏸️ To Do |
+| Delete Task                 | `task:{taskId}:detail`, `parent:{parentId}:tasks:list`, `child:{childId}:tasks:home`         | ⏸️ To Do |
+| Update Task Status          | `task:{taskId}:detail`, `parent:{parentId}:dashboard:overview`, `child:{childId}:tasks:home` | ⏸️ To Do |
+| Create SubTask Progress     | `task:{taskId}:detail`, `parent:{parentId}:tasks:list`                                       | ⏸️ To Do |
+| Update User Profile         | `user:{userId}:profile`, `parent:{parentId}:dashboard:overview`                              | ⏸️ To Do |
+| Create Notification         | `child:{childId}:notifications:unread`                                                       | ⏸️ To Do |
+| Mark Notification Read      | `child:{childId}:notifications:unread`                                                       | ⏸️ To Do |
+| Create ChildrenBusinessUser | `parent:{parentId}:team:members`, `parent:{parentId}:dashboard:overview`                     | ⏸️ To Do |
+| Update Permissions          | `child:{childId}:permissions`                                                                | ⏸️ To Do |
+| Create Payment              | `admin:dashboard:overview`, `parent:{parentId}:subscription:details`                         | ⏸️ To Do |
+| Update Subscription         | `parent:{parentId}:subscription:details`, `user:{userId}:subscription`                       | ⏸️ To Do |
 
 ### 4.4 Index Implementation Plan
 
@@ -286,13 +286,13 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });  // Chat history quer
 
 ### 4.5 Acceptance Criteria
 
-| Criteria | Verification Method | Status |
-|----------|---------------------|--------|
-| No legacy files in codebase | `git status`, manual review | ⏸️ Pending |
-| All write operations invalidate cache | Code review, test suite | ⏸️ Pending |
-| All queries use indexes (no COLLSCAN) | `.explain('executionStats')` on all queries | ⏸️ Pending |
-| `.lean()` on all read-only queries | Code review, grep for `.find(` without `.lean()` | ⏸️ Pending |
-| No unused payment gateways | Config folder review | ⏸️ Pending |
+|               Criteria                |               Verification Method                |   Status   |
+| ------------------------------------- | ------------------------------------------------ | ---------- |
+| No legacy files in codebase           | `git status`, manual review                      | ⏸️ Pending |
+| All write operations invalidate cache | Code review, test suite                          | ⏸️ Pending |
+| All queries use indexes (no COLLSCAN) | `.explain('executionStats')` on all queries      | ⏸️ Pending |
+| `.lean()` on all read-only queries    | Code review, grep for `.find(` without `.lean()` | ⏸️ Pending |
+| No unused payment gateways            | Config folder review                             | ⏸️ Pending |
 
 ---
 
@@ -310,14 +310,14 @@ Ensure every Figma screen has a matching backend API:
 
 #### Week 3: API Completeness & Chat Decision
 
-| Task | Effort | Priority | Dependencies | Decision/Notes |
-|------|--------|----------|--------------|----------------|
-| **DECIDE: Chat module** | 1 hour | P1 | None | **If not in Figma → Archive** |
-| Map all Figma screens to APIs | 1 day | P0 | None | Create mapping document |
-| Implement missing permission check endpoints | 1 day | P0 | Figma mapping | `GET /children-business-users/me/permissions` |
-| Implement support mode API | 0.5 days | P1 | Figma mapping | `PUT /users/me/profile` with `supportMode` field |
-| Implement notification preferences API | 0.5 days | P1 | Figma mapping | `PUT /users/me/profile` with `notificationStyle` |
-| Implement quick assign endpoint | 0.5 days | P1 | Figma mapping | Optimized task creation for parent dashboard |
+|                     Task                     |  Effort  | Priority | Dependencies  |                  Decision/Notes                  |
+| -------------------------------------------- | -------- | -------- | ------------- | ------------------------------------------------ |
+| **DECIDE: Chat module**                      | 1 hour   | P1       | None          | **If not in Figma → Archive**                    |
+| Map all Figma screens to APIs                | 1 day    | P0       | None          | Create mapping document                          |
+| Implement missing permission check endpoints | 1 day    | P0       | Figma mapping | `GET /children-business-users/me/permissions`    |
+| Implement support mode API                   | 0.5 days | P1       | Figma mapping | `PUT /users/me/profile` with `supportMode` field |
+| Implement notification preferences API       | 0.5 days | P1       | Figma mapping | `PUT /users/me/profile` with `notificationStyle` |
+| Implement quick assign endpoint              | 0.5 days | P1       | Figma mapping | Optimized task creation for parent dashboard     |
 
 **Decision Point: Chat Module**
 
@@ -798,16 +798,16 @@ Achieve >80% test coverage across unit, integration, and E2E tests:
 
 #### Week 9: Unit & Integration Tests
 
-| Task | Effort | Priority | Dependencies | Notes |
-|------|--------|----------|--------------|-------|
-| Write unit tests for Auth service | 1 day | P0 | None | Register, login, OAuth, password reset |
-| Write unit tests for Task service | 1 day | P0 | None | CRUD, status updates, collaborative tasks |
-| Write unit tests for Notification service | 1 day | P0 | None | Create, send, queue jobs |
-| Write unit tests for Subscription service | 1 day | P0 | None | Create, update, proration logic |
-| Write unit tests for Payment service | 1 day | P0 | None | Create, refund, webhook handling |
-| Write integration tests for Auth endpoints | 1 day | P0 | Auth unit tests | Full request/response cycle |
-| Write integration tests for Task endpoints | 1 day | P0 | Task unit tests | Full request/response cycle |
-| Write integration tests for User endpoints | 1 day | P0 | User unit tests | Full request/response cycle |
+|                    Task                    | Effort | Priority |  Dependencies   |                   Notes                   |
+| ------------------------------------------ | ------ | -------- | --------------- | ----------------------------------------- |
+| Write unit tests for Auth service          | 1 day  | P0       | None            | Register, login, OAuth, password reset    |
+| Write unit tests for Task service          | 1 day  | P0       | None            | CRUD, status updates, collaborative tasks |
+| Write unit tests for Notification service  | 1 day  | P0       | None            | Create, send, queue jobs                  |
+| Write unit tests for Subscription service  | 1 day  | P0       | None            | Create, update, proration logic           |
+| Write unit tests for Payment service       | 1 day  | P0       | None            | Create, refund, webhook handling          |
+| Write integration tests for Auth endpoints | 1 day  | P0       | Auth unit tests | Full request/response cycle               |
+| Write integration tests for Task endpoints | 1 day  | P0       | Task unit tests | Full request/response cycle               |
+| Write integration tests for User endpoints | 1 day  | P0       | User unit tests | Full request/response cycle               |
 
 #### Week 10: E2E Tests & Load Testing
 

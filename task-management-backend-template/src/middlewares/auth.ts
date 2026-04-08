@@ -99,9 +99,9 @@ const auth = (...roles: TRole[]/******** Previously it was string[] */) =>
         if (roles.length) {
           const userRole = roleRights.get(verifyUser?.role);
 
-          console.log('🔐 Authorizing user with role:', verifyUser?.role, 'against required roles:', roles);
+          // console.log('🔐 Authorizing user with role:', verifyUser?.role, 'against required roles:', roles);
           const hasRole = userRole?.some(role => roles.includes(role));
-          console.log('🔐 User has required role:', hasRole);
+          // console.log('🔐 User has required role:', hasRole);
 
           
           if (!hasRole) {
