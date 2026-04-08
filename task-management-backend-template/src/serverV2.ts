@@ -13,7 +13,8 @@ import cluster from 'cluster';
 import { createAdapter } from '@socket.io/redis-adapter';
 //@ts-ignore
 import http from "http";
-import { startNotificationWorker, startTaskRemindersWorker, startPreferredTimeWorker } from './helpers/bullmq/bullmq'; // ⬅️ REMOVED: startGroupInvitationWorker
+import { startNotificationWorkerV2 } from './helpers/bullmq/notificationWorkerV2'; // ✅ V2 Worker - Fixed duplicate issue
+import { startTaskRemindersWorker, startPreferredTimeWorker } from './helpers/bullmq/bullmq'; // ⬅️ REMOVED: startGroupInvitationWorker
 import connectToDb from './config/mongoDbConfig';
 import { initializeRedis, redisClient, redisPubClient, redisSubClient } from './helpers/redis/redis';
 import { socketHelperForKafka } from './helpers/socket/socketForChatV1WithKafka';
@@ -106,8 +107,9 @@ if (cluster.isPrimary) { // isMaster (deprecated)
         redisPubClient
       );
 
-      // 🔥 Start BullMQ Worker (listens for schedule jobs)
-      startNotificationWorker();
+      // 🔥 Start BullMQ V2 Worker (listens for notification delivery jobs)
+      // ✅ V2 FIX: No duplicate notification creation - only delivery
+      startNotificationWorkerV2();
       // startGroupInvitationWorker(); // ❌ REMOVED: Group module not needed
       startTaskRemindersWorker();
       startPreferredTimeWorker(); // ⬅️ NEW: Automatic preferred time calculation

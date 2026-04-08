@@ -197,6 +197,26 @@ router.route('/').post(
   controller.create,
 );
 
+/*-───────────────────────────────── 🆕 V2
+|  Child (Secondary) | Business | Task | edit-update-task-flow.png | Create a new task with notifications
+|  @desc V2 ENHANCEMENT: Create personal, single assignment, or collaborative task with comprehensive notifications
+|  @desc Sends notifications to all assigned users (children, parent, siblings)
+|  @auth Business users always allowed
+|  @auth Child users need Secondary User permission
+|  @rateLimit 20 requests per hour (prevents spam)
+|  @permission Only Secondary User children can create tasks
+|  @version 2.0.0
+└──────────────────────────────────*/
+router.route('/v2').post(
+  auth(TRole.commonUser),
+  createTaskLimiter,
+  checkSecondaryUserPermission,
+  validateRequest(validation.createTaskValidationSchema),
+  validateTaskTypeConsistency,
+  checkDailyTaskLimit,
+  controller.createV2,
+);
+
 /*-───────────────────────────────── ✔️🏁☑️
 |  Child | Business | Task | home-flow.png | Get all my tasks with filtering
 |  @desc Get tasks where user is creator, owner, or assigned

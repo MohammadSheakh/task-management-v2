@@ -59,6 +59,44 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
+  /** ✔️☑️ 🆕 V2
+   * Create a new task with comprehensive notifications
+   * Overrides generic create to add user context
+   * Includes permission check for group/collaborative tasks
+   *
+   * @description
+   * V2 ENHANCEMENT: Creates notifications for all assigned users
+   * - Parent→Child: Child receives assignment notification
+   * - Secondary→Parent: Parent receives assignment notification
+   * - Secondary→Sibling: Sibling receives assignment notification
+   * - Personal: Creator receives self-confirmation
+   *
+   * @version 2.0.0
+   */
+  createV2 = async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const taskData = req.body;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Permission Check: Handled by checkSecondaryUserPermission middleware
+    // The middleware checks if user is Secondary User (can create tasks)
+    // ────────────────────────────────────────────────────────────────────────
+
+    const result = await this.taskService.createTaskV2(taskData, userId);
+
+    sendResponse(res, {
+      code: StatusCodes.CREATED,
+      data: result,
+      message: `Task created successfully with notifications sent to ${result.notificationsSent} user(s)`,
+      success: true,
+    });
+  };
+
   /** ✔️☑️
    * Get all tasks for the logged-in user
    * Supports filtering by status, type, priority, and date range

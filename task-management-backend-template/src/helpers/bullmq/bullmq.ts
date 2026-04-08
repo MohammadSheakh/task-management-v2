@@ -15,7 +15,21 @@ import mongoose from 'mongoose';
 import { buildTranslatedField } from "../../utils/buildTranslatedField";
 
 /*-─────────────────────────────────
-|  Notification Queue
+|  ⚠️ DEPRECATED - V1 Notification Queue
+|  
+|  ❌ KNOWN ISSUE: Double Notification Creation
+|  - notification.service.ts creates notification in DB
+|  - This worker creates ANOTHER notification in DB
+|  - Result: Duplicate notifications for users
+|  
+|  ✅ FIX: Use notificationWorkerV2.ts instead
+|  - V2 worker only processes EXISTING notifications
+|  - No duplicate creation - only delivery
+|  
+|  STATUS: Kept for reference, DO NOT USE in production
+|  MIGRATION: Update server.ts to use startNotificationWorkerV2()
+|  
+|  @deprecated Use notificationWorkerV2.ts
 └──────────────────────────────────*/
 export const notificationQueue = new Queue("notificationQueue-e-learning", {
   connection: redisPubClient.options,
@@ -31,6 +45,21 @@ interface IScheduleJobForNotification {
   id: string
 }
 
+/*-─────────────────────────────────
+|  ⚠️ DEPRECATED - V1 Notification Worker
+|  
+|  ❌ ISSUE: This worker creates DUPLICATE notifications
+|  Flow: 
+|    1. notification.service.ts:createNotification() → Creates in DB
+|    2. This worker receives job → Creates AGAIN in DB ❌
+|  
+|  ✅ SOLUTION: Use startNotificationWorkerV2() from notificationWorkerV2.ts
+|  V2 Flow:
+|    1. notification.service.ts:createNotification() → Creates in DB
+|    2. V2 worker receives job → Fetches from DB → Delivers only ✅
+|  
+|  @deprecated Use startNotificationWorkerV2() instead
+└──────────────────────────────────*/
 export const startNotificationWorker = () => {
   const worker = new Worker(
     "notificationQueue-e-learning",
@@ -38,9 +67,9 @@ export const startNotificationWorker = () => {
       job: IScheduleJobForNotification
       // job : Job<INotification, any, NotificationJobName>
     ) => {
-      console.log("job.data testing startNotificationWorker::", job.data)
+      console.log("⚠️ [V1 DEPRECATED] job.data testing startNotificationWorker::", job.data)
       const { id, name, data } = job;
-      logger.info(`Processing notification job ${id} ⚡ ${name}`, data);
+      logger.info(`⚠️ [V1 DEPRECATED] Processing notification job ${id} ⚡ ${name}`, data);
 
       try {
 
@@ -49,6 +78,8 @@ export const startNotificationWorker = () => {
           buildTranslatedField(data.title as string)
         ]);
 
+        // ❌ PROBLEM: This creates a DUPLICATE notification
+        // The notification was already created by notification.service.ts
         const notif = await Notification.create({
           // title: data.title,
           title: titleObj,
@@ -63,7 +94,7 @@ export const startNotificationWorker = () => {
           referenceId: data.referenceId,
         });
 
-        logger.info(`✅ Notification created for ${data.receiverRole} :: `, notif);
+        logger.info(`⚠️ [V1 DUPLICATE] Notification created for ${data.receiverRole} :: `, notif);
 
         let eventName;
         let emitted;

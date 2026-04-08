@@ -8,7 +8,7 @@ import ApiError from '../../../errors/ApiError';
 import { redisClient } from '../../../helpers/redis/redis';
 import { NotificationStatus, NotificationPriority, NotificationChannel, NotificationType, NOTIFICATION_CACHE_CONFIG, QUEUE_CONFIG, ACTIVITY_TYPE, TActivityType } from './notification.constant';
 import { errorLogger, logger } from '../../../shared/logger';
-import { notificationQueue } from '../../../helpers/bullmq/bullmq';
+import { notificationQueueV2 } from '../../../helpers/bullmq/notificationWorkerV2';
 import PaginationService from '../../../common/service/paginationService';
 import { GenericService } from '../../_generic-module/generic.services';
 import { User } from '../../user.module/user/user.model';
@@ -97,23 +97,21 @@ export class NotificationService extends GenericService<typeof Notification, INo
   }
 
   /**
-   * Queue Notification for Async Processing
+   * Queue Notification for Async Processing (V2 - FIXED)
+   * 
+   * 💎✨🔍 V2 FIX: Only pass notificationId, not full payload
+   * Worker will fetch the notification from DB and process it
+   * This prevents duplicate notification creation
+   * 
+   * OLD ISSUE: Full payload was passed → Worker created ANOTHER notification
+   * NEW FIX: Only ID is passed → Worker fetches and delivers existing notification
    */
   private async queueNotification(notification: INotificationDocument): Promise<void> {
     try {
-      await notificationQueue.add(
-        'sendNotification',
+      await notificationQueueV2.add(
+        'deliverNotification',
         {
-          notificationId: notification._id.toString(),
-          receiverId: notification.receiverId?.toString(),
-          receiverRole: notification.receiverRole,
-          channels: notification.channels,
-          priority: notification.priority,
-          title: notification.title,
-          subTitle: notification.subTitle,
-          type: notification.type,
-          linkFor: notification.linkFor,
-          linkId: notification.linkId?.toString(),
+          notificationId: notification._id.toString(), // ✅ ONLY pass ID
         },
         {
           attempts: QUEUE_CONFIG.JOB_ATTEMPTS,
@@ -126,7 +124,7 @@ export class NotificationService extends GenericService<typeof Notification, INo
             : 0,
         }
       );
-      logger.info(`📧 Notification queued for ${notification.receiverId || notification.receiverRole}`);
+      logger.info(`📧 Notification queued for delivery: ${notification._id}`);
     } catch (error) {
       errorLogger.error('Failed to queue notification:', error);
       // Don't throw - notification is still valid even if queue fails

@@ -302,6 +302,340 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   }
 
   /**
+   * Create a new task with comprehensive notifications V2
+   * Extends createTask with proper notification system for all scenarios
+   *
+   * @param data - Task data
+   * @param userId - ID of the user creating the task
+   * @returns Created task with notification details
+   *
+   * @description
+   * SCENARIO 1: Parent creates task for children
+   *  - singleAssignment: Notify assigned child
+   *  - collaborative: Notify all assigned children
+   *  - personal: Optional self-confirmation for parent
+   *
+   * SCENARIO 2: Child creates personal task
+   *  - personal: Optional self-confirmation for child
+   *
+   * SCENARIO 3: Secondary user creates tasks
+   *  - singleAssignment for parent: Notify parent
+   *  - singleAssignment for sibling: Notify that sibling
+   *  - collaborative: Notify all assigned users
+   *
+   * ALL SCENARIOS also record activity for parent's dashboard feed
+   */
+  async createTaskV2(
+    data: Partial<ITask>,
+    userId: Types.ObjectId,
+  ): Promise<{
+    task: ITask;
+    notificationsSent: number;
+    notifiedUserIds: string[];
+  }> {
+    // Validate daily task limit for personal tasks
+    if (data.taskType === TaskType.PERSONAL && data.startTime) {
+      const startDate = new Date(data.startTime);
+      startDate.setHours(0, 0, 0, 0);
+
+      const existingTaskCount = await this.model.countDocuments({
+        ownerUserId: userId,
+        startTime: {
+          $gte: startDate,
+          $lt: new Date(startDate.getTime() + 24 * 60 * 60 * 1000),
+        },
+        isDeleted: false,
+      });
+
+      if (existingTaskCount >= DAILY_TASK_LIMIT.max) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `You can only create ${DAILY_TASK_LIMIT.max} tasks per day. You already have ${existingTaskCount} tasks scheduled for this day.`,
+        );
+      }
+    }
+
+    // Auto-set ownerUserId for personal tasks
+    if (data.taskType === TaskType.PERSONAL && !data.ownerUserId) {
+      data.ownerUserId = userId;
+    }
+
+    // Auto-calculate subtask counts if subtasks are provided
+    if ((data as any).subtasks && Array.isArray((data as any).subtasks)) {
+      data.totalSubtasks = (data as any).subtasks.length;
+      data.completedSubtasks = (data as any).subtasks.filter(
+        (st: any) => st.isCompleted,
+      ).length;
+    }
+
+    // Extract subtasks from data (will create them separately after task creation)
+    const subtasksData = (data as any).subtasks;
+    delete (data as any).subtasks;
+
+    // Create the task
+    const task = await this.model.create({
+      ...data,
+      createdById: userId,
+    });
+
+    // ✅ Bulk create subtasks if provided
+    if (
+      subtasksData &&
+      Array.isArray(subtasksData) &&
+      subtasksData.length > 0
+    ) {
+      await this.bulkCreateSubtasks(task._id.toString(), subtasksData, userId);
+    }
+
+    // ✅ Auto-create TaskProgress records for collaborative tasks
+    if (
+      data.taskType === TaskType.COLLABORATIVE &&
+      data.assignedUserIds &&
+      data.assignedUserIds.length > 0
+    ) {
+      await taskProgressService.bulkCreateForTask(
+        task._id.toString(),
+        data.assignedUserIds.map(id => id.toString()),
+      );
+    }
+
+    // 🆕 NEW: Create notifications for all assigned users
+    let notificationsSent = 0;
+    let notifiedUserIds: string[] = [];
+
+    try {
+      const notificationResult = await this.createNotificationsForTaskCreation(
+        task,
+        userId,
+      );
+      notificationsSent = notificationResult.count;
+      notifiedUserIds = notificationResult.userIds;
+    } catch (error) {
+      // Don't fail task creation if notification fails
+      errorLogger.error('Error creating notifications for task:', error);
+      logger.warn(
+        `Task created successfully but notifications failed for task ${task._id}`,
+      );
+    }
+
+    // Invalidate cache after creating task
+    await this.invalidateCache(userId.toString(), task._id.toString());
+
+    // ✨ Record activity for collaborative/family tasks
+    if (
+      data.taskType === TaskType.COLLABORATIVE &&
+      data.assignedUserIds &&
+      data.assignedUserIds.length > 0
+    ) {
+      // Find the business user (parent) from the first assigned child
+      const { ChildrenBusinessUser } =
+        await import('../../childrenBusinessUser.module/childrenBusinessUser.model');
+      const firstAssignedUser = data.assignedUserIds[0];
+
+      const relationship = await ChildrenBusinessUser.findOne({
+        childUserId: firstAssignedUser,
+        isDeleted: false,
+      }).lean();
+
+      if (relationship) {
+        // Record activity for this child, will appear in parent's dashboard
+        await notificationService.recordChildActivity(
+          relationship.parentBusinessUserId.toString(),
+          userId.toString(),
+          ACTIVITY_TYPE.TASK_CREATED,
+          { taskId: task._id.toString(), taskTitle: task.title },
+        );
+
+        // Broadcast to family members via group activity
+        await socketService.broadcastGroupActivity(
+          relationship.parentBusinessUserId.toString(),
+          {
+            type: ACTIVITY_TYPE.TASK_CREATED,
+            actor: {
+              userId: userId.toString(),
+              name: userId.toString(),
+              profileImage: undefined,
+            },
+            task: {
+              taskId: task._id.toString(),
+              title: task.title,
+            },
+            timestamp: new Date(),
+          },
+        );
+      }
+    } else {
+      // For personal tasks, just emit to task room
+      await socketService.emitToTask(task._id.toString(), 'task:created', {
+        taskId: task._id.toString(),
+        title: task.title,
+        taskType: task.taskType,
+        status: task.status,
+        assignedUserIds: data.assignedUserIds?.map(id => id.toString()),
+        createdById: userId.toString(),
+        createdAt: task.createdAt,
+      });
+    }
+
+    return {
+      task,
+      notificationsSent,
+      notifiedUserIds,
+    };
+  }
+
+  /**
+   * Create notifications for task creation
+   * Handles all scenarios: parent→child, child→personal, secondary→parent/sibling
+   *
+   * @param task - Created task document
+   * @param creatorUserId - User who created the task
+   * @returns Notification result summary
+   */
+  private async createNotificationsForTaskCreation(
+    task: ITask,
+    creatorUserId: Types.ObjectId,
+  ): Promise<{
+    count: number;
+    userIds: string[];
+  }> {
+    const notifiedUserIds: string[] = [];
+    let count = 0;
+
+    // Import User model for fetching user details
+    const { User } = await import('../../user.module/user/user.model');
+
+    // Get creator user details
+    const creatorUser = await User.findById(creatorUserId)
+      .select('name')
+      .lean();
+
+    const creatorName = creatorUser?.name || 'Someone';
+
+    // Scenario 1: Personal task - optional self-confirmation
+    if (task.taskType === TaskType.PERSONAL) {
+      // Create self-confirmation notification for task creator
+      await notificationService.createNotification({
+        senderId: creatorUserId,
+        receiverId: creatorUserId,
+        title: 'Task Created',
+        subTitle: `You created a personal task: "${task.title}"`,
+        type: 'task',
+        priority: 'low',
+        channels: ['in_app'],
+        linkFor: 'task',
+        linkId: task._id,
+        referenceFor: 'task',
+        referenceId: task._id,
+        data: {
+          taskId: task._id.toString(),
+          taskTitle: task.title,
+          taskType: 'personal',
+          eventType: 'task_created',
+        },
+      });
+
+      count++;
+      notifiedUserIds.push(creatorUserId.toString());
+    }
+
+    // Scenario 2 & 3: Task with assigned users (singleAssignment or collaborative)
+    if (
+      (task.taskType === TaskType.SINGLE_ASSIGNMENT ||
+        task.taskType === TaskType.COLLABORATIVE) &&
+      task.assignedUserIds &&
+      task.assignedUserIds.length > 0
+    ) {
+      // Determine if creator is a secondary user (child with permissions)
+      let isSecondaryUser = false;
+      let parentBusinessUserId: string | null = null;
+
+      try {
+        const { ChildrenBusinessUser } = await import(
+          '../../childrenBusinessUser.module/childrenBusinessUser.model'
+        );
+        const childRelation = await ChildrenBusinessUser.findOne({
+          childUserId: creatorUserId,
+          isSecondaryUser: true,
+          isDeleted: false,
+        }).lean();
+
+        if (childRelation) {
+          isSecondaryUser = true;
+          parentBusinessUserId = childRelation.parentBusinessUserId.toString();
+        }
+      } catch (error) {
+        // Not a child user, continue as business user
+      }
+
+      // Create notification for EACH assigned user
+      for (const assignedUserId of task.assignedUserIds) {
+        const assignedUserIdStr = assignedUserId.toString();
+
+        // Skip if already notified
+        if (notifiedUserIds.includes(assignedUserIdStr)) {
+          continue;
+        }
+
+        // Determine notification message based on task type and creator role
+        let title: string;
+        let subTitle: string;
+
+        if (task.taskType === TaskType.COLLABORATIVE) {
+          // Collaborative task
+          if (isSecondaryUser) {
+            title = 'New Collaborative Task';
+            subTitle = `${creatorName} assigned a collaborative task: "${task.title}"`;
+          } else {
+            title = 'New Collaborative Task';
+            subTitle = `You've been assigned to a collaborative task: "${task.title}"`;
+          }
+        } else {
+          // Single assignment
+          if (isSecondaryUser) {
+            title = 'New Task Assigned';
+            subTitle = `${creatorName} assigned you a task: "${task.title}"`;
+          } else {
+            title = 'New Task Assigned';
+            subTitle = `You've been assigned a new task: "${task.title}"`;
+          }
+        }
+
+        // Create the notification
+        await notificationService.createNotification({
+          senderId: creatorUserId,
+          receiverId: new Types.ObjectId(assignedUserIdStr),
+          title,
+          subTitle,
+          type: 'assignment',
+          priority: 'normal',
+          channels: ['in_app', 'push'],
+          linkFor: 'task',
+          linkId: task._id,
+          referenceFor: 'task',
+          referenceId: task._id,
+          data: {
+            taskId: task._id.toString(),
+            taskTitle: task.title,
+            taskType: task.taskType,
+            eventType: 'task_assigned',
+            assignedBy: isSecondaryUser ? 'secondary' : 'parent',
+            totalMembers: task.assignedUserIds.length,
+          },
+        });
+
+        count++;
+        notifiedUserIds.push(assignedUserIdStr);
+      }
+    }
+
+    return {
+      count,
+      userIds: notifiedUserIds,
+    };
+  }
+
+  /**
    * Bulk create subtasks for a task
    * Called during task creation when subtasks are provided inline
    *

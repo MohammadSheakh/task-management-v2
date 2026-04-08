@@ -14,7 +14,7 @@ import cluster from 'cluster';
 //@ts-ignore
 import { createAdapter } from '@socket.io/redis-adapter';
 
-import { startNotificationWorker } from './helpers/bullmq/bullmq'; // ⬅️ ADD THIS
+import { startNotificationWorkerV2 } from './helpers/bullmq/notificationWorkerV2'; // ✅ V2 Worker - Fixed duplicate issue
 import connectToDb from './config/mongoDbConfig';
 import { initializeRedis, redisPubClient, redisSubClient } from './helpers/redis/redis';
 import { socketHelperForKafka } from './helpers/socket/socketForChatV1WithKafka';
@@ -100,9 +100,9 @@ async function main() {
     // @ts-ignore
     global.io = io;
 
-    // 🔥 Start BullMQ Worker (listens for schedule jobs)
-    
-    startNotificationWorker();
+    // 🔥 Start BullMQ V2 Worker (listens for notification delivery jobs)
+    // ✅ V2 FIX: No duplicate notification creation - only delivery
+    startNotificationWorkerV2();
 
   } catch (error) {
     errorLogger.error(colors.red('🤢 Issue from server.ts => ', error));
