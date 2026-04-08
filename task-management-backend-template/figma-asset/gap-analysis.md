@@ -83,12 +83,12 @@ Low (P3):      0%
 
 ### 2.1 Priority Definitions
 
-| Priority | Definition | Impact | SLA |
-|----------|------------|--------|-----|
-| **P0 (Critical)** | Blocks production deployment, security vulnerability, data loss risk | System cannot go live, or will fail in production | Must fix before production |
-| **P1 (High)** | Degrades performance, missing core feature, compliance risk | System works but suboptimal, may fail under load | Fix within 2 sprints |
-| **P2 (Medium)** | Missing enhancement, documentation gap, minor inconsistency | System works well, but gaps affect maintainability | Fix within 4 sprints |
-| **P3 (Low)** | Nice-to-have, future enhancement, cosmetic issue | No immediate impact | Backlog |
+|     Priority      |                              Definition                              |                       Impact                       |            SLA             |
+| ----------------- | -------------------------------------------------------------------- | -------------------------------------------------- | -------------------------- |
+| **P0 (Critical)** | Blocks production deployment, security vulnerability, data loss risk | System cannot go live, or will fail in production  | Must fix before production |
+| **P1 (High)**     | Degrades performance, missing core feature, compliance risk          | System works but suboptimal, may fail under load   | Fix within 2 sprints       |
+| **P2 (Medium)**   | Missing enhancement, documentation gap, minor inconsistency          | System works well, but gaps affect maintainability | Fix within 4 sprints       |
+| **P3 (Low)**      | Nice-to-have, future enhancement, cosmetic issue                     | No immediate impact                                | Backlog                    |
 
 ### 2.2 Gap Categories
 

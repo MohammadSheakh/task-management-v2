@@ -81,24 +81,24 @@ Total Duration: 14 Weeks (3.5 months)
 
 ### 2.1 Module Completion Matrix
 
-| Module | Status | Completion | Production Ready? | Notes |
-|--------|--------|------------|-------------------|-------|
-| Auth | ✅ Complete | 100% | ✅ Yes | JWT, Redis sessions, OAuth, rate limiting |
-| User | ✅ Complete | 100% | ✅ Yes | 5 models, pagination, soft deletes |
-| Task | ✅ Complete | 95% | ⚠️ Mostly | Missing `.lean()` audit, cache invalidation |
-| Task Progress | ✅ Complete | 100% | ✅ Yes | Per-user tracking on collaborative tasks |
-| Notification | ✅ Complete | 100% | ✅ Yes | BullMQ workers, V2 (fixed duplicates) |
-| Children/Business User | ✅ Complete | 95% | ⚠️ Mostly | Permission endpoints need verification |
-| Analytics | ✅ Complete | 90% | ⚠️ Mostly | Needs BullMQ for heavy queries, read replica |
-| Chatting | ✅ Complete | 100% | ❌ Not in Figma | Backend exists, but not aligned with UI — **DECIDE: Archive or Add to Figma** |
-| Payment | ✅ Complete | 95% | ⚠️ Mostly | Missing proration, refund handling |
-| Subscription | ✅ Complete | 95% | ⚠️ Mostly | Missing upgrade/downgrade logic |
-| Settings | ✅ Complete | 100% | ✅ Yes | Singleton pattern, CRUD complete |
-| Attachments | ✅ Complete | 100% | ✅ Yes | Cloudinary/S3 upload, metadata tracking |
-| OTP | ✅ Complete | 100% | ✅ Yes | TTL indexes, verification flow |
-| Token | ✅ Complete | 100% | ✅ Yes | Refresh token rotation, reuse detection |
-| Generic Module | ✅ Template | N/A | ✅ Yes | GenericController, GenericService, module generator |
-| **Service Booking Route** | ❌ Legacy | 0% | ❌ No | **REMOVE:** Not registered, not needed |
+|          Module           |   Status   | Completion | Production Ready? |                                     Notes                                     |
+| ------------------------- | ---------- | ---------- | ----------------- | ----------------------------------------------------------------------------- |
+| Auth                      | ✅ Complete | 100%       | ✅ Yes             | JWT, Redis sessions, OAuth, rate limiting                                     |
+| User                      | ✅ Complete | 100%       | ✅ Yes             | 5 models, pagination, soft deletes                                            |
+| Task                      | ✅ Complete | 95%        | ⚠️ Mostly         | Missing `.lean()` audit, cache invalidation                                   |
+| Task Progress             | ✅ Complete | 100%       | ✅ Yes             | Per-user tracking on collaborative tasks                                      |
+| Notification              | ✅ Complete | 100%       | ✅ Yes             | BullMQ workers, V2 (fixed duplicates)                                         |
+| Children/Business User    | ✅ Complete | 95%        | ⚠️ Mostly         | Permission endpoints need verification                                        |
+| Analytics                 | ✅ Complete | 90%        | ⚠️ Mostly         | Needs BullMQ for heavy queries, read replica                                  |
+| Chatting                  | ✅ Complete | 100%       | ❌ Not in Figma    | Backend exists, but not aligned with UI — **DECIDE: Archive or Add to Figma** |
+| Payment                   | ✅ Complete | 95%        | ⚠️ Mostly         | Missing proration, refund handling                                            |
+| Subscription              | ✅ Complete | 95%        | ⚠️ Mostly         | Missing upgrade/downgrade logic                                               |
+| Settings                  | ✅ Complete | 100%       | ✅ Yes             | Singleton pattern, CRUD complete                                              |
+| Attachments               | ✅ Complete | 100%       | ✅ Yes             | Cloudinary/S3 upload, metadata tracking                                       |
+| OTP                       | ✅ Complete | 100%       | ✅ Yes             | TTL indexes, verification flow                                                |
+| Token                     | ✅ Complete | 100%       | ✅ Yes             | Refresh token rotation, reuse detection                                       |
+| Generic Module            | ✅ Template | N/A        | ✅ Yes             | GenericController, GenericService, module generator                           |
+| **Service Booking Route** | ❌ Legacy   | 0%         | ❌ No              | **REMOVE:** Not registered, not needed                                        |
 
 ### 2.2 Infrastructure Readiness
 
