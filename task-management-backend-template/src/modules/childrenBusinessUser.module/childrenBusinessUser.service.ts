@@ -2520,6 +2520,127 @@ export class ChildrenBusinessUserService extends GenericService<
     return familyMembers;
   }
 
+  /** 🆕 V2
+   * Get family members including parent information
+   * Figma: family-members-flow.png
+   *
+   * @description Returns parent info + other children (siblings) under the same parent
+   *              Parent is placed at the top of the array, followed by siblings
+   * @param childUserId - The child user ID (from authenticated request)
+   * @returns Object with parent and siblings, with parent first
+   */
+  async getChildFamilyMembersV2(childUserId: string): Promise<{
+    parent: {
+      _id: string;
+      parentBusinessUserId: string;
+      name: string;
+      email: string;
+      phoneNumber?: string;
+      profileImage?: { imageUrl: string };
+      role: 'parent';
+    } | null;
+    siblings: Array<{
+      _id: string;
+      childUserId: string;
+      name: string;
+      email: string;
+      phoneNumber?: string;
+      profileImage?: { imageUrl: string };
+      isSecondaryUser: boolean;
+      roleType: 'Primary' | 'Secondary';
+      role: 'sibling';
+      addedAt: Date;
+    }>;
+    totalFamilyMembers: number;
+  }> {
+    // Step 1: Find the parent business user for this child
+    const relationship = await this.model
+      .findOne({
+        childUserId: new Types.ObjectId(childUserId),
+        status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+        isDeleted: false,
+      })
+      .select('parentBusinessUserId')
+      .lean();
+
+    if (!relationship) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'No parent-child relationship found for this child',
+      );
+    }
+
+    const parentBusinessUserId = (relationship.parentBusinessUserId as any)._id;
+
+    // Step 2: Get parent information from User collection
+    const parentUser = await User.findById(parentBusinessUserId)
+      .select('name email phoneNumber profileImage')
+      .lean();
+
+    if (!parentUser) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'Parent user not found',
+      );
+    }
+
+    // Step 3: Get all active children of this parent (excluding the current child)
+    const siblings = await this.model.aggregate([
+      {
+        $match: {
+          parentBusinessUserId,
+          childUserId: { $ne: new Types.ObjectId(childUserId) },
+          status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'childUserId',
+          foreignField: '_id',
+          as: 'childUser',
+        },
+      },
+      { $unwind: '$childUser' },
+      {
+        $project: {
+          _id: 1,
+          childUserId: { $toString: '$childUser._id' },
+          name: '$childUser.name',
+          email: '$childUser.email',
+          phoneNumber: '$childUser.phoneNumber',
+          profileImage: '$childUser.profileImage',
+          isSecondaryUser: 1,
+          roleType: {
+            $cond: ['$isSecondaryUser', 'Secondary', 'Primary'],
+          },
+          role: { $literal: 'sibling' },
+          addedAt: 1,
+        },
+      },
+      { $sort: { addedAt: -1 } },
+    ]);
+
+    // Step 4: Build parent object
+    const parent = parentUser ? {
+      _id: parentUser._id.toString(),
+      parentBusinessUserId: parentBusinessUserId.toString(),
+      name: parentUser.name,
+      email: parentUser.email,
+      phoneNumber: parentUser.phoneNumber,
+      profileImage: parentUser.profileImage,
+      role: 'parent' as const,
+    } : null;
+
+    // Step 5: Return structured response
+    return {
+      parent,
+      siblings,
+      totalFamilyMembers: siblings.length,
+    };
+  }
+
   /** 🎓 LEARNING PURPOSE ONLY
    * Send invitation to child (child sets own password)
    * Figma: create-child-flow.png (Invitation flow variant)

@@ -868,7 +868,10 @@ export class ChildrenBusinessUserController {
     /*-─────────────────────────────────
     |  Step 2: Get family members from service
     └──────────────────────────────────*/
-    const result = await this.service.getChildFamilyMembers(childUserId as string);
+    // const result = await this.service.getChildFamilyMembers(childUserId as string);
+
+    const result = await this.service.getChildFamilyMembersV2(childUserId as string);
+
 
     /*-─────────────────────────────────
     |  Step 3: Send success response
@@ -877,6 +880,42 @@ export class ChildrenBusinessUserController {
       code: StatusCodes.OK,
       data: result,
       message: 'Family members retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Get child's family members V2 (includes parent information)
+   * GET /children-business-users/my-family-members/v2
+   *
+   * @description Get parent information + other children (siblings) under the same parent
+   *              Parent is returned at the top, followed by siblings array
+   * @auth Child user
+   * @returns Object with parent and siblings, with parent first
+   * @version 2.0.0
+   */
+  getMyFamilyMembersV2 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get child user ID from request
+    └──────────────────────────────────*/
+    const childUserId = (req.user as IUser).userId;
+
+    if (!childUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Get family members V2 from service (includes parent)
+    └──────────────────────────────────*/
+    const result = await this.service.getChildFamilyMembersV2(childUserId as string);
+
+    /*-─────────────────────────────────
+    |  Step 3: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Family members with parent information retrieved successfully',
       success: true,
     });
   });

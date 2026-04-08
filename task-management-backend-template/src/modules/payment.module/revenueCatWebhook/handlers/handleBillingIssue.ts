@@ -6,6 +6,7 @@ import { UserSubscriptionStatusType } from '../../../subscription.module/userSub
 // import { TNotificationType } from '../../../notification/notification.constants'; // ❌ Deprecated - migrated to notification.module
 import { NotificationService } from '../../../notification.module/notification/notification.service';
 import { NotificationType, NotificationChannel, NotificationPriority } from '../../../notification.module/notification/notification.constant';
+import { Types } from 'mongoose';
 
 /**
  * Handle BILLING_ISSUE Event

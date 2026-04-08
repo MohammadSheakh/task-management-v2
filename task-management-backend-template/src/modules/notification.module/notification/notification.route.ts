@@ -110,7 +110,7 @@ const scheduleReminderSchema = z.object({
 router
   .route('/my')
   .get(
-    auth(TRole.commonUser),
+    auth(TRole.common),
     notificationLimiter,
     validateFiltersForQuery(
       optionValidationChecking([

@@ -29,8 +29,11 @@ import { handleSubscription } from './handlers/handleSubscription';
 
 const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<void> => {
   console.log('🪝 RevenueCat webhook received');
-  
-  const signature = req.headers['X-RevenueCat-Signature'] as string;
+
+  // RevenueCat does NOT provide X-RevenueCat-Signature header
+  // Instead, we verify using the Authorization header (Bearer token)
+  // configured in RevenueCat Dashboard → Project Settings → Webhooks
+  const authHeader = req.headers['authorization'] as string;
   const webhookSecret = config.revenueCat?.webhookSecret;
 
   if (!webhookSecret) {
@@ -39,22 +42,36 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  // Verify webhook signature
-  const isValid = verifyRevenueCatSignature(req.body, signature, webhookSecret);
-  
+  // Verify webhook Authorization header
+  const isValid = verifyRevenueCatAuth(authHeader, webhookSecret);
+
   if (!isValid) {
-    console.error('❌ RevenueCat webhook signature verification failed');
-    res.status(401).json({ error: 'Invalid webhook signature' });
+    console.error('❌ RevenueCat webhook authorization verification failed');
+    res.status(401).json({ error: 'Invalid webhook authorization' });
     return;
   }
 
-  console.log('✅ RevenueCat webhook signature verified');
+  console.log('✅ RevenueCat webhook authorization verified');
 
-  const event = req.body;
-  console.log('📦 Event type:', event.event_id);
+  // Parse the raw body (express.raw() returns a Buffer)
+  const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : req.body;
+  let event: any;
+  
+  try {
+    event = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody;
+  } catch (error) {
+    console.error('❌ Failed to parse webhook body:', error);
+    res.status(400).json({ error: 'Invalid JSON in webhook body' });
+    return;
+  }
+
+  console.log('📦 Event type:', event.event_id || event.type);
 
   try {
-    switch (event.event_id) {
+    // RevenueCat uses event.type (e.g., "INITIAL_PURCHASE", "RENEWAL", etc.)
+    const eventType = event.event_id || event.type;
+    
+    switch (eventType) {
       case 'INITIAL_PURCHASE':
         console.log(`
           ////////////////////////////////////////
@@ -119,7 +136,7 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
         break;
 
       default:
-        console.log(`🪝🪝 Unhandled event type: ${event.event_id}`);
+        console.log(`🪝🪝 Unhandled event type: ${eventType}`);
         break;
     }
 
@@ -132,50 +149,40 @@ const revenueCatWebhookHandler = async (req: Request, res: Response): Promise<vo
 };
 
 /**
- * Verify RevenueCat webhook signature
- * 
- * RevenueCat signs webhooks with HMAC-SHA256
- * Signature format: "hash=hex_encoded_hash"
+ * Verify RevenueCat webhook Authorization header
+ *
+ * RevenueCat does NOT provide HMAC signature verification
+ * Instead, configure an Authorization header value in RevenueCat Dashboard
+ * and verify it matches our webhook secret
+ *
+ * @see https://community.revenuecat.com/dashboard-tools-52/is-x-revenuecat-signature-removed-and-where-is-webhook-secret-key-7110
  */
-function verifyRevenueCatSignature(
-  body: any,
-  signature: string,
+function verifyRevenueCatAuth(
+  authHeader: string | undefined,
   secret: string
 ): boolean {
-  
-  console.log('🔐 Verifying RevenueCat webhook signature', signature);
-  
-  if (!signature) {
+  console.log('🔐 Verifying RevenueCat webhook authorization');
+
+  if (!authHeader || !secret) {
+    console.error('❌ Missing authorization header or secret');
     return false;
   }
 
   try {
+    // Support both formats:
+    // - "Bearer your-secret"
+    // - "your-secret" (raw token)
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : authHeader;
 
-
-    // Parse signature to get the hash
-    const signatureParts = signature.split('=');
-    if (signatureParts.length !== 2) {
-      return false;
-    }
-
-    const receivedHash = signatureParts[1];
-
-    // Calculate expected hash
-    const bodyString = JSON.stringify(body);
-    const expectedHash = crypto
-      .createHmac('sha256', secret)
-      .update(bodyString)
-      .digest('hex');
-
-    // Compare hashes
+    // Compare tokens using timing-safe comparison
     return crypto.timingSafeEqual(
-      Buffer.from(receivedHash, 'hex'),
-      Buffer.from(expectedHash, 'hex')
+      Buffer.from(token, 'utf8'),
+      Buffer.from(secret, 'utf8')
     );
-
-    
   } catch (error) {
-    console.error('Error verifying RevenueCat signature:', error);
+    console.error('Error verifying RevenueCat authorization:', error);
     return false;
   }
 }

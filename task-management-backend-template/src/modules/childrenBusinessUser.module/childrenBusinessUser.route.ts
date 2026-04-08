@@ -372,6 +372,22 @@ router.get(
   controller.getMyFamilyMembers
 );
 
+/*-───────────────────────────────── 🆕 V2
+|  Child | ChildrenBusinessUser | family-members-flow.png | Get my family members with parent info
+|  @desc Get parent information + other children (siblings) under the same parent
+|  @desc Parent is returned at the top, followed by siblings array
+|  @auth Child user (commonUser role)
+|  @rateLimit 100 requests per minute
+|  @response Object with parent and siblings, with parent first
+|  @version 2.0.0
+└──────────────────────────────────*/
+router.get(
+  '/my-family-members/v2',
+  auth(TRole.commonUser),
+  childrenLimiter,
+  controller.getMyFamilyMembersV2
+);
+
 /*-───────────────────────────────── 🎓 LEARNING PURPOSE ONLY
 |  Business | ChildrenBusinessUser | create-child-flow.png | Send invitation to child
 |  @desc Parent sends invitation to child (child sets own password via deep link)

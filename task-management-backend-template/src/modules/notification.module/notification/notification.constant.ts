@@ -22,6 +22,7 @@ export enum NotificationType {
   ASSIGNMENT = 'assignment',
   DEADLINE = 'deadline',
   CUSTOM = 'custom',
+  PAYMENT = 'payment',         // For subscription/payment-related notifications
 }
 
 /**
