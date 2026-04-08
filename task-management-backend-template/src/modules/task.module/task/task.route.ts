@@ -193,7 +193,7 @@ router.route('/').post(
   checkSecondaryUserPermission, // ⬅️ NEW: Check Secondary User status
   validateRequest(validation.createTaskValidationSchema),
   validateTaskTypeConsistency,
-  checkDailyTaskLimit,
+  // checkDailyTaskLimit,
   controller.create,
 );
 
@@ -213,7 +213,7 @@ router.route('/v2').post(
   checkSecondaryUserPermission,
   validateRequest(validation.createTaskValidationSchema),
   validateTaskTypeConsistency,
-  checkDailyTaskLimit,
+  // checkDailyTaskLimit, //🔂 MUST TODO : must uncomment 
   controller.createV2,
 );
 
