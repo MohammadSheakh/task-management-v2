@@ -31,6 +31,8 @@ const createOrUpdateSettings = catchAsync(async (req: Request, res: Response) =>
     throw new ApiError(StatusCodes.BAD_REQUEST, `Invalid type .. Allowed types are ${allowedTypes.join(', ')}`);
   }
   
+  console.log("req.body -> ", req.body);
+
   const result = await settingsService.createOrUpdateSettings(
     req.query.type,
     req.body

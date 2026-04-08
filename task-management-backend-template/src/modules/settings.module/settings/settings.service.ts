@@ -73,6 +73,7 @@ export class SettingsService extends GenericService<
       }
 
     } else {
+      //🔂
       // For all other types, details must be a string
       // if (typeof details !== 'string') {
       //   throw new ApiError(
@@ -82,12 +83,12 @@ export class SettingsService extends GenericService<
       // }
 
       // Optional: Validate string is not empty
-      if (details.trim().length === 0) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          'Details cannot be empty'
-        );
-      }
+      // if (details.trim().length === 0) {
+      //   throw new ApiError(
+      //     StatusCodes.BAD_REQUEST,
+      //     'Details cannot be empty'
+      //   );
+      // }
     }
   }
 
@@ -95,6 +96,8 @@ export class SettingsService extends GenericService<
   // Admin | Sub Admin
   //----------------------------------
   async createOrUpdateSettings(type: any, payload: any) {
+    
+    console.log("payload -> ", payload);
 
     if (!allowedTypes.includes(type)) {
       throw new ApiError(

@@ -142,11 +142,16 @@ function verifyRevenueCatSignature(
   signature: string,
   secret: string
 ): boolean {
+  
+  console.log('🔐 Verifying RevenueCat webhook signature', signature);
+  
   if (!signature) {
     return false;
   }
 
   try {
+
+
     // Parse signature to get the hash
     const signatureParts = signature.split('=');
     if (signatureParts.length !== 2) {
@@ -167,6 +172,8 @@ function verifyRevenueCatSignature(
       Buffer.from(receivedHash, 'hex'),
       Buffer.from(expectedHash, 'hex')
     );
+
+    
   } catch (error) {
     console.error('Error verifying RevenueCat signature:', error);
     return false;
