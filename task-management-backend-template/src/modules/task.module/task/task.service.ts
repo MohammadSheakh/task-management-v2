@@ -349,10 +349,10 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
       if (existingTaskCount >= DAILY_TASK_LIMIT.max) {
         // 🔂 // TODO MUST : uncomment this 
-        // throw new ApiError(
-        //   StatusCodes.BAD_REQUEST,
-        //   `You can only create ${DAILY_TASK_LIMIT.max} tasks per day. You already have ${existingTaskCount} tasks scheduled for this day.`,
-        // );
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          `You can only create ${DAILY_TASK_LIMIT.max} tasks per day. You already have ${existingTaskCount} tasks scheduled for this day.`,
+        );
       }
     }
 
