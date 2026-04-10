@@ -845,6 +845,185 @@ export class TaskProgressService extends GenericService<
     // Invalidate cache
     await this.invalidateCache(taskId, userId);
   }
+
+  /**
+   * Update progress status V2 - With creative response (like /tasks/:id/status/v3)
+   * PUT /task-progress/:taskId/status/v2
+   *
+   * @description
+   * Same as updateProgressStatus but returns creative response with support mode-based messaging
+   * Perfect for showing celebratory popups when child completes tasks
+   *
+   * @param taskId - Task ID
+   * @param userId - User ID
+   * @param status - New status (in_progress or completed)
+   * @param note - Optional note
+   * @returns Progress record with creative response and milestone info
+   */
+  async updateProgressStatusV2(
+    taskId: string,
+    userId: string,
+    status: TTaskProgressStatus,
+    note?: string,
+  ): Promise<{
+    progress: ITaskProgressDocument;
+    creativeResponse: ICreativeResponse;
+    milestone: 'started' | '50_percent' | '100_percent';
+    isParentTaskCompleted?: boolean;
+  }> {
+    // 1. Update progress status (reuse existing logic)
+    const progress = await this.updateProgressStatus(taskId, userId, status, note);
+
+    // 2. Get user's support mode for creative response
+    const { UserProfile } = await import('../user.module/userProfile/userProfile.model');
+    const userProfile = await UserProfile.findOne({ userId: new Types.ObjectId(userId) })
+      .select('supportMode')
+      .lean();
+
+    const supportMode = userProfile?.supportMode || 'calm';
+
+    // 3. Determine milestone
+    let milestone: 'started' | '50_percent' | '100_percent' = 'started';
+
+    if (status === TaskProgressStatus.COMPLETED) {
+      milestone = '100_percent';
+    } else if (status === TaskProgressStatus.IN_PROGRESS && progress.progressPercentage >= 50) {
+      milestone = '50_percent';
+    }
+
+    // 4. Generate creative response
+    const creativeResponse = this.generateCreativeResponse(supportMode, milestone);
+
+    // 5. Check if parent task was auto-completed (for collaborative tasks)
+    let isParentTaskCompleted = false;
+    if (status === TaskProgressStatus.COMPLETED) {
+      const task = await Task.findById(taskId).lean();
+      if (task && task.taskType === TaskType.COLLABORATIVE) {
+        // Check if all children completed
+        const allProgress = await this.model
+          .find({
+            taskId: new Types.ObjectId(taskId),
+            isDeleted: false,
+          })
+          .lean();
+
+        const assignedUserIds = task.assignedUserIds || [];
+        const completedCount = allProgress.filter(
+          p => p.status === TaskProgressStatus.COMPLETED,
+        ).length;
+
+        isParentTaskCompleted = completedCount === assignedUserIds.length;
+      }
+    }
+
+    return {
+      progress,
+      creativeResponse,
+      milestone,
+      ...(isParentTaskCompleted && { isParentTaskCompleted: true }),
+    };
+  }
+
+  /**
+   * Generate creative response based on support mode and milestone
+   * Same logic as task.service.ts generateCreativeResponse
+   *
+   * @param supportMode - User's support mode preference
+   * @param milestone - Completion milestone (50%, 100%, started)
+   * @returns Creative response with mode-specific messaging
+   *
+   * @see Figma: response-based-on-mode.png
+   */
+  private generateCreativeResponse(
+    supportMode: string,
+    milestone: 'started' | '50_percent' | '100_percent',
+  ): ICreativeResponse {
+    // Messages configuration by support mode and milestone
+    const messages = {
+      logical: {
+        '50_percent': {
+          title: 'Progress update',
+          message: '50% of the assigned work has been completed.',
+          icon: '📋',
+          buttonText: 'Continue',
+        },
+        '100_percent': {
+          title: 'Task completed',
+          message: "All scheduled tasks have been completed. Today's productivity goal has been achieved.",
+          icon: '🐧',
+          buttonText: 'Well done',
+        },
+      },
+      calm: {
+        '50_percent': {
+          title: 'Good job! 🌸',
+          message: "You're halfway there. Take it step by step — you're doing just fine.",
+          icon: '📊',
+          buttonText: 'Continue',
+        },
+        '100_percent': {
+          title: 'Task completed',
+          message: "You've completed all your tasks for today. Take a moment to breathe — you did well.",
+          icon: '🐧',
+          buttonText: 'Continue',
+        },
+      },
+      encouraging: {
+        '50_percent': {
+          title: 'Great job! 🌟',
+          message: "You've completed 50% of your work — keep going!",
+          icon: '📝',
+          buttonText: 'Keep it up!',
+        },
+        '100_percent': {
+          title: 'Amazing work! 🎊',
+          message: "You completed all your tasks today. Keep the momentum going — you're on fire! 🔥",
+          icon: '🐧',
+          buttonText: 'Awesome!',
+        },
+      },
+    };
+
+    // Mode-specific colors
+    const colors = {
+      logical: '#4ADE80',    // Green
+      calm: '#93C5FD',       // Light blue
+      encouraging: '#C4B5FD', // Purple
+    };
+
+    const modeMessages = messages[supportMode] || messages.calm;
+    const selectedMessage = modeMessages[milestone] || modeMessages['50_percent'];
+
+    return {
+      mode: supportMode,
+      milestone,
+      popup: {
+        title: selectedMessage.title,
+        message: selectedMessage.message,
+        icon: selectedMessage.icon,
+        color: colors[supportMode] || colors.calm,
+        buttonText: selectedMessage.buttonText,
+      },
+      showPopup: milestone !== 'started',
+    };
+  }
 }
 
 export const taskProgressService = new TaskProgressService();
+
+/**
+ * Creative Response Interface
+ * Same as task.service.ts ICreativeResponse
+ */
+interface ICreativeResponse {
+  mode: string;
+  milestone: 'started' | '50_percent' | '100_percent';
+  popup: {
+    title: string;
+    message: string;
+    icon?: string;
+    color?: string;
+    buttonText?: string;
+  };
+  showPopup: boolean;
+}

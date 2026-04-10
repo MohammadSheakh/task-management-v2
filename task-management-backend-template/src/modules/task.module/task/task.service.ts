@@ -1121,6 +1121,137 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   }
 
   /**
+   * Update Task Status V4 - Unified endpoint for ALL task types
+   * PUT /tasks/:id/status/v4
+   *
+   * @description
+   * This V4 endpoint handles ALL task types with unified creative response:
+   *
+   * 1. Personal/SingleAssignment Tasks:
+   *    - Auto-completes all subtasks when task is completed
+   *    - Returns creative response with support mode messaging
+   *
+   * 2. Collaborative Tasks:
+   *    - Delegates to TaskProgress service for per-child tracking
+   *    - Returns creative response with support mode messaging
+   *    - Detects if parent task was auto-completed (last child to complete)
+   *
+   * @param taskId - Task ID
+   * @param status - New status (pending, inProgress, completed)
+   * @param userId - User ID
+   * @param note - Optional note
+   * @returns Unified response with creative messaging
+   *
+   * @version 4.0.0
+   * @author Senior Engineering Team
+   */
+  async updateTaskStatusV4(
+    taskId: string,
+    status: TTaskStatus,
+    userId: Types.ObjectId,
+    note?: string,
+  ): Promise<{
+    task?: ITask; // For personal/singleAssignment only
+    progress?: ITaskProgressDocument; // For collaborative only
+    creativeResponse: ICreativeResponse;
+    milestone: 'started' | '50_percent' | '100_percent';
+    taskType: TTaskType;
+    autoCompletedSubtasks?: number; // For personal/singleAssignment only
+    isParentTaskCompleted?: boolean; // For collaborative only (true if last child to complete)
+  }> {
+    // 1. Get task to determine type
+    const task = await this.model.findById(taskId).lean();
+
+    if (!task) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
+
+    const taskType = task.taskType as TTaskType;
+
+    // 2. Handle based on task type
+    if (taskType === TaskType.COLLABORATIVE) {
+      // ── COLLABORATIVE TASK ─────────────────────────────────────────
+      // Delegate to TaskProgress service with creative response
+
+      const { TaskProgressService } = await import('../../taskProgress.module/taskProgress.service');
+      const taskProgressService = new TaskProgressService();
+
+      const progressResult = await taskProgressService.updateProgressStatusV2(
+        taskId,
+        userId.toString(),
+        status as any, // TaskProgressStatus
+        note,
+      );
+
+      return {
+        progress: progressResult.progress,
+        creativeResponse: progressResult.creativeResponse,
+        milestone: progressResult.milestone,
+        taskType,
+        ...(progressResult.isParentTaskCompleted && { isParentTaskCompleted: true }),
+      };
+    } else {
+      // ── PERSONAL / SINGLE ASSIGNMENT TASK ──────────────────────────
+      // Use V3 logic (auto-complete subtasks + creative response)
+
+      let autoCompletedSubtasksCount = 0;
+
+      // Auto-complete subtasks if task is being completed
+      if (status === TaskStatus.COMPLETED) {
+        const { SubTask } = await import('../subTask/subTask.model');
+
+        const incompleteSubtasks = await SubTask.find({
+          taskId: new Types.ObjectId(taskId),
+          isCompleted: false,
+          isDeleted: false,
+        });
+
+        if (incompleteSubtasks.length > 0) {
+          const now = new Date();
+          await SubTask.updateMany(
+            {
+              taskId: new Types.ObjectId(taskId),
+              isCompleted: false,
+              isDeleted: false,
+            },
+            {
+              $set: {
+                isCompleted: true,
+                completedAt: now,
+              },
+            },
+          );
+
+          autoCompletedSubtasksCount = incompleteSubtasks.length;
+          logger.info(
+            `[updateStatusV4] Auto-completed ${autoCompletedSubtasksCount} subtasks for task ${taskId}`,
+          );
+        }
+      }
+
+      // Update task status using V2 logic
+      const result = await this.updateTaskStatusV2(taskId, status, userId);
+
+      // Determine milestone
+      let milestone: 'started' | '50_percent' | '100_percent' = 'started';
+
+      if (status === TaskStatus.COMPLETED || result.progressStats?.completedPercentage === 100) {
+        milestone = '100_percent';
+      } else if (result.progressStats && result.progressStats.completedPercentage >= 50) {
+        milestone = '50_percent';
+      }
+
+      return {
+        task: result.task,
+        creativeResponse: result.creativeResponse,
+        milestone,
+        taskType,
+        ...(autoCompletedSubtasksCount > 0 && { autoCompletedSubtasks: autoCompletedSubtasksCount }),
+      };
+    }
+  }
+
+  /**
    * Generate creative response based on support mode and milestone
    * @param supportMode - User's support mode preference
    * @param milestone - Completion milestone (50%, 100%)

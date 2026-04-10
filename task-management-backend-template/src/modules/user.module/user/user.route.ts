@@ -285,12 +285,23 @@ router.route('/child-support-mode').put(
 |  User | Profile | 06-03 | Update notification style preference
 |  @module UserProfile
 |  @figmaIndex 06-03
-|  @desc Update user's notification style (gentle/firm/xyz)
+|  @desc Update user's notification style (gentle/firm/silent)
 └──────────────────────────────────*/
 router.route('/notification-style').put(
   auth(TRole.common),
   validateRequest(validation.updateNotificationStyleValidationSchema),
   controller.updateNotificationStyle
+);
+
+/*-───────────────────────────────── ✅ NEW
+|  User | Profile | support-mode-nd-notification-style.png | Get notification style preference
+|  @module UserProfile
+|  @figmaIndex support-mode-nd-notification-style.png
+|  @desc Get user's notification style (gentle/firm/silent) for the Notification Style screen
+└──────────────────────────────────*/
+router.route('/notification-style').get(
+  auth(TRole.common),
+  controller.getNotificationStyle
 );
 
 /*-─────────────────────────────────

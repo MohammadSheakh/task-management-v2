@@ -25,7 +25,7 @@ export enum SupportMode {
 export enum NotificationStyle {
   GENTLE = 'gentle',
   FIRM = 'firm',
-  XYZ = 'xyz',
+  SILENT = 'silent',
 }
 
 /**

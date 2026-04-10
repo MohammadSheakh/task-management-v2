@@ -366,6 +366,49 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   });
 
+  /** ✔️ V4
+   * Update task status V4 - Unified endpoint for ALL task types
+   * PUT /tasks/:id/status/v4
+   *
+   * @description
+   * Handles personal, singleAssignment, and collaborative tasks with unified creative response
+   * - Personal/SingleAssignment: Auto-completes subtasks + creative response
+   * - Collaborative: Delegates to TaskProgress + creative response + parent sync detection
+   *
+   * @route PUT /tasks/:id/status/v4
+   * @auth All authenticated users (child, business)
+   * @access Task creator, owner, or assigned users only
+   * @returns Unified response with creative messaging, task type, and milestone info
+   * @version 4.0.0
+   */
+  updateStatusV4 = catchAsync(async (req: Request, res: Response) => {
+    const taskId = req.params.id;
+    const { status, note } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    if (!status) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
+    }
+
+    const result = await this.taskService.updateTaskStatusV4(
+      taskId,
+      status,
+      userId,
+      note,
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task status updated successfully',
+      success: true,
+    });
+  });
+
   /** ✔️
    * Update subtask progress
    * Automatically recalculates completion percentage

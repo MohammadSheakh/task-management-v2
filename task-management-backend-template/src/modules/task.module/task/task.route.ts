@@ -425,6 +425,29 @@ router
     controller.updateStatusV3,
   );
 
+/*-───────────────────────────────── 🆕 V4
+|  Child | Business | Task | edit-update-task-flow.png, response-based-on-mode.png | Update task status V4 - Unified for ALL task types
+|  @desc Unified endpoint handling personal, singleAssignment, and collaborative tasks with creative response
+|  @desc Personal/SingleAssignment: Auto-completes subtasks + creative response
+|  @desc Collaborative: Delegates to TaskProgress + creative response + parent sync detection
+|  @auth All authenticated users (child, business)
+|  @access Task creator, owner, or assigned users only
+|  @returns Unified response: { task/progress, creativeResponse, milestone, taskType, autoCompletedSubtasks?, isParentTaskCompleted? }
+|  @see Figma: response-based-on-mode.png for message templates
+|  @version 4.0.0
+|  @author Senior Engineering Team
+└──────────────────────────────────*/
+router
+  .route('/:id/status/v4')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskStatusValidationSchema),
+    validateStatusTransition,
+    controller.updateStatusV4,
+  );
+
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | edit-update-task-flow.png | Update subtask progress
 |  @desc Update subtask list and auto-calculate completion percentage

@@ -78,9 +78,9 @@ export const updateChildSupportModeValidationSchema = z.object({
  */
 export const updateNotificationStyleValidationSchema = z.object({
   body: z.object({
-    notificationStyle: z.enum(['gentle', 'firm', 'xyz'], {
+    notificationStyle: z.enum(['gentle', 'firm', 'silent'], {
       required_error: 'Notification style is required',
-      invalid_type_error: 'Notification style must be one of: gentle, firm, xyz',
+      invalid_type_error: 'Notification style must be one of: gentle, firm, silent',
     }),
   }),
 });

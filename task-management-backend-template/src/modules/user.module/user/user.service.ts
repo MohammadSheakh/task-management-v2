@@ -987,6 +987,38 @@ export class UserService extends GenericService<typeof User, IUser> {
     };
   }
 
+  /**
+   * Get user's notification style
+   * @param userId - User ID
+   * @returns Notification style preferences
+   */
+  async getNotificationStyle(userId: string) {
+    const userProfile = await UserProfile.findOne({ userId }).select(
+      'notificationStyle updatedAt'
+    );
+
+    if (!userProfile) {
+      // Create default profile if not exists
+      const newProfile = await UserProfile.create({
+        userId,
+        supportMode: 'calm',
+        notificationStyle: 'gentle',
+      });
+
+      return {
+        userId,
+        notificationStyle: newProfile.notificationStyle || 'gentle',
+        updatedAt: newProfile.updatedAt,
+      };
+    }
+
+    return {
+      userId,
+      notificationStyle: userProfile.notificationStyle || 'gentle',
+      updatedAt: userProfile.updatedAt,
+    };
+  }
+
   // ────────────────────────────────────────────────────────────────────────
   // Preferred Time Management
   // ────────────────────────────────────────────────────────────────────────

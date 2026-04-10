@@ -29,7 +29,7 @@ export interface IUserProfile {
    * Notification Style: How reminders should feel
    * - gentle: Soft and non-intrusive
    * - firm: Direct and clear
-   * - xyz: Custom style
+   * - silent: No notifications
    * @default 'gentle'
    */
   notificationStyle?: TNotificationStyle;

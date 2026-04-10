@@ -677,6 +677,26 @@ export class UserController extends GenericController<
     });
   });
 
+  /** ----------------------------------------------
+   * @role User
+   * @Section Profile
+   * @module UserProfile
+   * @figmaIndex support-mode-nd-notification-style.png
+   * @desc Get user's notification style preference (gentle/firm/silent)
+   *----------------------------------------------*/
+  getNotificationStyle = catchAsync(async (req: Request, res: Response) => {
+    const userId = (req.user as IUser).userId;
+
+    const result = await this.userService.getNotificationStyle(userId);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Notification style retrieved successfully',
+      success: true,
+    });
+  });
+
   // ────────────────────────────────────────────────────────────────────────
   // Preferred Time Management
   // ────────────────────────────────────────────────────────────────────────

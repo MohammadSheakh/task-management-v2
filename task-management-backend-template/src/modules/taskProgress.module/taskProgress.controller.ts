@@ -103,6 +103,50 @@ export class TaskProgressController {
     });
   };
 
+  /** ✔️ V2
+   * Update progress status with creative response (like /tasks/:id/status/v3)
+   * PUT /task-progress/:taskId/status/v2
+   *
+   * @description
+   * Same as updateProgressStatus but returns creative response with support mode-based messaging
+   * Perfect for showing celebratory popups when child completes tasks
+   *
+   * @returns {
+   *   progress: ITaskProgressDocument,
+   *   creativeResponse: {
+   *     mode: 'calm' | 'encouraging' | 'logical',
+   *     milestone: 'started' | '50_percent' | '100_percent',
+   *     popup: { title, message, icon, color, buttonText },
+   *     showPopup: boolean
+   *   },
+   *   milestone: string,
+   *   isParentTaskCompleted?: boolean
+   * }
+   */
+  updateProgressStatusV2 = async (req: Request, res: Response) => {
+    const { taskId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const { status, note } = req.body;
+
+    if (!status) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
+    }
+
+    const result = await this.service.updateProgressStatusV2(taskId, userId, status, note);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: `Task ${status} successfully`,
+      success: true,
+    });
+  };
+
   /**
    * Mark a subtask as complete
    * PUT /task-progress/:taskId/subtasks/:subtaskIndex/complete

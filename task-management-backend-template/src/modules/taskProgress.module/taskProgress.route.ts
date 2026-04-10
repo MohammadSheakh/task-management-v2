@@ -74,6 +74,24 @@ router.put(
   taskProgressController.updateProgressStatus,
 );
 
+/*-───────────────────────────────── 2️⃣ V2
+|  Child | TaskProgress | edit-update-task-flow.png, response-based-on-mode.png | Update progress status with creative response
+|  @desc Mark task as started or completed with creative popup response (same style as /tasks/:id/status/v3)
+|  @desc Returns support mode-based messaging for celebratory popups
+|  @auth Child user (task assignee)
+|  @rateLimit 30 requests per minute (prevents spam)
+|  @returns { progress, creativeResponse: { mode, milestone, popup, showPopup }, milestone, isParentTaskCompleted }
+|  @note For personal/singleAssignment tasks, use /tasks/:id/status/v3 instead
+|  @see Figma: response-based-on-mode.png for message templates
+└──────────────────────────────────*/
+router.put(
+  '/:taskId/status/v2',
+  auth(TRole.commonUser),
+  updateProgressLimiter,
+  validateRequest(validation.updateTaskProgressValidationSchema),
+  taskProgressController.updateProgressStatusV2,
+);
+
 /*-─────────────────────────────────
 |  Child | TaskProgress | edit-update-task-flow.png | Mark subtask as complete
 |  @desc Complete a specific subtask and update progress percentage
