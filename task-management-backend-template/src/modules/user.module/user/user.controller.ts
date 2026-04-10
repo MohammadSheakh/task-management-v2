@@ -757,7 +757,7 @@ export class UserController extends GenericController<
    */
   getUserRegistrationCountForChart = catchAsync(async (req: Request, res: Response) => {
     const { type = 'monthly' } = req.query;
-    
+
     const result = await this.userService.getUserRegistrationCountForChart(
       type as 'monthly' | 'yearly'
     );
@@ -766,6 +766,33 @@ export class UserController extends GenericController<
       code: StatusCodes.OK,
       data: result,
       message: 'User registration count retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Delete My Own Account (Soft Delete)
+   * DELETE /users/delete-my-account
+   * 
+   * @description Allows authenticated user to soft delete their own account
+   *              For children: also removes them from parent's family group
+   * @auth Any authenticated user (commonUser, business, child, etc.)
+   */
+  deleteMyAccount = catchAsync(async (req: Request, res: Response) => {
+    // Get user ID from authenticated request
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    // Delete the account
+    const deletedUser = await this.userService.deleteMyAccount(userId);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: deletedUser,
+      message: 'Account deleted successfully',
       success: true,
     });
   });

@@ -1233,5 +1233,81 @@ const getAllUsers = async (
       };
     }
   }
+
+  /**
+   * Delete My Own Account (Soft Delete)
+   * Allows authenticated user to soft delete their own account
+   * 
+   * @param userId - The ID of the user requesting account deletion
+   * @returns Updated user document
+   * 
+   * @description
+   * - User can delete their own account (not others)
+   * - Soft delete: sets isDeleted = true, deletedAt = now
+   * - Can be reversed by admin if needed
+   * - For children: removes them from parent's family group
+   */
+  async deleteMyAccount(userId: string) {
+    // Find the user
+    const user = await this.model.findById(userId).select('-__v');
+
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+    }
+
+    // Check if already deleted
+    if (user.isDeleted === true) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Account is already deleted');
+    }
+
+    // Soft delete the user
+    const deletedUser = await this.model.findByIdAndUpdate(
+      userId,
+      { 
+        isDeleted: true, 
+        deletedAt: new Date() 
+      },
+      { new: true }
+    ).select('-password -__v');
+
+    // If user is a child, also update their relationship in ChildrenBusinessUser
+    if (user.role === 'child') {
+      try {
+        const { ChildrenBusinessUser } = await import('../../childrenBusinessUser.module/childrenBusinessUser.model');
+        const { CHILDREN_BUSINESS_USER_STATUS } = await import('../../childrenBusinessUser.module/childrenBusinessUser.constant');
+        
+        // Update child relationship to inactive
+        await ChildrenBusinessUser.findOneAndUpdate(
+          { childUserId: userId },
+          { 
+            status: CHILDREN_BUSINESS_USER_STATUS.REMOVED,
+            isDeleted: true,
+            deletedAt: new Date(),
+            note: 'Account deleted by user'
+          }
+        );
+        
+        // Invalidate parent's cache
+        const relationship = await ChildrenBusinessUser.findOne({ childUserId: userId });
+        if (relationship) {
+          const { redisClient } = await import('../../../helpers/redis/redis');
+          const { CHILDREN_CACHE_CONFIG } = await import('../../childrenBusinessUser.module/childrenBusinessUser.constant');
+          
+          const keysToDelete = [
+            `${CHILDREN_CACHE_CONFIG.PREFIX}:business:${relationship.parentBusinessUserId}:children`,
+            `${CHILDREN_CACHE_CONFIG.PREFIX}:business:${relationship.parentBusinessUserId}:count`,
+            `${CHILDREN_CACHE_CONFIG.PREFIX}:child:${userId}:parent`,
+          ];
+          
+          await redisClient.del(keysToDelete);
+        }
+      } catch (error) {
+        // Log error but don't fail the account deletion
+        console.error('Failed to update child relationship during account deletion:', error);
+      }
+    }
+
+    return deletedUser;
+  }
 }
 

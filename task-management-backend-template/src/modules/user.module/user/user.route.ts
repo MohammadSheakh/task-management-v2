@@ -377,5 +377,17 @@ router.route('/admin/user-registration-count').get(
   controller.getUserRegistrationCountForChart
 );
 
+/*-───────────────────────────────── ✅ NEW
+|  Any User | User Management | delete-account-flow.png | Delete my own account
+|  @desc Allows authenticated user to soft delete their own account
+|         For children: also removes them from parent's family group
+|  @auth Any authenticated user (commonUser covers all roles)
+|  @method DELETE /users/delete-my-account
+└──────────────────────────────────*/
+router.route('/delete-my-account').delete(
+  auth(TRole.commonUser),
+  controller.deleteMyAccount
+);
+
 export const UserRoutes = router;
 
