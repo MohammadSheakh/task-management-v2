@@ -193,7 +193,7 @@ export class UserController extends GenericController<
       isSecondaryUser : true,
     }));
 
-    console.log(result, isAccountSecondary);
+    // console.log(result, isAccountSecondary);
 
     sendResponse(res, {
       code: StatusCodes.OK,

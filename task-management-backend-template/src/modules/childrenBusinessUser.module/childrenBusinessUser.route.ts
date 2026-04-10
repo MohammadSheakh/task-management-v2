@@ -32,6 +32,34 @@ router.post(
   controller.createChild
 );
 
+/*-─────────────────────────────────✔️ V2
+|  Business | ChildrenBusinessUser | create-child-flow.png | Create child account V2
+|  @desc Business user creates a child account (V2 with proper userProfile.userId linking)
+|  @auth Business user with active subscription
+|  @rateLimit 10 requests per hour (prevents abuse)
+└──────────────────────────────────*/
+router.post(
+  '/children/v2',
+  auth(TRole.business),
+  createChildLimiter,
+  validateRequest(validation.createChildValidationSchema),
+  controller.createChildV2
+);
+
+/*-─────────────────────────────────✔️ V3
+|  Business | ChildrenBusinessUser | create-child-flow.png | Create child account V3
+|  @desc Business user creates a child account (V3 with BullMQ queue - more reliable than event emitter)
+|  @auth Business user with active subscription
+|  @rateLimit 10 requests per hour (prevents abuse)
+└──────────────────────────────────*/
+router.post(
+  '/children/v3',
+  auth(TRole.business),
+  createChildLimiter,
+  validateRequest(validation.createChildValidationSchema),
+  controller.createChildV3
+);
+
 /*-───────────────────────────────── ✔️
 |  Business | ChildrenBusinessUser | team-member-flow-01.png | Get all my children
 |  @desc Get all children accounts with pagination

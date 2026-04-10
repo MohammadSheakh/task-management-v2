@@ -24,6 +24,8 @@ import { errorLogger, logger } from '../../shared/logger';
 import bcryptjs from 'bcryptjs';
 import { TaskStatus } from '../task.module/task/task.constant';
 import { SupportMode } from '../user.module/userProfile/userProfile.constant';
+import eventEmitterForUpdateUserProfile from '../auth/auth.service';
+import { enqueueUserProfileLinkJob } from '../../helpers/bullmq/userProfileLinkWorker';
 
 /**
  * Children Business User Service
@@ -288,6 +290,347 @@ export class ChildrenBusinessUserService extends GenericService<
         email: childUser.email,
         phoneNumber: childUser.phoneNumber,
         accountCreatorId: childUser.accountCreatorId,
+      },
+      relationship: {
+        _id: relationship._id,
+        parentBusinessUserId: relationship.parentBusinessUserId,
+        childUserId: relationship.childUserId,
+        addedAt: relationship.addedAt,
+        status: relationship.status,
+        isSecondaryUser: relationship.isSecondaryUser,
+      },
+      message: 'Child account created successfully. Login credentials have been sent to the child\'s email.',
+    };
+  }
+
+  /**
+   * Create child account V2 - Properly links userId to userProfile
+   * Figma: create-child-flow.png (Create Member screen)
+   * This is the V2 method that follows the /register/v2 pattern
+   *
+   * @param businessUserId - The business user creating the child
+   * @param childData - Child account details (all fields from Figma)
+   * @returns Created child user and relationship
+   *
+   * @description
+   * Creates UserProfile first
+   * Creates User account with role 'child' and profileId
+   * Updates UserProfile with userId (using event emitter like /register/v2)
+   * Creates ChildrenBusinessUser relationship
+   * Sends email with login credentials to child
+   * Invalidates Redis cache
+   *
+   * @version 2.0.0
+   */
+  async createChildAccountV2(
+    businessUserId: string,
+    childData: {
+      name: string;
+      email: string;
+      password: string;
+      phoneNumber?: string;
+      location?: string;
+      gender?: 'male' | 'female';
+      dateOfBirth?: string;
+      supportMode?: SupportMode;
+    },
+  ): Promise<{
+    childUser: any;
+    relationship: IChildrenBusinessUserDocument;
+    message: string;
+  }> {
+    /*-─────────────────────────────────
+    |  Step 1: Verify business user exists and get name
+    └──────────────────────────────────*/
+    const businessUser = await User.findById(businessUserId).select('name email');
+
+    if (!businessUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Business user not found');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Check if email already exists
+    └──────────────────────────────────*/
+    const existingUser = await User.findOne({
+      email: childData.email.toLowerCase(),
+      isDeleted: false,
+    });
+
+    if (existingUser) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exists');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 3: Hash password
+    └──────────────────────────────────*/
+    const hashedPassword = await bcryptjs.hash(childData.password, 12);
+
+    /*-─────────────────────────────────
+    |  Step 4: Create UserProfile first (WITHOUT userId)
+    |  Contains: supportMode, location, dob, gender
+    └──────────────────────────────────*/
+    const { UserProfile } = await import('../user.module/userProfile/userProfile.model');
+
+    const userProfile = await UserProfile.create({
+      acceptTOC: true, // Auto-accept for child accounts created by parent
+      supportMode: childData.supportMode || SupportMode.CALM,
+      location: childData.location,
+      dob: childData.dateOfBirth ? new Date(childData.dateOfBirth) : undefined,
+      gender: childData.gender,
+      // NOTE: userId is NOT set here - it will be added after User creation
+    });
+
+    /*-─────────────────────────────────
+    |  Step 5: Create child user account
+    |  Sets accountCreatorId = businessUserId (as per your requirement)
+    |  Links profileId to the userProfile created in Step 4
+    └──────────────────────────────────*/
+    const childUser = await User.create({
+      name: childData.name,
+      email: childData.email.toLowerCase(),
+      password: hashedPassword,
+      phoneNumber: childData.phoneNumber,
+      role: 'child',
+      accountCreatorId: new Types.ObjectId(businessUserId), // ✅ KEY FIELD
+      profileId: userProfile._id, // ✅ Link to userProfile
+      subscriptionType: 'none', // Children don't need individual subscription
+      isEmailVerified: true, // Child should verify email
+      preferredTime: '07:00', // Default preferred time
+    });
+
+    /*-─────────────────────────────────
+    |  Step 6: Update UserProfile with userId (V2 Pattern)
+    |  This mirrors the /register/v2 flow using event emitter
+    └──────────────────────────────────*/
+    eventEmitterForUpdateUserProfile.emit('eventEmitterForUpdateUserProfile', {
+      userProfileId: userProfile._id,
+      userId: childUser._id,
+    });
+
+    /*-─────────────────────────────────
+    |  Step 7: Create parent-child relationship record
+    └──────────────────────────────────*/
+    const relationship = await this.model.create({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: childUser._id,
+      addedBy: new Types.ObjectId(businessUserId),
+      status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+      isSecondaryUser: false, // Default: not secondary user
+    });
+
+    /*-─────────────────────────────────
+    |  Step 8: Send email with login credentials
+    |  Figma: create-child-flow.png
+    └──────────────────────────────────*/
+    try {
+      const { sendChildAccountCredentialsEmail } = await import('../../helpers/emailService');
+
+      // Send email asynchronously (don't block response)
+      sendChildAccountCredentialsEmail(
+        childUser.email,
+        childUser.name,
+        childData.password, // Plain text password for email
+        businessUser.name // Parent/Teacher name
+      ).catch((emailError) => {
+        errorLogger.error('Failed to send child account credentials email:', emailError);
+        // Don't throw - account creation should succeed even if email fails
+      });
+
+      logger.info(`Credentials email sent to child: ${childUser.email}`);
+    } catch (error) {
+      errorLogger.error('Email service error:', error);
+      // Don't throw - account creation should succeed even if email fails
+    }
+
+    /*-─────────────────────────────────
+    |  Step 9: Invalidate cache
+    └──────────────────────────────────*/
+    await this.invalidateCache(businessUserId);
+
+    /*-─────────────────────────────────
+    |  Step 10: Return result
+    └──────────────────────────────────*/
+    return {
+      childUser: {
+        _id: childUser._id,
+        name: childUser.name,
+        email: childUser.email,
+        phoneNumber: childUser.phoneNumber,
+        accountCreatorId: childUser.accountCreatorId,
+        profileId: childUser.profileId,
+      },
+      relationship: {
+        _id: relationship._id,
+        parentBusinessUserId: relationship.parentBusinessUserId,
+        childUserId: relationship.childUserId,
+        addedAt: relationship.addedAt,
+        status: relationship.status,
+        isSecondaryUser: relationship.isSecondaryUser,
+      },
+      message: 'Child account created successfully. Login credentials have been sent to the child\'s email.',
+    };
+  }
+
+  /**
+   * Create child account V3 - Uses BullMQ queue for userProfile.userId linking
+   * Figma: create-child-flow.png (Create Member screen)
+   * This is the V3 method that uses BullMQ instead of event emitter
+   *
+   * @param businessUserId - The business user creating the child
+   * @param childData - Child account details (all fields from Figma)
+   * @returns Created child user and relationship
+   *
+   * @description
+   * Creates UserProfile first
+   * Creates User account with role 'child' and profileId
+   * Updates UserProfile with userId (using BullMQ queue - more reliable than event emitter)
+   * Creates ChildrenBusinessUser relationship
+   * Sends email with login credentials to child
+   * Invalidates Redis cache
+   *
+   * @version 3.0.0
+   */
+  async createChildAccountV3(
+    businessUserId: string,
+    childData: {
+      name: string;
+      email: string;
+      password: string;
+      phoneNumber?: string;
+      location?: string;
+      gender?: 'male' | 'female';
+      dateOfBirth?: string;
+      supportMode?: SupportMode;
+    },
+  ): Promise<{
+    childUser: any;
+    relationship: IChildrenBusinessUserDocument;
+    message: string;
+  }> {
+    /*-─────────────────────────────────
+    |  Step 1: Verify business user exists and get name
+    └──────────────────────────────────*/
+    const businessUser = await User.findById(businessUserId).select('name email');
+
+    if (!businessUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Business user not found');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Check if email already exists
+    └──────────────────────────────────*/
+    const existingUser = await User.findOne({
+      email: childData.email.toLowerCase(),
+      isDeleted: false,
+    });
+
+    if (existingUser) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Email already exists');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 3: Hash password
+    └──────────────────────────────────*/
+    const hashedPassword = await bcryptjs.hash(childData.password, 12);
+
+    /*-─────────────────────────────────
+    |  Step 4: Create UserProfile first (WITHOUT userId)
+    |  Contains: supportMode, location, dob, gender
+    └──────────────────────────────────*/
+    const { UserProfile } = await import('../user.module/userProfile/userProfile.model');
+
+    const userProfile = await UserProfile.create({
+      acceptTOC: true, // Auto-accept for child accounts created by parent
+      supportMode: childData.supportMode || SupportMode.CALM,
+      location: childData.location,
+      dob: childData.dateOfBirth ? new Date(childData.dateOfBirth) : undefined,
+      gender: childData.gender,
+      // NOTE: userId is NOT set here - it will be added via BullMQ queue
+    });
+
+    /*-─────────────────────────────────
+    |  Step 5: Create child user account
+    |  Sets accountCreatorId = businessUserId (as per your requirement)
+    |  Links profileId to the userProfile created in Step 4
+    └──────────────────────────────────*/
+    const childUser = await User.create({
+      name: childData.name,
+      email: childData.email.toLowerCase(),
+      password: hashedPassword,
+      phoneNumber: childData.phoneNumber,
+      role: 'child',
+      accountCreatorId: new Types.ObjectId(businessUserId), // ✅ KEY FIELD
+      profileId: userProfile._id, // ✅ Link to userProfile
+      subscriptionType: 'none', // Children don't need individual subscription
+      isEmailVerified: true, // Child should verify email
+      preferredTime: '07:00', // Default preferred time
+    });
+
+    /*-─────────────────────────────────
+    |  Step 6: Queue UserProfile update via BullMQ (V3 Pattern)
+    |  More reliable than event emitter:
+    |  - Persistent jobs (survives restarts)
+    |  - Automatic retries with backoff
+    |  - Job monitoring & status tracking
+    |  - Better error handling
+    └──────────────────────────────────*/
+    await enqueueUserProfileLinkJob(
+      userProfile._id.toString(),
+      childUser._id.toString(),
+      'createChild'
+    );
+
+    /*-─────────────────────────────────
+    |  Step 7: Create parent-child relationship record
+    └──────────────────────────────────*/
+    const relationship = await this.model.create({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      childUserId: childUser._id,
+      addedBy: new Types.ObjectId(businessUserId),
+      status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+      isSecondaryUser: false, // Default: not secondary user
+    });
+
+    /*-─────────────────────────────────
+    |  Step 8: Send email with login credentials
+    |  Figma: create-child-flow.png
+    └──────────────────────────────────*/
+    try {
+      const { sendChildAccountCredentialsEmail } = await import('../../helpers/emailService');
+
+      // Send email asynchronously (don't block response)
+      sendChildAccountCredentialsEmail(
+        childUser.email,
+        childUser.name,
+        childData.password, // Plain text password for email
+        businessUser.name // Parent/Teacher name
+      ).catch((emailError) => {
+        errorLogger.error('Failed to send child account credentials email:', emailError);
+        // Don't throw - account creation should succeed even if email fails
+      });
+
+      logger.info(`Credentials email sent to child: ${childUser.email}`);
+    } catch (error) {
+      errorLogger.error('Email service error:', error);
+      // Don't throw - account creation should succeed even if email fails
+    }
+
+    /*-─────────────────────────────────
+    |  Step 9: Invalidate cache
+    └──────────────────────────────────*/
+    await this.invalidateCache(businessUserId);
+
+    /*-─────────────────────────────────
+    |  Step 10: Return result
+    └──────────────────────────────────*/
+    return {
+      childUser: {
+        _id: childUser._id,
+        name: childUser.name,
+        email: childUser.email,
+        phoneNumber: childUser.phoneNumber,
+        accountCreatorId: childUser.accountCreatorId,
+        profileId: childUser.profileId,
       },
       relationship: {
         _id: relationship._id,

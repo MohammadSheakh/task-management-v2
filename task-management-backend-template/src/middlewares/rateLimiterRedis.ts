@@ -187,7 +187,7 @@ export function rateLimiter(
       // Check rate limit
       const result = await checkRateLimit(key, preset.windowMs, preset.max);
 
-      console.log('result :: ', result);
+      // console.log('result :: ', result);
 
       // Set rate limit headers
       res.set('X-RateLimit-Limit', String(result.total));

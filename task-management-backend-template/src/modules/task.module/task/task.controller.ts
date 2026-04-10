@@ -78,7 +78,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
   createV2 = async (req: Request, res: Response) => {
     const userId = req.user?.userId;
 
-    console.log("hit create 🆕2️⃣")
+    // console.log("hit create 🆕2️⃣")
 
     if (!userId) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');

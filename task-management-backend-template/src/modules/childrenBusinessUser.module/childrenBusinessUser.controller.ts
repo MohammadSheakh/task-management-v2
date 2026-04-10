@@ -73,6 +73,104 @@ export class ChildrenBusinessUserController {
     });
   });
 
+  /** ✔️ V2
+   * Create child account V2 - Properly links userId to userProfile
+   * POST /children-business-users/children/v2
+   *
+   * @description Business user creates a child account (V2 with proper userProfile.userId linking)
+   * @auth Business user with active business subscription
+   * @figmaIndex create-child-flow.png
+   */
+  createChildV2 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID from request
+    └──────────────────────────────────*/
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Extract ALL child data from request body
+    |  Figma: create-child-flow.png (all fields)
+    └──────────────────────────────────*/
+    const childData = pick(req.body, [
+      'name',
+      'email',
+      'password',
+      'phoneNumber',
+      'location',        // Address field from Figma
+      'gender',          // Gender dropdown (Male/Female)
+      'dateOfBirth',     // Date of Birth field
+      'supportMode',     // Support Mode (Calm/Encouraging/Logical)
+    ]);
+
+    /*-─────────────────────────────────
+    |  Step 3: Call service to create child account V2
+    └──────────────────────────────────*/
+    const result = await this.service.createChildAccountV2(businessUserId, childData);
+
+    /*-─────────────────────────────────
+    |  Step 4: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.CREATED,
+      data: result,
+      message: result.message || 'Child account created successfully and added to family',
+      success: true,
+    });
+  });
+
+  /** ✔️ V3
+   * Create child account V3 - Uses BullMQ queue for userProfile.userId linking
+   * POST /children-business-users/children/v3
+   *
+   * @description Business user creates a child account (V3 with BullMQ queue - more reliable than event emitter)
+   * @auth Business user with active business subscription
+   * @figmaIndex create-child-flow.png
+   */
+  createChildV3 = catchAsync(async (req: Request, res: Response) => {
+    /*-─────────────────────────────────
+    |  Step 1: Get business user ID from request
+    └──────────────────────────────────*/
+    const businessUserId = req.user?.userId;
+
+    if (!businessUserId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    /*-─────────────────────────────────
+    |  Step 2: Extract ALL child data from request body
+    |  Figma: create-child-flow.png (all fields)
+    └──────────────────────────────────*/
+    const childData = pick(req.body, [
+      'name',
+      'email',
+      'password',
+      'phoneNumber',
+      'location',        // Address field from Figma
+      'gender',          // Gender dropdown (Male/Female)
+      'dateOfBirth',     // Date of Birth field
+      'supportMode',     // Support Mode (Calm/Encouraging/Logical)
+    ]);
+
+    /*-─────────────────────────────────
+    |  Step 3: Call service to create child account V3
+    └──────────────────────────────────*/
+    const result = await this.service.createChildAccountV3(businessUserId, childData);
+
+    /*-─────────────────────────────────
+    |  Step 4: Send success response
+    └──────────────────────────────────*/
+    sendResponse(res, {
+      code: StatusCodes.CREATED,
+      data: result,
+      message: result.message || 'Child account created successfully and added to family',
+      success: true,
+    });
+  });
+
   /** ✔️
    * Get all children of business user
    * GET /children-business-users/my-children
