@@ -1022,4 +1022,50 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       success: true,
     });
   };
+
+  /** ----------------------------------------------
+   * @role Individual User
+   * @Section Task History
+   * @module Task
+   * @figmaIndex task-history-filter-by-date-range.png
+   * @desc Get task history with date range filtering
+   * @desc Returns all completed tasks within specified date range with subtask progress
+   * @desc Defaults to last 30 days if no date range provided
+   * @query from - Start date (YYYY-MM-DD format, optional, defaults to 30 days ago)
+   * @query to - End date (YYYY-MM-DD format, optional, defaults to today)
+   * @query page - Page number (default: 1)
+   * @query limit - Items per page (default: 20)
+   * @query sortBy - Sort field (default: -completedTime)
+   *----------------------------------------------*/
+  getTaskHistory = async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const filters = {
+      from: req.query.from as string,
+      to: req.query.to as string,
+    };
+
+    const options = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 20,
+      sortBy: (req.query.sortBy as string) || '-completedTime',
+    };
+
+    const result = await this.taskService.getTaskHistory(
+      new Types.ObjectId(userId),
+      filters,
+      options,
+    );
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task history retrieved successfully',
+      success: true,
+    });
+  };
 }

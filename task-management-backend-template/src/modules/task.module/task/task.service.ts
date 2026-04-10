@@ -22,6 +22,7 @@ import { TaskProgressService } from '../../taskProgress.module/taskProgress.serv
 import { socketService } from '../../../helpers/socket/socketForChatV3';
 import { UserProfile } from '../../user.module/userProfile/userProfile.model';
 import { SupportMode, TSupportMode } from '../../user.module/userProfile/userProfile.constant';
+import { PaginationService } from '../../../common/service/paginationService';
 
 const notificationService = new NotificationService();
 const taskProgressService = new TaskProgressService();
@@ -78,6 +79,9 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     if (type === 'list' && userId) {
       return `${prefix}:user:${userId}:list`;
     }
+    if (type === 'history' && userId) {
+      return `${prefix}:history:${userId}`;
+    }
     if (type === 'statistics' && userId) {
       return `${prefix}:user:${userId}:statistics`;
     }
@@ -132,6 +136,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       const keysToDelete = [
         this.getCacheKey('list', undefined, userId),
         this.getCacheKey('statistics', undefined, userId),
+        this.getCacheKey('history', undefined, userId), // Include history cache
       ];
 
       if (taskId) {
@@ -143,8 +148,14 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       Object.values(TASK_CACHE_CONFIG.INVALIDATION_PATTERNS).forEach(
         patterns => {
           patterns.forEach(pattern => {
-            if (pattern.includes('*') && taskId) {
-              keysToDelete.push(pattern.replace('*', taskId));
+            if (pattern.includes('*')) {
+              // For patterns with wildcards, we need to scan and delete
+              // This is handled by Redis KEYS command in production
+              // For now, we add the base pattern
+              const baseKey = pattern.split(':')[0] + ':' + pattern.split(':')[1];
+              if (!keysToDelete.includes(baseKey)) {
+                keysToDelete.push(baseKey);
+              }
             }
           });
         },
@@ -783,6 +794,175 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     );
 
     return tasksWithSubtasks;
+  }
+
+  /**
+   * Get task history with date range filtering for individual users
+   * Returns all completed tasks within a date range with subtask progress
+   * Optimized for Figma: task-history-filter-by-date-range.png
+   *
+   * @param userId - User ID
+   * @param filters - Date range filters (from, to)
+   * @param options - Pagination options
+   * @returns Paginated task history with subtask details
+   */
+  async getTaskHistory(
+    userId: Types.ObjectId,
+    filters: { from?: string; to?: string },
+    options: any,
+  ) {
+    /*-─────────────────────────────────
+    |  Build cache key based on user and date range
+    |  Cache TTL: 2 minutes (LIST category)
+    └──────────────────────────────────*/
+    const fromDateStr = filters.from || 'default';
+    const toDateStr = filters.to || 'default';
+    const cacheKey = this.getCacheKey(
+      'history',
+      `${userId.toString()}:${fromDateStr}:${toDateStr}:${options.page || 1}`,
+    );
+
+    // Try to get from cache first
+    const cachedData = await this.getFromCache(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    /*-─────────────────────────────────
+    |  Build query for completed tasks with date filtering
+    |  Filter: status = completed AND date range on completedTime
+    |  If no date range provided, use last 30 days as default
+    └──────────────────────────────────*/
+
+    // Default to last 30 days if no date range specified
+    const toDate = filters.to ? new Date(filters.to) : new Date();
+    toDate.setHours(23, 59, 59, 999); // End of day
+
+    const fromDate = filters.from
+      ? new Date(filters.from)
+      : new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    fromDate.setHours(0, 0, 0, 0); // Start of day
+
+    const query: any = {
+      isDeleted: false,
+      status: TaskStatus.COMPLETED,
+      $or: [
+        { ownerUserId: userId },
+        { assignedUserIds: userId },
+      ],
+      completedTime: {
+        $gte: fromDate,
+        $lte: toDate,
+      },
+    };
+
+    /*-─────────────────────────────────
+    |  Use aggregation pipeline for optimal performance
+    |  Joins subtask data and calculates progress
+    └──────────────────────────────────*/
+    const pipeline: any[] = [
+      { $match: query },
+      // Sort by completedTime descending (most recent first)
+      { $sort: { completedTime: -1 } },
+      // Lookup subtasks
+      {
+        $lookup: {
+          from: 'subtasks',
+          let: { taskId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$taskId', '$$taskId'] },
+                isDeleted: false,
+              },
+            },
+            { $sort: { order: 1 } },
+            { $project: { _id: 1, title: 1, isCompleted: 1, order: 1, duration: 1, completedAt: 1 } },
+          ],
+          as: 'subtasks',
+        },
+      },
+      // Lookup creator
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdById',
+          foreignField: '_id',
+          as: 'createdBy',
+        },
+      },
+      { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
+      // Project final fields
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          description: 1,
+          taskType: 1,
+          priority: 1,
+          status: 1,
+          startTime: 1,
+          completedTime: 1,
+          createdAt: 1,
+          totalSubtasks: 1,
+          completedSubtasks: 1,
+          subtasks: 1,
+          createdBy: { _id: 1, name: 1, profileImage: 1 },
+        },
+      },
+    ];
+
+    // Execute pagination
+    const result = await PaginationService.aggregationPaginate(
+      this.model,
+      pipeline,
+      options,
+    );
+
+    /*-─────────────────────────────────
+    |  Format response to match Figma design
+    |  - Task title, status, created time, completed time
+    |  - Subtask count and progress percentage
+    └──────────────────────────────────*/
+    const formattedResults = result.results.map((task: any) => {
+      const totalSubtasks = task.subtasks?.length || 0;
+      const completedSubtasks =
+        task.subtasks?.filter((st: any) => st.isCompleted).length || 0;
+      const progressPercentage =
+        totalSubtasks > 0
+          ? Math.round((completedSubtasks / totalSubtasks) * 100)
+          : 100; // If no subtasks, it's 100% completed
+
+      return {
+        _id: task._id,
+        title: task.title,
+        description: task.description,
+        taskType: task.taskType,
+        priority: task.priority,
+        status: task.status,
+        startTime: task.startTime,
+        completedTime: task.completedTime,
+        createdAt: task.createdAt,
+        createdBy: task.createdBy,
+        subtaskProgress: {
+          total: totalSubtasks,
+          completed: completedSubtasks,
+          percentage: progressPercentage,
+          display: `${completedSubtasks}/${totalSubtasks}`,
+        },
+        subtasks: task.subtasks || [],
+      };
+    });
+
+    const response = {
+      ...result,
+      results: formattedResults,
+    };
+
+    // Cache the result for 2 minutes
+    await this.setInCache(cacheKey, response, TASK_CACHE_CONFIG.LIST);
+
+    return response;
   }
 
   /**

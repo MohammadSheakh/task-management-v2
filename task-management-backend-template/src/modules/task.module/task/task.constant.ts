@@ -91,9 +91,10 @@ export const TASK_CACHE_CONFIG = {
   // Cache invalidation patterns
   // Updated V2: Removed group-related patterns (group.module removed)
   INVALIDATION_PATTERNS: {
-    TASK_CREATED: ['task:list', 'task:statistics', 'task:user:*'],
-    TASK_UPDATED: ['task:detail:*', 'task:list', 'task:statistics'],
-    TASK_DELETED: ['task:detail:*', 'task:list', 'task:statistics', 'task:user:*'],
+    TASK_CREATED: ['task:list', 'task:statistics', 'task:user:*', 'task:history:*'],
+    TASK_UPDATED: ['task:detail:*', 'task:list', 'task:statistics', 'task:history:*'],
+    TASK_DELETED: ['task:detail:*', 'task:list', 'task:statistics', 'task:user:*', 'task:history:*'],
+    TASK_COMPLETED: ['task:history:*'],  // Invalidate history when task is completed
     SUBTASK_CREATED: ['task:detail:*', 'subtask:list:*'],
     SUBTASK_UPDATED: ['task:detail:*', 'subtask:detail:*', 'subtask:list:*'],
   },

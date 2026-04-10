@@ -321,6 +321,38 @@ router
     controller.getDailyProgressV2,
   );
 
+/*-───────────────────────────────── 🆕
+|  Individual User | Task | task-history-filter-by-date-range.png | Get task history with date range filtering
+|  @desc Get all completed tasks within a date range for task history view
+|  @desc Returns tasks with subtask progress, completion time, and task details
+|  @desc Defaults to last 30 days if no date range provided
+|  @auth All authenticated users (child, business, individual)
+|  @rateLimit 100 requests per minute
+|  @query from - Optional: Start date in YYYY-MM-DD format (default: 30 days ago)
+|  @query to - Optional: End date in YYYY-MM-DD format (default: today)
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query sortBy - Sort field (default: -completedTime)
+|  @figma figma-asset/app-user/individual-user/task-history-filter-by-date-range.png
+└──────────────────────────────────*/
+router
+  .route('/history')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateRequest(validation.taskHistoryQueryValidationSchema),
+    validateFiltersForQuery(
+      optionValidationChecking(['from', 'to', ...paginationOptions]),
+    ),
+    setQueryOptions({
+      populate: [
+        { path: 'createdById', select: 'name email profileImage' },
+      ],
+      select: '-__v',
+    }),
+    controller.getTaskHistory,
+  );
+
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | home-flow.png | Get task details by ID
 |  @desc Get single task with populated user details and subtasks (VIRTUAL POPULATE)

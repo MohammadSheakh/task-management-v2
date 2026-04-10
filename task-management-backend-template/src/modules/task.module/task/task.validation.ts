@@ -215,3 +215,30 @@ export const taskQueryValidationSchema = z.object({
     populate: z.string().optional(),
   }),
 });
+
+/**
+ * Task History Query Validation Schema
+ * Validates date range filters for task history endpoint
+ */
+export const taskHistoryQueryValidationSchema = z.object({
+  query: z.object({
+    from: z
+      .string()
+      .refine((val) => !val || !isNaN(Date.parse(val)), {
+        message: 'Invalid date format for from date',
+      })
+      .optional(),
+
+    to: z
+      .string()
+      .refine((val) => !val || !isNaN(Date.parse(val)), {
+        message: 'Invalid date format for to date',
+      })
+      .optional(),
+
+    sortBy: z.string().optional(),
+    page: z.string().optional(),
+    limit: z.string().optional(),
+    populate: z.string().optional(),
+  }),
+});
