@@ -241,6 +241,26 @@ router
     controller.getMyTasks,
   );
 
+  // Adds a completedTime: { $gte: twelveHoursAgo } filter to the query
+  router
+  .route('/v2')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateFiltersForQuery(
+      optionValidationChecking([
+        'status',
+        'taskType',
+        'priority',
+        'from',
+        'to',
+        ...paginationOptions,
+      ]),
+    ),
+    controller.getMyTasksV2,
+  );
+  
+
 /*-─────────────────────────────────✔️
 |  Child | Business | Task | home-flow.png | Get all my tasks with pagination
 |  @desc Paginated list of tasks with advanced filtering

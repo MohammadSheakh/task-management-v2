@@ -123,6 +123,30 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
+
+  /** ✔️☑️ as per  rakibul alam vai 
+   * Get all tasks for the logged-in user
+   * Supports filtering by status, type, priority, and date range
+   * V2 ENHANCEMENT: for completed tasks return last 24 hours .. Adds a completedTime: { $gte: twelveHoursAgo } filter to the query 
+   */
+  getMyTasksV2 = async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const filters = req.query;
+    const result = await this.taskService.getUserTasksV2(userId, filters);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Tasks retrieved successfully',
+      success: true,
+    });
+  };
+
   /** ✔️
    * Get all tasks for the logged-in user with pagination
    */

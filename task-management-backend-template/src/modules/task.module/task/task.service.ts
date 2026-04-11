@@ -797,6 +797,117 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   }
 
   /**
+   * Get tasks for a user with filtering (V2)
+   * V2 Enhancement: When status is 'completed', only return tasks
+   * whose completedTime is within the last 12 hours
+   * 
+   * @param userId - User ID
+   * @param filters - Query filters
+   * @returns Array of tasks with subtasks populated
+   */
+  async getUserTasksV2(userId: Types.ObjectId, filters: any): Promise<ITask[]> {
+    const query: any = {
+      isDeleted: false,
+      $or: [
+        { ownerUserId: userId },
+        { assignedUserIds: userId },
+      ],
+    };
+
+    // Apply status filter
+    if (filters.status) {
+      query.status = filters.status;
+
+      // ✨ V2 Enhancement: If status is completed, filter by completedTime < 12 hours
+      if (filters.status === TaskStatus.COMPLETED) {
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+        query.completedTime = {
+          $gte: twelveHoursAgo,
+        };
+      }
+    }
+
+    // Apply task type filter
+    if (filters.taskType) {
+      query.taskType = filters.taskType;
+    }
+
+    // Apply priority filter
+    if (filters.priority) {
+      query.priority = filters.priority;
+    }
+
+    // Apply date range filter
+    if (filters.from || filters.to) {
+      query.startTime = {};
+      if (filters.from) {
+        query.startTime.$gte = new Date(filters.from);
+      }
+      if (filters.to) {
+        query.startTime.$lte = new Date(filters.to);
+      }
+    }
+
+    const tasks = await this.model
+      .find(query)
+      .select('-__v')
+      .populate({
+        path: 'assignedUserIds createdById',
+        select: 'name profileImage',
+      })
+      .sort({ startTime: -1 })
+      .lean();
+
+    // ✅ Populate subtasks for each task using virtual populate
+    const tasksWithSubtasks = await Promise.all(
+      tasks.map(async task => {
+        const { SubTask } = await import('../subTask/subTask.model');
+
+        // Get subtasks for this task
+        const subtasks = await SubTask.find({
+          taskId: task._id,
+          isDeleted: false,
+        })
+          .select('-__v')
+          .sort({ order: 1 })
+          .lean();
+
+        // Format subtasks
+        const formattedSubtasks = subtasks.map((st: any) => ({
+          _id: st._id.toString(),
+          title: st.title,
+          isCompleted: st.isCompleted || false,
+          order: st.order || 0,
+          duration: st.duration || null,
+          completedAt: st.completedAt || null,
+        }));
+
+        // Calculate subtask progress
+        const totalSubtasks = formattedSubtasks.length;
+        const completedSubtasks = formattedSubtasks.filter(
+          (st: any) => st.isCompleted,
+        ).length;
+        const subtaskProgressPercentage =
+          totalSubtasks > 0
+            ? Math.round((completedSubtasks / totalSubtasks) * 100)
+            : 0;
+
+        return {
+          ...task,
+          subtasks: formattedSubtasks,
+          subtaskProgress: {
+            total: totalSubtasks,
+            completed: completedSubtasks,
+            percentage: subtaskProgressPercentage,
+          },
+        };
+      }),
+    );
+
+    return tasksWithSubtasks;
+  }
+
+  /**
    * Get task history with date range filtering for individual users
    * Returns all completed tasks within a date range with subtask progress
    * Optimized for Figma: task-history-filter-by-date-range.png
