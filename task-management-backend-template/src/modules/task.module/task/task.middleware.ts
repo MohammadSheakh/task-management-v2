@@ -88,13 +88,28 @@ export const verifyTaskOwnership = async (
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
     }
 
+    console.log("task in ownership middleware", task);
+
     // Only creator or owner can modify
+    // Handle both populated and non-populated fields
+    const createdById = task.createdById?._id || task.createdById;
+    const ownerUserId = task.ownerUserId?._id || task.ownerUserId;
+    
+
+    console.log("createdById in ownership middleware", createdById);
+    console.log("ownerUserId in ownership middleware", ownerUserId);
+
+
+    console.log("userId in ownership middleware", userId);
+
     const isOwner =
-      task.createdById.toString() === userId ||
-      task.ownerUserId?.toString() === userId ||
-      task.assignedUserIds?.some((id: any) => id.toString() === userId)
+      createdById.toString() === userId.toString() ||
+      ownerUserId?.toString() === userId.toString() ||
+      task.assignedUserIds?.some((id: any) => id.toString() === userId.toString())
       ;
 
+
+    console.log("isOwner in ownership middleware", isOwner);
     if (!isOwner) {
       throw new ApiError(
         StatusCodes.FORBIDDEN,

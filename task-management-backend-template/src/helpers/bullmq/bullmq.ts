@@ -459,8 +459,8 @@ interface IPreferredTimeJob {
 export const startPreferredTimeWorker = () => {
   const worker = new Worker(
     'preferredTimeQueue',
-    async (job: IPreferredTimeJob) => {
-      const { userId } = job;
+    async (job: Job<IPreferredTimeJob>) => {
+      const userId = job.data?.userId;
       logger.info(`⏰ Processing preferred time calculation for user ${userId}`);
 
       try {

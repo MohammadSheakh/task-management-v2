@@ -22,7 +22,7 @@ import { TaskProgressService } from '../../taskProgress.module/taskProgress.serv
 import { socketService } from '../../../helpers/socket/socketForChatV3';
 import { UserProfile } from '../../user.module/userProfile/userProfile.model';
 import { SupportMode, TSupportMode } from '../../user.module/userProfile/userProfile.constant';
-import { PaginationService } from '../../../common/service/paginationService';
+import PaginationService from '../../../common/service/paginationService';
 
 const notificationService = new NotificationService();
 const taskProgressService = new TaskProgressService();
@@ -2012,12 +2012,12 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         .lean();
 
       // Need at least 5 tasks to establish a pattern
-      if (tasks.length < 5) {
-        logger.info(
-          `Insufficient data for preferred time calculation (user: ${userId}, tasks: ${tasks.length})`,
-        );
-        return null;
-      }
+      // if (tasks.length < 5) {
+      //   logger.info(
+      //     `Insufficient data for preferred time calculation (user: ${userId}, tasks: ${tasks.length})`,
+      //   );
+      //   return null;
+      // }
 
       // Extract start times (in minutes from midnight)
       const startTimesInMinutes = tasks.map(task => {
@@ -2035,9 +2035,10 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       );
 
       // Convert back to HH:mm format
-      const hours = Math.floor(averageMinutes / 60);
+      // Normalize hours to handle overflow (e.g., 25 hours → 01:00)
+      const normalizedHours = ((Math.floor(averageMinutes / 60) % 24) + 24) % 24;
       const minutes = averageMinutes % 60;
-      const preferredTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      const preferredTime = `${String(normalizedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
       // Import User model dynamically to avoid circular dependency
       const { User } = await import('../../user.module/user/user.model');

@@ -360,7 +360,7 @@ router
   .get(
     auth(TRole.commonUser),
     taskLimiter,
-    validateRequest(validation.taskHistoryQueryValidationSchema),
+    // validateRequest(validation.taskHistoryQueryValidationSchema), //🔂 MUST TODO : need to uncomment this after fixing the validation schema
     validateFiltersForQuery(
       optionValidationChecking(['from', 'to', ...paginationOptions]),
     ),

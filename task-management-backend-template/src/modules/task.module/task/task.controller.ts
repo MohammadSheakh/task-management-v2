@@ -425,6 +425,34 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       note,
     );
 
+    // ⏰ Trigger preferred time calculation if task is completed
+    if (status === TaskStatus.COMPLETED) {
+      try {
+        // Import dynamically to avoid circular dependency
+        const { preferredTimeQueue } =
+          await import('../../../helpers/bullmq/bullmq');
+
+        // Add job to queue (async, don't wait)
+        preferredTimeQueue.add(
+          'calculatePreferredTime',
+          {
+            userId: userId.toString(),
+          },
+          {
+            jobId: `preferred-time:${userId}:${Date.now()}`,
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        );
+
+        // Don't wait for completion - fire and forget
+        logger.info(`⏰ Queued preferred time calculation for user ${userId}`);
+      } catch (error) {
+        errorLogger.error('Failed to queue preferred time calculation:', error);
+        // Don't fail the request - preferred time calculation is non-critical
+      }
+    }
+
     sendResponse(res, {
       code: StatusCodes.OK,
       data: result,
