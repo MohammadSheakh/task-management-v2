@@ -24,6 +24,13 @@ export interface IAttachmentModel extends Model<IAttachment> {
   ) => Promise<PaginateResult<IAttachment>>;
 }
 
+// ✅ Request body interface
+export interface ICreateAttachmentBody {
+  attachedToId: string;
+  attachedToType: string;
+  [key: string]: any;
+}
+
 //-----------------------------------------
 // we use this into uploadedFiles middleware 
 //-----------------------------------------

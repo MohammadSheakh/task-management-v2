@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { TaskProgressService } from './taskProgress.service';
 import ApiError from '../../errors/ApiError';
 import sendResponse from '../../shared/sendResponse';
+import { IUpdateTaskProgressBody } from './taskProgress.interface';
 
 /**
  * Task Progress Controller
@@ -87,7 +88,7 @@ export class TaskProgressController {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const { status, note } = req.body;
+    const { status, note } = req.body as IUpdateTaskProgressBody;
 
     if (!status) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
@@ -131,7 +132,7 @@ export class TaskProgressController {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const { status, note } = req.body;
+    const { status, note } = req.body as IUpdateTaskProgressBody;
 
     if (!status) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
@@ -175,7 +176,7 @@ export class TaskProgressController {
    */
   createOrUpdateProgress = async (req: Request, res: Response) => {
     const { taskId } = req.params;
-    const { userId, status } = req.body;
+    const { userId, status } = req.body as IUpdateTaskProgressBody;
 
     if (!userId) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'User ID is required');

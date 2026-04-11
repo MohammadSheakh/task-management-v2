@@ -14,7 +14,7 @@ import ApiError from '../../errors/ApiError';
 import { OAuth2Client } from 'google-auth-library';
 import { UserDevices } from '../user.module/userDevices/userDevices.model';
 import { IUserDevices } from '../user.module/userDevices/userDevices.interface';
-import { ICreateUser, IRegisterData } from './auth.interface';
+import { ICreateUser, IRegisterData, IGoogleLoginPayload, ILoginBody, ILogoutBody, IVerifyEmailBody, IResendOtpBody, IForgotPasswordBody, IChangePasswordBody, IResetPasswordBody, IRefreshTokenBody } from './auth.interface';
 import { IUserProfile } from '../user.module/userProfile/userProfile.interface';
 import { detectLanguage } from '../../utils/detectLanguageByFranc';
 import { translateTextToTargetLang } from '../../utils/translateTextToTargetLang';
@@ -121,7 +121,7 @@ const registerV2 = catchAsync(async (req: Request, res: Response) => {
 
 // 💎✨🔍 -> V2 Found
 const login = catchAsync(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body as ILoginBody;
   const result = await AuthService.login(email, password);
 
   //set refresh token in cookie
@@ -143,7 +143,7 @@ const login = catchAsync(async (req: Request, res: Response) => {
 |  We refactor login service in this project
 └──────────────────────────────────*/
 const loginV2 = catchAsync(async (req: Request, res: Response) => {
-  const { email, password, fcmToken } = req.body;
+  const { email, password, fcmToken } = req.body as ILoginBody;
 
   console.log('email, password, fcmToken :: ', email, password, fcmToken);
 
@@ -176,7 +176,7 @@ const loginV2 = catchAsync(async (req: Request, res: Response) => {
  * - isSupportStyleSet: Boolean indicating if support mode is configured
  */
 const loginIndividualUser = catchAsync(async (req: Request, res: Response) => {
-  const { email, password, fcmToken } = req.body;
+  const { email, password, fcmToken } = req.body as ILoginBody;
 
   const result = await AuthService.loginIndividualUser(email, password, fcmToken);
 
@@ -503,7 +503,7 @@ const googleLoginV2 = async (
 };
 
 const googleAuthCallback = catchAsync(async (req: Request, res: Response) => {
-  const { idToken, role, acceptTOC } = req.body;
+  const { idToken, role, acceptTOC } = req.body as IGoogleLoginPayload;
   // idToken = token from Google Sign-In on client
 
   const result = await AuthService.googleLogin({ idToken, role, acceptTOC });
@@ -517,7 +517,7 @@ const googleAuthCallback = catchAsync(async (req: Request, res: Response) => {
 });
 
 const appleAuthCallback = catchAsync(async (req: Request, res: Response) => {
-  const { idToken, role, acceptTOC } = req.body;
+  const { idToken, role, acceptTOC } = req.body as IGoogleLoginPayload;
   // idToken = token from Google Sign-In on client
 
   const result = await AuthService.appleLogin({ idToken, role, acceptTOC });
@@ -661,10 +661,10 @@ export const appleLogin = async (idToken: string, fcmToken?: string) => {
 };
 */
 
-//[🚧][🧑‍💻✅][🧪]  // 🆗
+//[🚧][‍💻✅][]  // 🆗
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   console.log(req.body);
-  const { email, token, otp } = req.body;
+  const { email, token, otp } = req.body as IVerifyEmailBody;
   const result = await AuthService.verifyEmail(email, token, otp);
   sendResponse(res, {
     code: StatusCodes.OK,
@@ -677,7 +677,7 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
 });
 
 const resendOtp = catchAsync(async (req: Request, res: Response) => {
-  const { email } = req.body;
+  const { email } = req.body as IResendOtpBody;
   const result = await AuthService.resendOtp(email);
   sendResponse(res, {
     code: StatusCodes.OK,
@@ -687,7 +687,8 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
   });
 });
 const forgotPassword = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.forgotPassword(req.body.email);
+  const { email } = req.body as IForgotPasswordBody;
+  const result = await AuthService.forgotPassword(email);
   sendResponse(res, {
     code: StatusCodes.OK,
     message: 'Password reset email sent successfully',
@@ -698,7 +699,7 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
 
 const changePassword = catchAsync(async (req: Request, res: Response) => {
   const { userId } = req.user;
-  const { currentPassword, newPassword } = req.body;
+  const { currentPassword, newPassword } = req.body as IChangePasswordBody;
   const result = await AuthService.changePassword(
     userId,
     currentPassword,
@@ -712,7 +713,7 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
-  const { email, password, otp } = req.body;
+  const { email, password, otp } = req.body as IResetPasswordBody;
   const result = await AuthService.resetPassword(email, password, otp);
   sendResponse(res, {
     code: StatusCodes.OK,
@@ -725,7 +726,7 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 const logout = catchAsync(async (req: Request, res: Response) => {
-  const { refreshToken, fcmToken, logoutFromAllDevices } = req.body;
+  const { refreshToken, fcmToken, logoutFromAllDevices } = req.body as ILogoutBody;
   const userId = (req.user as IUser)?.userId;
 
   await AuthService.logout(refreshToken, userId, fcmToken, logoutFromAllDevices);
@@ -738,11 +739,12 @@ const logout = catchAsync(async (req: Request, res: Response) => {
 });
 
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
-  
+
   console.log("hit 0")
-  
-  const tokens = await AuthService.refreshAuth(req.body.refreshToken);
-  
+
+  const { refreshToken } = req.body as IRefreshTokenBody;
+  const tokens = await AuthService.refreshAuth(refreshToken);
+
   console.log("hit 1")
   
   sendResponse(res, {

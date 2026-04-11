@@ -11,7 +11,7 @@ export interface IRegisterData {
     age: string,
     gender: string, // it can be male / female
     dob : string,
-    acceptTOC: boolean  
+    acceptTOC: boolean
 }
 
 export interface ICreateUser{
@@ -19,11 +19,54 @@ export interface ICreateUser{
     email:string,
     password:string,
     role: TRole.child | TRole.business
-    profileId: Types.ObjectId 
+    profileId: Types.ObjectId
 }
 
 export interface IGoogleLoginPayload {
   idToken: string;
   role?: TRole;
   acceptTOC?: boolean;
+}
+
+// ✅ Login request bodies
+export interface ILoginBody {
+  email: string;
+  password: string;
+  fcmToken?: string;
+}
+
+export interface ILogoutBody {
+  refreshToken?: string;
+  fcmToken?: string;
+  logoutFromAllDevices?: boolean;
+}
+
+// ✅ Email verification bodies
+export interface IVerifyEmailBody {
+  email: string;
+  token?: string;
+  otp?: string;
+}
+
+export interface IResendOtpBody {
+  email: string;
+}
+
+export interface IForgotPasswordBody {
+  email: string;
+}
+
+export interface IChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface IResetPasswordBody {
+  email: string;
+  password: string;
+  otp: string;
+}
+
+export interface IRefreshTokenBody {
+  refreshToken: string;
 }

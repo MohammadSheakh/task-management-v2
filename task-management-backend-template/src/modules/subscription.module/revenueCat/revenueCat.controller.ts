@@ -7,6 +7,22 @@ import { IUser } from '../../token/token.interface';
 import ApiError from '../../../errors/ApiError';
 import { UserSubscription } from '../userSubscription/userSubscription.model';
 
+// ✅ Request body interfaces
+interface ICreateManualSubscriptionBody {
+  userId: string;
+  subscriptionPlanId: string;
+  platform: string;
+}
+
+interface ISyncRevenueCatBody {
+  userId: string;
+  revenueCatUserId: string;
+}
+
+interface ICancelSubscriptionBody {
+  reason?: string;
+}
+
 /**
  * RevenueCat Controller
  * 
@@ -28,7 +44,7 @@ export class RevenueCatController {
    * POST /api/v1/revenuecat/manual-subscription
    */
   createManualSubscription = catchAsync(async (req: Request, res: Response) => {
-    const { userId, subscriptionPlanId, platform } = req.body;
+    const { userId, subscriptionPlanId, platform } = req.body as ICreateManualSubscriptionBody;
     const admin = req.user as IUser;
 
     if (!userId || !subscriptionPlanId || !platform) {
@@ -82,7 +98,7 @@ export class RevenueCatController {
    * POST /api/v1/revenuecat/sync-user-id
    */
   syncUserId = catchAsync(async (req: Request, res: Response) => {
-    const { userId, revenueCatUserId } = req.body;
+    const { userId, revenueCatUserId } = req.body as ISyncRevenueCatBody;
 
     if (!userId || !revenueCatUserId) {
       throw new ApiError(
@@ -110,7 +126,7 @@ export class RevenueCatController {
    */
   cancelSubscription = catchAsync(async (req: Request, res: Response) => {
     const { subscriptionId } = req.params;
-    const { reason } = req.body;
+    const { reason } = req.body as ICancelSubscriptionBody;
 
     const result = await this.revenueCatService.cancelRevenueCatSubscription(
       subscriptionId,

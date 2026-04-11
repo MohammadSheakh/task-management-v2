@@ -8,7 +8,7 @@ import {  MessagerService } from "./message.service";
 //@ts-ignore
 import { Request, Response } from 'express';
 import { AttachmentService } from "../../attachments/attachment.service";
-import { IMessage } from "./message.interface";
+import { IMessage, ISendMessageBody } from "./message.interface";
 import { ConversationService } from "../conversation/conversation.service";
 import omit from "../../../shared/omit";
 import pick from "../../../shared/pick";
@@ -35,12 +35,11 @@ export class MessageController extends GenericController<typeof Message, IMessag
     //---------------------------------
 
     create = catchAsync(async (req: Request, res: Response) => {
-        // const data = req.body;
-
+        const body: ISendMessageBody = req.body as ISendMessageBody;
 
         // Get chat details
-        const {conversationData, conversationParticipants} = await getConversationById(req.body.conversationId);
-          
+        const {conversationData, conversationParticipants} = await getConversationById(body.conversationId);
+
 
         if(conversationData.canConversate === false){
             return sendResponse(res, {
@@ -49,15 +48,15 @@ export class MessageController extends GenericController<typeof Message, IMessag
                 success: false,
             });
         }
-        
+
         let attachments = [];
-    
+
         if (req.files && req.files.attachments) {
           attachments.push(
             ...(await Promise.all(
             req.files.attachments.map(async file => {
               const attachmenId = await attachmentService.uploadSingleAttachment(
-                  file, // file to upload 
+                  file, // file to upload
                   TFolderName.conversation, // folderName
                   // req.user.userId, // uploadedByUserId
                   // TAttachedToType.site
@@ -67,16 +66,16 @@ export class MessageController extends GenericController<typeof Message, IMessag
             ))
           );
 
-          if(!req.body.text){
-            req.body.text = `${attachments.length} attachments uploaded`;
+          if(!body.text){
+            body.text = `${attachments.length} attachments uploaded`;
           }
         }
-    
-        req.body.attachments = attachments;
-        req.body.senderId = req.user.userId; // Set the senderId from the authenticated user
+
+        body.attachments = attachments as any;
+        body.senderId = req.user.userId as any; // Set the senderId from the authenticated user
 
 
-        const result : IMessage = await Message.create(req.body);
+        const result : IMessage = await Message.create(body);
 
         //---------------------------------
         //  TODO : event emitter er maddhome message create korar por

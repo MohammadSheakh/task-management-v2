@@ -2,7 +2,7 @@ import { Request, Response } from 'express'; // test
 import { StatusCodes } from 'http-status-codes';
 import { GenericController } from '../../_generic-module/generic.controller';
 import { Task } from './task.model';
-import { ITask } from './task.interface';
+import { ITask, ICreateTaskBody, IUpdateTaskBody, IUpdateTaskStatusBody, IUpdateSubtaskProgressBody, IAddSubtaskBody, IBulkUpdateSubtasksBody } from './task.interface';
 import { TaskService } from './task.service';
 import { TRole } from '../../../middlewares/roles';
 import ApiError from '../../../errors/ApiError';
@@ -44,7 +44,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const taskData = req.body;
+    const taskData = req.body as ICreateTaskBody;
 
     // ────────────────────────────────────────────────────────────────────────
     // Permission Check: Handled by checkSecondaryUserPermission middleware
@@ -84,7 +84,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const taskData = req.body;
+    const taskData = req.body as ICreateTaskBody;
 
     // ────────────────────────────────────────────────────────────────────────
     // Permission Check: Handled by checkSecondaryUserPermission middleware
@@ -259,7 +259,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateStatus = async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { status, completedTime } = req.body;
+    const { status, completedTime } = req.body as IUpdateTaskStatusBody;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -325,7 +325,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateStatusV2 = catchAsync(async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { status } = req.body;
+    const { status } = req.body as IUpdateTaskStatusBody;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -365,7 +365,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateStatusV3 = catchAsync(async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { status } = req.body;
+    const { status } = req.body as IUpdateTaskStatusBody;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -407,7 +407,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateStatusV4 = catchAsync(async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { status, note } = req.body;
+    const { status, note } = req.body as IUpdateTaskStatusBody;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -467,7 +467,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateSubtaskProgress = async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { subtasks } = req.body;
+    const { subtasks } = req.body as IUpdateSubtaskProgressBody;
 
     if (!subtasks || !Array.isArray(subtasks)) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Subtasks array is required');
@@ -659,7 +659,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   addSubtask = async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { title, duration } = req.body;
+    const { title, duration } = req.body as IAddSubtaskBody;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -722,7 +722,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
   updateSubtask = async (req: Request, res: Response) => {
     const taskId = req.params.id;
     const subtaskId = req.params.subtaskId;
-    const updateData = req.body;
+    const updateData = req.body as IUpdateTaskBody;
 
     const result = await this.subTaskService.updateSubtask(
       taskId,
@@ -791,7 +791,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   bulkUpdateSubtasks = async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { subtasks } = req.body;
+    const { subtasks } = req.body as IBulkUpdateSubtasksBody;
 
     const result = await this.subTaskService.bulkUpdateSubtasks(
       taskId,

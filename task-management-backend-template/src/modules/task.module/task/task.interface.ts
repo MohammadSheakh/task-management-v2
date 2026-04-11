@@ -111,3 +111,40 @@ export interface ITaskModel extends Model<ITask> {
     options: PaginateOptions
   ) => Promise<PaginateResult<ITask>>;
 }
+
+// ✅ Request body interfaces - Clean & Flexible
+export interface ICreateTaskBody {
+  [key: string]: any;
+}
+
+export interface IUpdateTaskBody {
+  [key: string]: any;
+}
+
+export interface IUpdateTaskStatusBody {
+  status: string;
+  completedTime?: Date;
+  note?: string;
+}
+
+export type IUpdateSubtaskProgressBody = {
+  subtasks: Array<{
+    _id: string;
+    isCompleted: boolean;
+  }>;
+};
+
+export interface IAddSubtaskBody {
+  title: string;
+  duration?: number;
+}
+
+export type IBulkUpdateSubtasksBody = {
+  subtasks: Array<{
+    _id: string;
+    isCompleted?: boolean;
+    title?: string;
+    duration?: number;
+    order?: number;
+  }>;
+};

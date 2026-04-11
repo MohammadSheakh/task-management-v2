@@ -164,7 +164,7 @@ export interface ITaskProgressSummary {
   taskId: Types.ObjectId;
   taskTitle: string;
   totalSubtasks: number;
-  
+
   // Per-child breakdown
   childrenProgress: Array<{
     childId: Types.ObjectId;
@@ -176,7 +176,7 @@ export interface ITaskProgressSummary {
     completedSubtaskCount: number;
     totalSubtasks: number;
   }>;
-  
+
   // Summary statistics
   summary: {
     totalChildren: number;
@@ -186,4 +186,11 @@ export interface ITaskProgressSummary {
     completionRate: number;
     averageProgress: number;
   };
+}
+
+// ✅ Request body interface - single flexible type
+export interface IUpdateTaskProgressBody {
+  status: string;
+  note?: string;
+  userId?: string; // For createOrUpdateProgress
 }

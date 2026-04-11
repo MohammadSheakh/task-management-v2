@@ -6,6 +6,7 @@ import { Attachment } from './attachment.model';
 import { AttachmentService } from './attachment.service';
 import { FolderName } from '../../enums/folderNames';
 import ApiError from '../../errors/ApiError';
+import { ICreateAttachmentBody } from './attachment.interface';
 
 import { NotificationService } from '../notification/notification.services';
 
@@ -13,6 +14,7 @@ const attachmentService = new AttachmentService();
 
 //[🚧][🧑‍💻✅][🧪🆗]
 const createAttachment = catchAsync(async (req, res) => {
+  const body = req.body as ICreateAttachmentBody;
   
   let attachments = [];
 
@@ -24,8 +26,8 @@ const createAttachment = catchAsync(async (req, res) => {
             file,
             "folderNameSuplify",
             req.user,
-            req.body.attachedToId,
-            req.body.attachedToType
+            body.attachedToId,
+            body.attachedToType
           );
           return attachmentId;
         })

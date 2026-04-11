@@ -32,3 +32,24 @@ export interface IConversationModel extends Model<IConversation> {
     options: PaginateOptions
   ) => Promise<PaginateResult<IConversation>>;
 }
+
+// ✅ Request body interfaces
+export interface ICreateConversationBody {
+  participants: string[];
+  message?: string;
+  type?: string;
+}
+
+export interface IAddParticipantsBody {
+  participants: string[];
+  conversationId: string;
+}
+
+export interface IRemoveParticipantBody {
+  conversationId: string;
+  participantId: string;
+}
+
+export interface ILeaveConversationBody {
+  conversationId: string;
+}

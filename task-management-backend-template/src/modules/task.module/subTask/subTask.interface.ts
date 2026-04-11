@@ -118,3 +118,33 @@ export interface ISubTaskResponse {
   isCompleted: boolean;
   completedAt?: Date;
 }
+
+// ✅ Request body interfaces - Clean & Flexible
+export interface IToggleSubtaskCompletionBody {
+  isCompleted: boolean;
+}
+
+export interface ICreateSubtaskBody {
+  title: string;
+  duration?: number;
+  isCompleted?: boolean;
+  order?: number;
+  [key: string]: any;
+}
+
+export interface IUpdateSubtaskBody {
+  title?: string;
+  isCompleted?: boolean;
+  order?: number;
+  duration?: number;
+  [key: string]: any;
+}
+
+export type IBulkCreateSubtasksBody = {
+  subtasks: Array<{
+    title: string;
+    duration?: number;
+    isCompleted?: boolean;
+    order?: number;
+  }>;
+};

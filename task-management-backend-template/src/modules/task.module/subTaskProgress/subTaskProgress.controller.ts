@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { GenericController } from '../../_generic-module/generic.controller';
 import { SubTaskProgress } from './subTaskProgress.model';
-import { ISubTaskProgress } from './subTaskProgress.interface';
+import { ISubTaskProgress, IToggleSubTaskProgressBody } from './subTaskProgress.interface';
 import { SubTaskProgressService } from './subTaskProgress.service';
 import ApiError from '../../../errors/ApiError';
 import sendResponse from '../../../shared/sendResponse';
@@ -136,7 +136,7 @@ export class SubTaskProgressController extends GenericController<
     const taskId = req.params.taskId;
     const subtaskId = req.params.subtaskId;
     const userId = req.user?.userId;
-    const { isCompleted } = req.body;
+    const { isCompleted } = req.body as IToggleSubTaskProgressBody;
 
     console.log("🆕🆕🆕🆕🆕🆕")
 

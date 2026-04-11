@@ -88,3 +88,8 @@ export interface ISubTaskProgressModel extends Model<ISubTaskProgress> {
     note?: string;
   }>>;
 }
+
+// ✅ Request body interfaces
+export interface IToggleSubTaskProgressBody {
+  isCompleted: boolean;
+}

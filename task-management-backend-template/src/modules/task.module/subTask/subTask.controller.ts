@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { GenericController } from '../../_generic-module/generic.controller';
 import { SubTask } from './subTask.model';
-import { ISubTask } from './subTask.interface';
+import { ISubTask, IToggleSubtaskCompletionBody, ICreateSubtaskBody, IUpdateSubtaskBody } from './subTask.interface';
 import ApiError from '../../../errors/ApiError';
 import { SubTaskService } from './subTask.service';
 import sendResponse from '../../../shared/sendResponse';
@@ -30,7 +30,7 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
     }
 
-    const subTaskData = req.body;
+    const subTaskData = req.body as ICreateSubtaskBody;
     const result = await this.subTaskService.createSubTask(subTaskData, userId);
 
     sendResponse(res, {
@@ -89,7 +89,7 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
    */
   toggleStatus = catchAsync(async (req: Request, res: Response) => {
     const subtaskId = req.params.id;
-    const { isCompleted } = req.body;
+    const { isCompleted } = req.body as IToggleSubtaskCompletionBody;
     const userId = req.user?.userId;
 
     // console.log("isCompleted :: ", isCompleted);
@@ -144,7 +144,7 @@ export class SubTaskController extends GenericController<typeof SubTask, ISubTas
    */
   updateById = catchAsync(async (req: Request, res: Response) => {
     const subtaskId = req.params.id;
-    const updateData = req.body;
+    const updateData = req.body as IUpdateSubtaskBody;
     const userId = req.user?.userId;
 
     if (!userId) {

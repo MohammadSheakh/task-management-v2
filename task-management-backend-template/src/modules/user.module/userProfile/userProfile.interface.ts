@@ -45,3 +45,25 @@ export interface IUserProfileModel extends Model<IUserProfile> {
     options: PaginateOptions
   ) => Promise<PaginateResult<IUserProfile>>;
 }
+
+// ✅ Request body interfaces
+export interface IUpdateProfileBody {
+  [key: string]: any;
+}
+
+export interface IUpdateSupportModeBody {
+  supportMode: TSupportMode;
+}
+
+export interface IUpdateChildSupportModeBody {
+  childUserId: string;
+  supportMode: TSupportMode;
+}
+
+export interface IUpdateNotificationStyleBody {
+  notificationStyle: TNotificationStyle;
+}
+
+export interface IUpdatePreferredTimeBody {
+  preferredTime: string;
+}

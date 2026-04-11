@@ -20,3 +20,12 @@ export interface IMessageModel extends Model<IMessage> {
     options: PaginateOptions
   ) => Promise<PaginateResult<IMessage>>;
 }
+
+// ✅ Request body interface
+export interface ISendMessageBody {
+  conversationId: string;
+  text: string;
+  attachments?: string[];
+  senderId?: string;
+  [key: string]: any;
+}

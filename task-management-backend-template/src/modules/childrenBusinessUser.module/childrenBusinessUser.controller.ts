@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { ChildrenBusinessUserService } from './childrenBusinessUser.service';
-import { IChildrenBusinessUserQueryOptions } from './childrenBusinessUser.interface';
+import { IChildrenBusinessUserQueryOptions, IUpdateSecondaryUserBody, IUpdateChildBody, IRemoveChildBody } from './childrenBusinessUser.interface';
 import { CHILDREN_BUSINESS_USER_STATUS } from './childrenBusinessUser.constant';
 import catchAsync from '../../shared/catchAsync';
 import ApiError from '../../errors/ApiError';
@@ -268,7 +268,7 @@ export class ChildrenBusinessUserController {
     const childUserId = req.params.childId;
 
     //  Step 2: Extract optional note
-    const note = req.body.note;
+    const { note } = req.body as IRemoveChildBody;
 
     /*-─────────────────────────────────
     |  Step 3: Remove child from family
@@ -340,7 +340,7 @@ export class ChildrenBusinessUserController {
     /*-─────────────────────────────────
     |  Step 2: Extract update data from request body
     └──────────────────────────────────*/
-    const updateData = req.body;
+    const updateData = req.body as IUpdateChildBody;
 
     /*-─────────────────────────────────
     |  Step 3: Update child profile
@@ -450,7 +450,7 @@ export class ChildrenBusinessUserController {
     └──────────────────────────────────*/
     const businessUserId = (req.user as IUser).userId;
     const { childId } = req.params;
-    const { isSecondaryUser } = req.body;
+    const { isSecondaryUser } = req.body as IUpdateSecondaryUserBody;
 
     /*-─────────────────────────────────
     |  Step 2: Set/Unset as Secondary User
@@ -488,7 +488,7 @@ export class ChildrenBusinessUserController {
     └──────────────────────────────────*/
     const businessUserId = (req.user as IUser).userId;
     const { childId } = req.params;
-    const { isSecondaryUser } = req.body;
+    const { isSecondaryUser } = req.body as IUpdateSecondaryUserBody;
 
     /*-─────────────────────────────────
     |  Step 2: Set as Secondary User (auto-switch)

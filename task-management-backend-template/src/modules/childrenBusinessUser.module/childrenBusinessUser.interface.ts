@@ -68,3 +68,23 @@ export interface IChildrenBusinessUserQueryOptions {
   select?: string;
   status?: TChildrenBusinessUserStatus;
 }
+
+// ✅ Request body interfaces
+export interface IActivateAccountBody {
+  token: string;
+  password: string;
+}
+
+export interface IUpdateSecondaryUserBody {
+  isSecondaryUser: boolean;
+}
+
+export interface IUpdateChildBody {
+  [key: string]: any;
+}
+
+export interface IRemoveChildBody {
+  note?: string;
+  reason?: string;
+  [key: string]: any;
+}

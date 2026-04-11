@@ -9,7 +9,7 @@ import { ConversationService } from './conversation.service';
 import { StatusCodes } from 'http-status-codes';
 import { ConversationParticipentsService } from '../conversationParticipents/conversationParticipents.service';
 import ApiError from '../../../errors/ApiError';
-import { IConversation } from './conversation.interface';
+import { IConversation, ICreateConversationBody, IAddParticipantsBody, IRemoveParticipantBody } from './conversation.interface';
 import { ConversationType, TParticipants } from './conversation.constant';
 import { MessagerService } from '../message/message.service';
 import { IMessage } from '../message/message.interface';
@@ -39,8 +39,8 @@ export class ConversationController extends GenericController<typeof Conversatio
   create = catchAsync(async (req: Request, res: Response) => {
     let type;
     let result: IConversation;
-    
-    let { participants, message } = req.body;
+
+    let { participants, message } = req.body as ICreateConversationBody;
 
     if (!participants || participants.length === 0) {
       throw new ApiError(
@@ -258,11 +258,11 @@ export class ConversationController extends GenericController<typeof Conversatio
 
   addParticipantsToExistingConversation = catchAsync(
     async (req: Request, res: Response) => {
-      
+
       const {
         participants,
         conversationId,
-      }: { participants: string[]; conversationId: string } = req.body;
+      } = req.body as IAddParticipantsBody;
 
       const conversation = await this.service.getById(conversationId);
       if (!conversation) {
@@ -367,7 +367,7 @@ export class ConversationController extends GenericController<typeof Conversatio
 
   removeParticipantFromAConversation = catchAsync(
     async (req: Request, res: Response) => {
-      const { conversationId, participantId } = req.body;
+      const { conversationId, participantId } = req.body as IRemoveParticipantBody;
 
       if (!conversationId || !participantId) {
         throw new ApiError(

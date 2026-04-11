@@ -73,6 +73,33 @@ export interface IUpdateUserInfo {
   gender: string;
 }
 
+// ✅ Request body interfaces - Clean & Flexible
+export interface IUpdateUserBody {
+  [key: string]: any;
+}
+
+export interface IUpdateSupportModeBody {
+  supportMode: string;
+  childUserId?: string; // Optional for child update
+}
+
+export interface IUpdateNotificationStyleBody {
+  notificationStyle: string;
+  childUserId?: string; // Optional for child update
+}
+
+export interface IUpdatePreferredTimeBody {
+  preferredTime: string;
+}
+
+export interface ICreateAdminBody {
+  email: string;
+  password: string;
+  role: string;
+  name?: string;
+  phoneNumber?: string;
+}
+
 export interface UserModal extends Model<IUser> {
   paginate: (
     filter: object,

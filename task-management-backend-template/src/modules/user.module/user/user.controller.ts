@@ -7,7 +7,7 @@ import { User } from './user.model';
 import { GenericController } from '../../_generic-module/generic.controller';
 //@ts-ignore
 import { Request, Response } from 'express';
-import { IUser } from '../../token/token.interface';
+import { IUser, IUpdateUserBody, IUpdateSupportModeBody, IUpdateNotificationStyleBody, IUpdatePreferredTimeBody, ICreateAdminBody } from './user.interface';
 import omit from '../../../shared/omit';
 import pick from '../../../shared/pick';
 import { UserProfile } from '../userProfile/userProfile.model';
@@ -64,7 +64,7 @@ export class UserController extends GenericController<
 // from previous codebase
 //---------------------------------
   createAdminOrSuperAdmin = catchAsync(async (req: Request, res: Response) => {
-    const payload = req.body;
+    const payload: IUpdateUserBody = req.body;
     const result = await this.userService.createAdminOrSuperAdmin(payload);
     sendResponse(res, {
       code: StatusCodes.CREATED,
@@ -206,12 +206,12 @@ export class UserController extends GenericController<
 
   // send Invitation Link for a admin
   sendInvitationLinkToAdminEmail = catchAsync(async (req:Request, res:Response) => {
-
-    const user = await User.findOne({ email : req.body.email });
+    const body = req.body as ICreateAdminBody;
+    const user = await User.findOne({ email : body.email });
 
     /**
      *
-     * req.body.email er email jodi already taken
+     * body.email er email jodi already taken
      * if ----
      * then we check isEmailVerified .. if false .. we make that true
      *
@@ -231,19 +231,19 @@ export class UserController extends GenericController<
       user.isEmailVerified = true;
       await user.save();
       const token = await TokenService.createVerifyEmailToken(user);
-      
+
     } else {
       // create new user
-      if (req.body.role == TRole.subAdmin) {
+      if (body.role == TRole.subAdmin) {
 
         console.log("⚡ Hit because req.body.role = TRole.subAdmin");
 
         const response = await this.userService.createAdminOrSuperAdmin({
-          email: req.body.email,
-          password: req.body.password,
-          role: req.body.role,
-          name: req.body.name,
-          phoneNumber: req.body.phoneNumber,
+          email: body.email,
+          password: body.password,
+          role: body.role,
+          name: body.name,
+          phoneNumber: body.phoneNumber,
         });
 
         sendResponse(res, {
@@ -560,11 +560,11 @@ export class UserController extends GenericController<
   })
 
   updateProfileInformationOfAdmin = catchAsync(async (req: Request, res: Response) => {
-    
+
     req.body.profileImage = req.uploadedFiles.profileImage; // it actually returns array of string
 
-    const data = req.body;
-    
+    const data: IUpdateUserBody = req.body;
+
     const result = await this.userService.updateProfileInformationOfAdmin((req.user as IUser).userId  as string, data);
     sendResponse(res, {
       code: StatusCodes.OK,
@@ -578,7 +578,7 @@ export class UserController extends GenericController<
     const id = req.user.userId;
     req.body.profileImage = req.uploadedFiles.profileImage; // it actually returns array of string
 
-    const data = req.body;
+    const data: IUpdateUserBody = req.body;
 
     const result = await this.userService.updateProfileImageSeperately(id, data);
 
@@ -624,7 +624,7 @@ export class UserController extends GenericController<
    *----------------------------------------------*/
   updateSupportMode = catchAsync(async (req: Request, res: Response) => {
     const userId = (req.user as IUser).userId;
-    const { supportMode } = req.body;
+    const { supportMode } = req.body as IUpdateSupportModeBody;
 
     const result = await this.userService.updateSupportMode(userId, supportMode);
 
@@ -644,7 +644,7 @@ export class UserController extends GenericController<
    * @desc Parent updates their child's support mode preference
    *----------------------------------------------*/
   updateChildSupportMode = catchAsync(async (req: Request, res: Response) => {
-    const { childUserId, supportMode } = req.body;
+    const { childUserId, supportMode } = req.body as IUpdateSupportModeBody;
 
     const result = await this.userService.updateChildSupportMode(childUserId, supportMode);
 
@@ -665,7 +665,7 @@ export class UserController extends GenericController<
    *----------------------------------------------*/
   updateNotificationStyle = catchAsync(async (req: Request, res: Response) => {
     const userId = (req.user as IUser).userId;
-    const { notificationStyle } = req.body;
+    const { notificationStyle } = req.body as IUpdateNotificationStyleBody;
 
     const result = await this.userService.updateNotificationStyle(userId, notificationStyle);
 
@@ -731,7 +731,7 @@ export class UserController extends GenericController<
    *----------------------------------------------*/
   updatePreferredTime = catchAsync(async (req: Request, res: Response) => {
     const userId = (req.user as IUser).userId;
-    const { preferredTime } = req.body;
+    const { preferredTime } = req.body as IUpdatePreferredTimeBody;
 
     const result = await this.userService.updatePreferredTime(userId, preferredTime);
 

@@ -20,6 +20,7 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { ActivationService } from './activation.service';
+import { IActivateAccountBody } from '../childrenBusinessUser.interface';
 
 export class ActivationController {
   private service: ActivationService;
@@ -41,7 +42,7 @@ export class ActivationController {
     /*-─────────────────────────────────
     |  Step 1: Extract token and password
     └──────────────────────────────────*/
-    const { token, password } = req.body;
+    const { token, password } = req.body as IActivateAccountBody;
 
     /*-─────────────────────────────────
     |  Step 2: Validate input
