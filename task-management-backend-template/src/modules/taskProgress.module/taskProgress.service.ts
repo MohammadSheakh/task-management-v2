@@ -802,7 +802,7 @@ export class TaskProgressService extends GenericService<
     }
   }
 
-  /**✔️☑️
+  /** 🔍 Reviewed manually
    * Bulk create progress records for all assigned children
    * Called when a new collaborative task is created
    * task.service.ts -> createTask -> if collaborative -> taskProgressService.bulkCreateForTask(taskId, assignedUserIds)

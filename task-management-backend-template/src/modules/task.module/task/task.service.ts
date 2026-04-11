@@ -172,7 +172,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     }
   }
 
-  /**
+  /** 🔍 Reviewed manually
    * Create a new task with daily limit validation
    * @param data - Task data
    * @param userId - ID of the user creating the task
@@ -496,7 +496,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     };
   }
 
-  /**
+  /** 🔍 Reviewed manually
    * Create notifications for task creation
    * Handles all scenarios: parent→child, child→personal, secondary→parent/sibling
    *
@@ -527,6 +527,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     // Scenario 1: Personal task - optional self-confirmation
     if (task.taskType === TaskType.PERSONAL) {
       // Create self-confirmation notification for task creator
+      /*
       await notificationService.createNotification({
         senderId: creatorUserId,
         receiverId: creatorUserId,
@@ -549,6 +550,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
 
       count++;
       notifiedUserIds.push(creatorUserId.toString());
+    */
     }
 
     // Scenario 2 & 3: Task with assigned users (singleAssignment or collaborative)
@@ -647,7 +649,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     };
   }
 
-  /**
+  /** 🔍 Reviewed manually
    * Bulk create subtasks for a task
    * Called during task creation when subtasks are provided inline
    *
@@ -696,7 +698,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   }
 
   /** ✔️
-   * Get tasks for a user with filtering
+   * Get tasks for a user with filtering  
    * @param userId - User ID
    * @param filters - Query filters
    * @returns Array of tasks with subtasks populated
@@ -907,7 +909,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     return tasksWithSubtasks;
   }
 
-  /**
+  /** 🔍 Reviewed manually
    * Get task history with date range filtering for individual users
    * Returns all completed tasks within a date range with subtask progress
    * Optimized for Figma: task-history-filter-by-date-range.png
@@ -933,11 +935,11 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       `${userId.toString()}:${fromDateStr}:${toDateStr}:${options.page || 1}`,
     );
 
-    // Try to get from cache first
-    const cachedData = await this.getFromCache(cacheKey);
-    if (cachedData) {
-      return cachedData;
-    }
+    // // Try to get from cache first
+    // const cachedData = await this.getFromCache(cacheKey);
+    // if (cachedData) {
+    //   return cachedData;
+    // }
 
     /*-─────────────────────────────────
     |  Build query for completed tasks with date filtering
@@ -945,18 +947,85 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     |  If no date range provided, use last 30 days as default
     └──────────────────────────────────*/
 
-    // Default to last 30 days if no date range specified
-    const toDate = filters.to ? new Date(filters.to) : new Date();
-    toDate.setHours(23, 59, 59, 999); // End of day
+    // ✅ Helper to parse date from multiple formats (DD-MM-YYYY, MM-DD-YYYY, YYYY-MM-DD)
+    const parseDate = (dateStr: string): Date => {
+      // If already in YYYY-MM-DD format
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return new Date(dateStr);
+      }
+      // If in DD-MM-YYYY or MM-DD-YYYY format
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+        const [first, second, year] = dateStr.split('-').map(Number);
+        // Assume DD-MM-YYYY format (common in most regions)
+        return new Date(year, second - 1, first);
+      }
+      // Fallback to native parsing
+      return new Date(dateStr);
+    };
 
-    const fromDate = filters.from
-      ? new Date(filters.from)
-      : new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
-    fromDate.setHours(0, 0, 0, 0); // Start of day
+    // ✅ Validate date range
+    const MAX_DATE_RANGE_DAYS = 90; // Prevent querying too much data
+    
+    let toDate: Date;
+    try {
+      toDate = filters.to ? parseDate(filters.to) : new Date();
+      if (isNaN(toDate.getTime())) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Invalid "to" date format. Use DD-MM-YYYY or YYYY-MM-DD',
+        );
+      }
+      toDate.setHours(23, 59, 59, 999); // End of day
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Invalid "to" date format. Use DD-MM-YYYY or YYYY-MM-DD',
+      );
+    }
+
+    let fromDate: Date;
+    try {
+      fromDate = filters.from
+        ? parseDate(filters.from)
+        : new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+      if (isNaN(fromDate.getTime())) {
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Invalid "from" date format. Use DD-MM-YYYY or YYYY-MM-DD',
+        );
+      }
+      fromDate.setHours(0, 0, 0, 0); // Start of day
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Invalid "from" date format. Use DD-MM-YYYY or YYYY-MM-DD',
+      );
+    }
+
+    // Validate from <= to
+    if (fromDate > toDate) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Start date cannot be after end date',
+      );
+    }
+
+    // Validate max range
+    const rangeDays = Math.ceil(
+      (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (rangeDays > MAX_DATE_RANGE_DAYS) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Date range cannot exceed ${MAX_DATE_RANGE_DAYS} days`,
+      );
+    }
 
     const query: any = {
       isDeleted: false,
-      status: TaskStatus.COMPLETED,
+      // status: TaskStatus.COMPLETED,
       $or: [
         { ownerUserId: userId },
         { assignedUserIds: userId },
@@ -966,6 +1035,11 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         $lte: toDate,
       },
     };
+
+    // ✅ Optional taskType filter
+    if (filters.taskType) {
+      query.taskType = filters.taskType;
+    }
 
     /*-─────────────────────────────────
     |  Use aggregation pipeline for optimal performance
@@ -993,17 +1067,9 @@ export class TaskService extends GenericService<typeof Task, ITask> {
           as: 'subtasks',
         },
       },
-      // Lookup creator
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'createdById',
-          foreignField: '_id',
-          as: 'createdBy',
-        },
-      },
-      { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
       // Project final fields
+      // ✅ Remove createdBy from list view (not shown in Figma list screen)
+      // ✅ Add isSelfTask indicator for "Self Task" badge
       {
         $project: {
           _id: 1,
@@ -1018,7 +1084,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
           totalSubtasks: 1,
           completedSubtasks: 1,
           subtasks: 1,
-          createdBy: { _id: 1, name: 1, profileImage: 1 },
+          ownerUserId: 1,
         },
       },
     ];
@@ -1034,6 +1100,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     |  Format response to match Figma design
     |  - Task title, status, created time, completed time
     |  - Subtask count and progress percentage
+    |  - isSelfTask indicator for "Self Task" badge
     └──────────────────────────────────*/
     const formattedResults = result.results.map((task: any) => {
       const totalSubtasks = task.subtasks?.length || 0;
@@ -1043,6 +1110,9 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         totalSubtasks > 0
           ? Math.round((completedSubtasks / totalSubtasks) * 100)
           : 100; // If no subtasks, it's 100% completed
+
+      // ✅ Determine if this is a self task (owner === current user)
+      const isSelfTask = task.ownerUserId?.toString() === userId.toString();
 
       return {
         _id: task._id,
@@ -1054,7 +1124,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         startTime: task.startTime,
         completedTime: task.completedTime,
         createdAt: task.createdAt,
-        createdBy: task.createdBy,
+        isSelfTask,
         subtaskProgress: {
           total: totalSubtasks,
           completed: completedSubtasks,

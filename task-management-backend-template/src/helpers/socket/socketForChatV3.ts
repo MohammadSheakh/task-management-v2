@@ -873,7 +873,7 @@ export class SocketService {
   // For broadcasting task updates to all subscribed users
   // ────────────────────────────────────────────────────────────────────────
 
-  /**
+  /** 🔍 Reviewed manually
    * Emit event to all users subscribed to a task
    * Used for real-time task updates (status change, edits, etc.)
    *
@@ -954,7 +954,7 @@ export class SocketService {
     return true;
   }
 
-  /**
+  /** 🔍 Reviewed manually
    * Add activity to group's activity feed and broadcast to all members
    * This is a convenience method that combines Redis storage + Socket emission
    *

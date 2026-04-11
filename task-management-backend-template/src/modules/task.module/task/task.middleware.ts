@@ -160,6 +160,10 @@ export const checkSecondaryUserPermission = async (
       return next();
     }
 
+    if (user.role === 'individual') {
+      return next();
+    }
+
     // If child user → check if they are Secondary User
     if (user.role === 'child') {
       const { ChildrenBusinessUser } = await import(

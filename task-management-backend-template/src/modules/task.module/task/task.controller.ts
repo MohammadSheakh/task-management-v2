@@ -1075,7 +1075,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
-  /** ----------------------------------------------
+  /** ---------------------------------------------- 🔍 Reviewed manually
    * @role Individual User
    * @Section Task History
    * @module Task
@@ -1089,7 +1089,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    * @query limit - Items per page (default: 20)
    * @query sortBy - Sort field (default: -completedTime)
    *----------------------------------------------*/
-  getTaskHistory = async (req: Request, res: Response) => {
+  getTaskHistory = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -1099,6 +1099,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     const filters = {
       from: req.query.from as string,
       to: req.query.to as string,
+      taskType: req.query.taskType as string, // ✅ Optional taskType filter
     };
 
     const options = {
@@ -1119,5 +1120,5 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       message: 'Task history retrieved successfully',
       success: true,
     });
-  };
+  });
 }

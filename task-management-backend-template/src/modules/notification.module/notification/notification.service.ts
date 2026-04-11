@@ -783,7 +783,7 @@ export class NotificationService extends GenericService<typeof Notification, INo
     }
   }
 
-  /** 🔁
+  /** 🔁🔍 Reviewed manually
    * Record activity for child
    * Creates a notification entry for live activity feed in parent/teacher dashboard
    *

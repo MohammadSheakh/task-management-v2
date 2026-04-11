@@ -500,7 +500,7 @@ export class RedisStateManager {
   // For storing and retrieving recent group activities
   // =============================================
 
-  /**
+  /** 🔍 Reviewed manually
    * Add activity to group's activity feed
    * Activities are stored as JSON strings in a Redis list
    *
