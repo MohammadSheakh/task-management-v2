@@ -14,14 +14,14 @@
 
 Based on codebase analysis (`serverV2.ts`, `docker-compose.yml`, `package.json`):
 
-| Service | Purpose | Criticality | Resource Intensity |
-|---------|---------|-------------|-------------------|
-| **Node.js App** | Express.js backend (API + Socket.IO) | Critical | High (CPU + RAM) |
-| **MongoDB** | Primary database (Mongoose ODM) | Critical | High (RAM + Disk I/O) |
-| **Redis** | Cache, BullMQ queues, Socket.IO adapter, rate limiting, session storage | Critical | High (RAM) |
-| **Kafka** | Real-time chat message streaming | Optional (if chat enabled) | Medium (CPU + RAM) |
-| **Nginx** | Reverse proxy, load balancer, SSL termination | Critical | Low (CPU) |
-| **React/Next.js Frontend** | Dashboard + Admin panel | Critical | Medium (CPU + RAM) |
+|          Service           |                                 Purpose                                 |        Criticality         |  Resource Intensity   |
+| -------------------------- | ----------------------------------------------------------------------- | -------------------------- | --------------------- |
+| **Node.js App**            | Express.js backend (API + Socket.IO)                                    | Critical                   | High (CPU + RAM)      |
+| **MongoDB**                | Primary database (Mongoose ODM)                                         | Critical                   | High (RAM + Disk I/O) |
+| **Redis**                  | Cache, BullMQ queues, Socket.IO adapter, rate limiting, session storage | Critical                   | High (RAM)            |
+| **Kafka**                  | Real-time chat message streaming                                        | Optional (if chat enabled) | Medium (CPU + RAM)    |
+| **Nginx**                  | Reverse proxy, load balancer, SSL termination                           | Critical                   | Low (CPU)             |
+| **React/Next.js Frontend** | Dashboard + Admin panel                                                 | Critical                   | Medium (CPU + RAM)    |
 
 ### 1.2 Current Architecture Analysis
 
@@ -106,15 +106,15 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 
 ### 2.2 Service Placement Strategy
 
-| Component | Where to Run | Why |
-|-----------|--------------|-----|
-| **Node.js Backend** | EC2 Auto Scaling Group (2+ instances) | Stateless, scales horizontally |
-| **React/Next.js Frontend** | Same EC2 instances (initial stage) OR S3 + CloudFront | Cost-effective initially |
-| **MongoDB** | **MongoDB Atlas** (Managed) OR EC2 with replica set | Managed = less ops overhead |
-| **Redis** | **ElastiCache** (Managed) OR EC2 | Managed = automatic failover |
-| **Kafka** | **MSK** (Managed) OR skip if chat not critical | Optional for MVP |
-| **Nginx** | EC2 (single instance) OR AWS ALB | ALB = fully managed |
-| **File Storage** | **S3** (external) | Never store files on EC2 |
+|         Component          |                     Where to Run                      |              Why               |
+| -------------------------- | ----------------------------------------------------- | ------------------------------ |
+| **Node.js Backend**        | EC2 Auto Scaling Group (2+ instances)                 | Stateless, scales horizontally |
+| **React/Next.js Frontend** | Same EC2 instances (initial stage) OR S3 + CloudFront | Cost-effective initially       |
+| **MongoDB**                | **MongoDB Atlas** (Managed) OR EC2 with replica set   | Managed = less ops overhead    |
+| **Redis**                  | **ElastiCache** (Managed) OR EC2                      | Managed = automatic failover   |
+| **Kafka**                  | **MSK** (Managed) OR skip if chat not critical        | Optional for MVP               |
+| **Nginx**                  | EC2 (single instance) OR AWS ALB                      | ALB = fully managed            |
+| **File Storage**           | **S3** (external)                                     | Never store files on EC2       |
 
 ---
 
@@ -156,14 +156,14 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 
 #### 3.1.2 EC2 Instance Specification
 
-| Specification | Value | Rationale |
-|---------------|-------|-----------|
-| **Instance Type** | **t3.large** | 2 vCPU, 8 GB RAM — sweet spot for cost/performance |
-| **vCPUs** | 2 | Node.js cluster uses all cores; 2 cores = 2 workers |
-| **RAM** | 8 GB | Sufficient for app (2GB) + Redis (1GB) + Frontend (1GB) + buffer (4GB) |
-| **Storage** | 50 GB gp3 (EBS) | OS (10GB) + app (5GB) + logs (10GB) + buffer (25GB) |
-| **OS** | Ubuntu 22.04 LTS | Well-supported, familiar ecosystem |
-| **Architecture** | x86_64 (AMD64) | Better Node.js performance than ARM for this use case |
+|   Specification   |      Value       |                               Rationale                                |
+| ----------------- | ---------------- | ---------------------------------------------------------------------- |
+| **Instance Type** | **t3.large**     | 2 vCPU, 8 GB RAM — sweet spot for cost/performance                     |
+| **vCPUs**         | 2                | Node.js cluster uses all cores; 2 cores = 2 workers                    |
+| **RAM**           | 8 GB             | Sufficient for app (2GB) + Redis (1GB) + Frontend (1GB) + buffer (4GB) |
+| **Storage**       | 50 GB gp3 (EBS)  | OS (10GB) + app (5GB) + logs (10GB) + buffer (25GB)                    |
+| **OS**            | Ubuntu 22.04 LTS | Well-supported, familiar ecosystem                                     |
+| **Architecture**  | x86_64 (AMD64)   | Better Node.js performance than ARM for this use case                  |
 
 **Memory Allocation on t3.large (8 GB total):**
 - Node.js app (cluster mode): 2 GB (maxOldSpaceSize per worker: 1 GB × 2 workers)
@@ -179,25 +179,25 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 
 #### 3.1.3 External Services
 
-| Service | Plan | Cost/Month | Notes |
-|---------|------|------------|-------|
-| **MongoDB Atlas** | M10 Shared (2 GB RAM) | ~$60 | 3-node replica set, automated backups |
-| **AWS S3** | Standard | ~$5-10 | File uploads, static assets |
-| **Cloudflare** | Free tier | $0 | CDN, DDoS protection, SSL |
-| **Route 53** | Hosted zone | $0.50 | DNS management |
-| **AWS SES** | Pay-per-use | ~$1-5 | Email (SMTP replacement) |
+|      Service      |         Plan          | Cost/Month |                 Notes                 |
+| ----------------- | --------------------- | ---------- | ------------------------------------- |
+| **MongoDB Atlas** | M10 Shared (2 GB RAM) | ~$60       | 3-node replica set, automated backups |
+| **AWS S3**        | Standard              | ~$5-10     | File uploads, static assets           |
+| **Cloudflare**    | Free tier             | $0         | CDN, DDoS protection, SSL             |
+| **Route 53**      | Hosted zone           | $0.50      | DNS management                        |
+| **AWS SES**       | Pay-per-use           | ~$1-5      | Email (SMTP replacement)              |
 
 #### 3.1.4 Monthly Cost Breakdown — Stage 1
 
-| Component | Specification | Monthly Cost |
-|-----------|---------------|--------------|
-| **EC2 t3.large** | On-demand, us-east-1 | **$60.76** |
-| **EBS gp3 (50 GB)** | $0.08/GB | **$4.00** |
-| **Data Transfer** | 1 TB out (avg) | **$90.00** |
-| **MongoDB Atlas M10** | 3-node replica | **$60.00** |
-| **S3 Storage** | 10 GB + requests | **$5.00** |
-| **Route 53** | 1 hosted zone | **$0.50** |
-| **Total** | | **~$220/month** |
+|       Component       |    Specification     |  Monthly Cost   |
+| --------------------- | -------------------- | --------------- |
+| **EC2 t3.large**      | On-demand, us-east-1 | **$60.76**      |
+| **EBS gp3 (50 GB)**   | $0.08/GB             | **$4.00**       |
+| **Data Transfer**     | 1 TB out (avg)       | **$90.00**      |
+| **MongoDB Atlas M10** | 3-node replica       | **$60.00**      |
+| **S3 Storage**        | 10 GB + requests     | **$5.00**       |
+| **Route 53**          | 1 hosted zone        | **$0.50**       |
+| **Total**             |                      | **~$220/month** |
 
 **Cost Optimization Options:**
 - **1-year Reserved Instance**: Save 40% on EC2 → **$36/month** (total ~$195/month)
@@ -270,13 +270,13 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 
 #### 3.2.2 EC2 Instance Specifications (×2)
 
-| Specification | Value | Rationale |
-|---------------|-------|-----------|
-| **Instance Type** | **t3.large** (×2) | Same as Stage 1, but now 2 instances |
-| **Count** | 2 | Minimum for high availability |
-| **Auto Scaling** | Min: 2, Max: 4 | Scale based on CPU > 60% |
-| **Availability Zones** | us-east-1a, us-east-1b | Survive AZ failure |
-| **Storage** | 50 GB gp3 each | Same as Stage 1 |
+|     Specification      |         Value          |              Rationale               |
+| ---------------------- | ---------------------- | ------------------------------------ |
+| **Instance Type**      | **t3.large** (×2)      | Same as Stage 1, but now 2 instances |
+| **Count**              | 2                      | Minimum for high availability        |
+| **Auto Scaling**       | Min: 2, Max: 4         | Scale based on CPU > 60%             |
+| **Availability Zones** | us-east-1a, us-east-1b | Survive AZ failure                   |
+| **Storage**            | 50 GB gp3 each         | Same as Stage 1                      |
 
 **Why still t3.large?**
 - At this stage, bottleneck is usually **database**, not app servers
@@ -286,37 +286,37 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 #### 3.2.3 Managed Services Specifications
 
 **AWS ElastiCache Redis:**
-| Specification | Value |
-|---------------|-------|
-| **Engine** | Redis 7.x |
-| **Node Type** | cache.t3.medium (2 GB RAM) |
-| **Configuration** | Cluster mode disabled (simpler, sufficient for now) |
-| **Nodes** | 1 primary + 1 replica (for failover) |
-| **Max Memory** | 1.5 GB (reserve 0.5 GB for Redis overhead) |
-| **Eviction Policy** | allkeys-lru (cache-aside pattern) |
-| **Multi-AZ** | Enabled (automatic failover) |
+|    Specification    |                        Value                        |
+| ------------------- | --------------------------------------------------- |
+| **Engine**          | Redis 7.x                                           |
+| **Node Type**       | cache.t3.medium (2 GB RAM)                          |
+| **Configuration**   | Cluster mode disabled (simpler, sufficient for now) |
+| **Nodes**           | 1 primary + 1 replica (for failover)                |
+| **Max Memory**      | 1.5 GB (reserve 0.5 GB for Redis overhead)          |
+| **Eviction Policy** | allkeys-lru (cache-aside pattern)                   |
+| **Multi-AZ**        | Enabled (automatic failover)                        |
 
 **MongoDB Atlas (if not migrating to DocumentDB):**
-| Specification | Value |
-|---------------|-------|
-| **Tier** | M20 (2 GB RAM) or M30 (4 GB RAM) |
-| **Replica Set** | 3 nodes (automatic) |
-| **Backup** | Daily, 7-day retention |
+|    Specification    |                   Value                   |
+| ------------------- | ----------------------------------------- |
+| **Tier**            | M20 (2 GB RAM) or M30 (4 GB RAM)          |
+| **Replica Set**     | 3 nodes (automatic)                       |
+| **Backup**          | Daily, 7-day retention                    |
 | **Connection Pool** | Min: 10, Max: 100 (increase from Stage 1) |
 
 #### 3.2.4 Monthly Cost Breakdown — Stage 2
 
-| Component | Specification | Monthly Cost |
-|-----------|---------------|--------------|
-| **EC2 t3.large (×2)** | On-demand | **$121.52** |
-| **EBS gp3 (50 GB ×2)** | $0.08/GB | **$8.00** |
-| **AWS ALB** | 1 load balancer + LCU | **$22.27** |
-| **ElastiCache Redis** | cache.t3.medium (2 nodes) | **$36.50** |
-| **MongoDB Atlas M20** | 3-node replica | **$120.00** |
-| **Data Transfer** | 2 TB out (avg) | **$170.00** |
-| **S3 + CloudFront** | 50 GB + CDN | **$15.00** |
-| **Route 53 + SES** | DNS + Email | **$5.00** |
-| **Total** | | **~$498/month** |
+|       Component        |       Specification       |  Monthly Cost   |
+| ---------------------- | ------------------------- | --------------- |
+| **EC2 t3.large (×2)**  | On-demand                 | **$121.52**     |
+| **EBS gp3 (50 GB ×2)** | $0.08/GB                  | **$8.00**       |
+| **AWS ALB**            | 1 load balancer + LCU     | **$22.27**      |
+| **ElastiCache Redis**  | cache.t3.medium (2 nodes) | **$36.50**      |
+| **MongoDB Atlas M20**  | 3-node replica            | **$120.00**     |
+| **Data Transfer**      | 2 TB out (avg)            | **$170.00**     |
+| **S3 + CloudFront**    | 50 GB + CDN               | **$15.00**      |
+| **Route 53 + SES**     | DNS + Email               | **$5.00**       |
+| **Total**              |                           | **~$498/month** |
 
 **Cost Optimization:**
 - **1-year Reserved Instances (EC2)**: Save 40% → **$73/month** (total ~$450/month)
@@ -384,13 +384,13 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 
 #### 3.3.2 EC2 Instance Specifications (Auto Scaling Group)
 
-| Specification | Value | Rationale |
-|---------------|-------|-----------|
-| **Instance Type** | **t3.xlarge** | 4 vCPU, 16 GB RAM |
-| **Count** | 4 (min), 8 (max) | Scale based on CPU > 50% |
+|     Specification      |       Value        |        Rationale         |
+| ---------------------- | ------------------ | ------------------------ |
+| **Instance Type**      | **t3.xlarge**      | 4 vCPU, 16 GB RAM        |
+| **Count**              | 4 (min), 8 (max)   | Scale based on CPU > 50% |
 | **Availability Zones** | us-east-1a, 1b, 1c | Survive multi-AZ failure |
-| **Storage** | 100 GB gp3 each | More logs, more buffer |
-| **Launch Template** | Automated | AMI + user data script |
+| **Storage**            | 100 GB gp3 each    | More logs, more buffer   |
+| **Launch Template**    | Automated          | AMI + user data script   |
 
 **Memory Allocation on t3.xlarge (16 GB total):**
 - Node.js app (4 workers): 4 GB (1 GB per worker)
@@ -408,24 +408,24 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 #### 3.3.3 Managed Services Specifications
 
 **AWS ElastiCache Redis (Upgraded):**
-| Specification | Value |
-|---------------|-------|
-| **Node Type** | cache.r6g.large (13 GB RAM, memory-optimized) |
-| **Configuration** | Cluster mode enabled (2 shards, 2 replicas each) |
-| **Total Nodes** | 6 (2 primary + 4 replicas) |
-| **Max Memory per Node** | 10 GB |
-| **Total Cache Capacity** | 20 GB (across 2 shards) |
-| **Multi-AZ** | Enabled (automatic failover) |
-| **Backup** | Daily, 7-day retention |
+|      Specification       |                      Value                       |
+| ------------------------ | ------------------------------------------------ |
+| **Node Type**            | cache.r6g.large (13 GB RAM, memory-optimized)    |
+| **Configuration**        | Cluster mode enabled (2 shards, 2 replicas each) |
+| **Total Nodes**          | 6 (2 primary + 4 replicas)                       |
+| **Max Memory per Node**  | 10 GB                                            |
+| **Total Cache Capacity** | 20 GB (across 2 shards)                          |
+| **Multi-AZ**             | Enabled (automatic failover)                     |
+| **Backup**               | Daily, 7-day retention                           |
 
 **MongoDB Atlas M30:**
-| Specification | Value |
-|---------------|-------|
-| **Tier** | M30 (4 GB RAM, 40 GB storage) |
-| **Replica Set** | 3 nodes |
-| **Backup** | Daily, 14-day retention |
-| **Connection Pool** | Min: 20, Max: 200 |
-| **Read Replicas** | Add if read-heavy workload |
+|    Specification    |             Value             |
+| ------------------- | ----------------------------- |
+| **Tier**            | M30 (4 GB RAM, 40 GB storage) |
+| **Replica Set**     | 3 nodes                       |
+| **Backup**          | Daily, 14-day retention       |
+| **Connection Pool** | Min: 20, Max: 200             |
+| **Read Replicas**   | Add if read-heavy workload    |
 
 **AWS MSK (Kafka) — Optional:**
 | Specification | Value |
@@ -439,18 +439,18 @@ For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everythi
 
 #### 3.3.4 Monthly Cost Breakdown — Stage 3
 
-| Component | Specification | Monthly Cost |
-|-----------|---------------|--------------|
-| **EC2 t3.xlarge (×4)** | On-demand (avg 5) | **$486.72** |
-| **EBS gp3 (100 GB ×5)** | $0.08/GB | **$40.00** |
-| **AWS ALB** | 1 LB + higher LCU | **$45.00** |
-| **ElastiCache Redis** | cache.r6g.large (6 nodes) | **$219.00** |
-| **MongoDB Atlas M30** | 3-node replica | **$240.00** |
-| **AWS MSK (optional)** | 3 brokers | **$250.00** |
-| **Data Transfer** | 5 TB out | **$425.00** |
-| **S3 + CloudFront** | 100 GB + CDN | **$50.00** |
-| **CloudWatch + X-Ray** | Monitoring | **$30.00** |
-| **Total** | | **~$1,786/month** (without MSK: $1,536) |
+|        Component        |       Specification       |              Monthly Cost               |
+| ----------------------- | ------------------------- | --------------------------------------- |
+| **EC2 t3.xlarge (×4)**  | On-demand (avg 5)         | **$486.72**                             |
+| **EBS gp3 (100 GB ×5)** | $0.08/GB                  | **$40.00**                              |
+| **AWS ALB**             | 1 LB + higher LCU         | **$45.00**                              |
+| **ElastiCache Redis**   | cache.r6g.large (6 nodes) | **$219.00**                             |
+| **MongoDB Atlas M30**   | 3-node replica            | **$240.00**                             |
+| **AWS MSK (optional)**  | 3 brokers                 | **$250.00**                             |
+| **Data Transfer**       | 5 TB out                  | **$425.00**                             |
+| **S3 + CloudFront**     | 100 GB + CDN              | **$50.00**                              |
+| **CloudWatch + X-Ray**  | Monitoring                | **$30.00**                              |
+| **Total**               |                           | **~$1,786/month** (without MSK: $1,536) |
 
 **Cost Optimization:**
 - **1-year Reserved Instances (EC2)**: Save 40% → **$292/month**
