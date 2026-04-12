@@ -738,6 +738,22 @@ const logout = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const logoutWithOutRefreshToken = catchAsync(async (req: Request, res: Response) => {
+  const { fcmToken, logoutFromAllDevices } = req.body as ILogoutBody;
+  const userId = (req.user as IUser)?.userId;
+
+  await AuthService.logoutWithOutRefreshToken( userId, fcmToken, logoutFromAllDevices);
+
+  sendResponse(res, {
+    code: StatusCodes.OK,
+    message: 'User logged out successfully',
+    data: {},
+  });
+});
+
+
+
 const refreshToken = catchAsync(async (req: Request, res: Response) => {
 
   console.log("hit 0")
@@ -770,6 +786,7 @@ export const AuthController = {
   verifyEmail,
   resendOtp,
   logout,
+  logoutWithOutRefreshToken,
   changePassword,
   refreshToken,
   forgotPassword,

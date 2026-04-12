@@ -25,9 +25,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
         this.stripe = stripe;
     }
 
-    
-
-    startFreeTrial = async (userId: string | undefined): Promise<any> => {
+    startFreeTrial = async (userId: string | undefined, subscriptionPlanId: string): Promise<any> => {
         /*******
          *  1. check users hasUsedFreeTrial 
          *  2. +++++++ if true -> it means user is not eligible for free trial
@@ -140,15 +138,16 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
         //---------------------------------
         // get active standard plan priceId from database
         //---------------------------------
-        const standardPlan:ISubscriptionPlan = await SubscriptionPlan.findOne({
-            subscriptionType: TSubscription.individual,
+        const plan:ISubscriptionPlan = await SubscriptionPlan.findOne({
+            // subscriptionType: TSubscription.individual,
+            _id: subscriptionPlanId,
             isActive: true
         });
 
-        if(!standardPlan){
+        if(!plan){
             throw new ApiError(
                 StatusCodes.NOT_FOUND,
-                `No active standard plan found`
+                `No active plan found`
             );
         }
         //---------------------------------
@@ -190,7 +189,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
         payment_method_types: ['card'],
         mode: 'subscription',
         line_items: [{
-            price: standardPlan.stripe_price_id, /*config.stripe.standard_plan_price_id,*/
+            price: plan.stripe_price_id, /*config.stripe.standard_plan_price_id,*/
             //---------------------------------
             // 🟢 70 dollar er priceId provide korte hobe .. which is comes from env file 
             //---------------------------------
@@ -203,7 +202,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
             metadata: {
                 userId: user._id.toString(),
                 subscriptionType: TSubscription.individual.toString(),
-                subscriptionPlanId: standardPlan._id.toString(),
+                subscriptionPlanId: plan._id.toString(),
                 referenceId: newUserSubscription._id.toString(),
                 referenceFor:  TTransactionFor.UserSubscription.toString(),
                 /*****
@@ -214,7 +213,7 @@ export class UserSubscriptionService extends GenericService<typeof UserSubscript
                  * 
                  * ******* */
                 currency : TCurrency.usd.toString(),
-                amount : '70'.toString() // because its free trial and customer just book this
+                amount : plan.amount.toString() // because its free trial and customer just book this
             }
         },
         success_url: config.stripe.success_url,

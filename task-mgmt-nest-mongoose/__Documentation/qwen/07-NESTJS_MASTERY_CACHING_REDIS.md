@@ -63,12 +63,12 @@ graph TB
 
 **Performance Comparison**:
 
-| Operation | Latency | Relative Speed |
-|-----------|---------|----------------|
-| **Redis Cache Read** | ~1ms | 1x (Fastest) |
-| **MongoDB Query** | ~10-50ms | 10-50x Slower |
-| **MongoDB Aggregation** | ~50-200ms | 50-200x Slower |
-| **External API Call** | ~100-1000ms | 100-1000x Slower |
+|        Operation        |   Latency   |  Relative Speed  |
+| ----------------------- | ----------- | ---------------- |
+| **Redis Cache Read**    | ~1ms        | 1x (Fastest)     |
+| **MongoDB Query**       | ~10-50ms    | 10-50x Slower    |
+| **MongoDB Aggregation** | ~50-200ms   | 50-200x Slower   |
+| **External API Call**   | ~100-1000ms | 100-1000x Slower |
 
 **Impact**:
 - ✅ **80-90% reduction** in database load

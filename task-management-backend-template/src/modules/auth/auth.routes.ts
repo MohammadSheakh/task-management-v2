@@ -135,6 +135,13 @@ router.post('/logout',
   auth(TRole.common),  // Optional - can logout without being authenticated
   AuthController.logout);
 
+// -- for nerob vai
+router.post('/logout/v2',
+  auth(TRole.common),  // Optional - can logout without being authenticated
+  AuthController.logoutWithOutRefreshToken);
+
+
+
 router.post('/refresh-auth', AuthController.refreshToken);
 
 export const AuthRoutes = router;

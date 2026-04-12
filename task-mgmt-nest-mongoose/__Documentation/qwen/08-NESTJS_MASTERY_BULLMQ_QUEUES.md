@@ -61,12 +61,12 @@ graph TB
 
 **Performance Comparison**:
 
-| Operation | Synchronous | Asynchronous (Queue) | Improvement |
-|-----------|-------------|---------------------|-------------|
-| Send Welcome Email | 2-5 seconds | <100ms | 20-50x faster |
-| Generate PDF Report | 5-30 seconds | <100ms | 50-300x faster |
-| Process Video Upload | 30-300 seconds | <100ms | 300-3000x faster |
-| Send Push Notifications | 1-10 seconds | <100ms | 10-100x faster |
+|        Operation        |  Synchronous   | Asynchronous (Queue) |   Improvement    |
+| ----------------------- | -------------- | -------------------- | ---------------- |
+| Send Welcome Email      | 2-5 seconds    | <100ms               | 20-50x faster    |
+| Generate PDF Report     | 5-30 seconds   | <100ms               | 50-300x faster   |
+| Process Video Upload    | 30-300 seconds | <100ms               | 300-3000x faster |
+| Send Push Notifications | 1-10 seconds   | <100ms               | 10-100x faster   |
 
 **Benefits**:
 - ✅ **Better User Experience**: Sub-100ms response times

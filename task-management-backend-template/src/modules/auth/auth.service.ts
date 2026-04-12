@@ -684,6 +684,49 @@ const logout = async (
   }
 };
 
+// for nerob vai.. 
+const logoutWithOutRefreshToken = async (
+  userId?: string,
+  fcmToken?: string,
+  logoutFromAllDevices: boolean = false
+) => {
+  try {
+    
+    // Step 2: Remove user session from Redis cache
+    if (userId) {
+      // Remove session cache for this user
+      const sessionPattern = fcmToken 
+        ? `session:${userId}:${fcmToken}`
+        : `session:${userId}:*`;
+      
+      const keys = await redisClient.keys(sessionPattern);
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+        logger.info(`Session cache cleared for user ${userId}`);
+      }
+    }
+
+    // Step 3: Optionally logout from all devices
+    if (logoutFromAllDevices && userId) {
+      await UserDevices.deleteMany({ userId: new mongoose.Types.ObjectId(userId) });
+      logger.info(`All devices logged out for user ${userId}`);
+    } else if (fcmToken && userId) {
+      // Remove only the current device
+      await UserDevices.deleteOne({ 
+        userId: new mongoose.Types.ObjectId(userId),
+        fcmToken 
+      });
+      logger.info(`Device logged out for user ${userId}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    errorLogger.error('Logout error:', error);
+    // Don't throw - logout should succeed even if blacklist fails
+    return { success: true };
+  }
+};
+
 /**
  * Refresh access token using refresh token
  * - Verify refresh token
@@ -1178,6 +1221,7 @@ export const AuthService = {
   forgotPassword,
   resendOtp,
   logout,
+  logoutWithOutRefreshToken,
   changePassword,
   refreshAuth,
 };

@@ -1,3 +1,4 @@
+//@ts-ignore
 import express from 'express';
 import { validateFiltersForQuery } from '../../../middlewares/queryValidation/paginationQueryValidationMiddleware';
 import { ISubscriptionPlan } from './subscriptionPlan.interface';
@@ -6,6 +7,7 @@ import auth from '../../../middlewares/auth';
 import validateRequest from '../../../shared/validateRequest';
 import * as validation from './subscriptionPlan.validation';
 import { TRole } from '../../../middlewares/roles';
+//@ts-ignore
 import multer from "multer";
 import { setRequestFiltersV2 } from '../../../middlewares/setRequstFilterAndValue';
 const storage = multer.memoryStorage();
@@ -54,7 +56,7 @@ router.route('/:id').get(
 );
 
 router.route('/:id').put(
-  //auth('common'), // FIXME: Change to admin
+  auth(TRole.admin), // FIXME: Change to admin
   // validateRequest(validation.createHelpMessageValidationSchema),
   controller.updateById
 );

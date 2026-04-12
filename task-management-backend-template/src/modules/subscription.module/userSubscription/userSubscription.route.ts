@@ -101,7 +101,7 @@ router
 // Patient  | Landing Page | Start Free Trial
 //--------------------------------- 
 router.route('/free-trial/start').post(
-  auth(TRole.patient),
+  auth(TRole.business),
   controller.startFreeTrial
 );
 
