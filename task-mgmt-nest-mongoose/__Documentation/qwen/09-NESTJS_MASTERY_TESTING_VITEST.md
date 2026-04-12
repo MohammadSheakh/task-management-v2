@@ -58,16 +58,16 @@ graph TB
 
 ### **Why Vitest Over Jest**
 
-| Feature | Vitest | Jest |
-|---------|--------|------|
-| **Speed** | ⚡ 10-50x faster (parallel threads) | 🐌 Slower (single thread) |
-| **Config** | 📝 Vite config (simple) | 📋 Jest config (complex) |
-| **ESM Support** | ✅ Native | ⚠️ Requires transformation |
-| **TypeScript** | ✅ Native (via Vite) | ⚠️ Requires ts-jest |
-| **Watch Mode** | ⚡ Instant | 🐌 Slow |
-| **Coverage** | ✅ Built-in (c8) | ✅ Built-in (istanbul) |
-| **Compatibility** | ✅ Jest APIs | N/A |
-| **Bundle Size** | 📦 Small | 📦 Large |
+|      Feature      |               Vitest               |            Jest            |
+| ----------------- | ---------------------------------- | -------------------------- |
+| **Speed**         | ⚡ 10-50x faster (parallel threads) | 🐌 Slower (single thread)   |
+| **Config**        | 📝 Vite config (simple)             | 📋 Jest config (complex)    |
+| **ESM Support**   | ✅ Native                           | ⚠️ Requires transformation |
+| **TypeScript**    | ✅ Native (via Vite)                | ⚠️ Requires ts-jest        |
+| **Watch Mode**    | ⚡ Instant                          | 🐌 Slow                     |
+| **Coverage**      | ✅ Built-in (c8)                    | ✅ Built-in (istanbul)      |
+| **Compatibility** | ✅ Jest APIs                        | N/A                        |
+| **Bundle Size**   | 📦 Small                            | 📦 Large                    |
 
 **Vitest Advantages**:
 - ✅ **10-50x faster** test execution
