@@ -187,6 +187,50 @@ const userSubscriptionSchema = new Schema<IUserSubscription>(
 
 userSubscriptionSchema.plugin(paginate);
 
+/*-─────────────────────────────────
+|  INDEXES — Optimized for 100K+ users
+|  Rule: Every filter/sort/lookup field MUST have an index
+└──────────────────────────────────*/
+
+// ✅ Primary lookup by user
+userSubscriptionSchema.index({ userId: 1 });
+
+// ✅ Stripe subscription ID lookup (webhook handlers)
+userSubscriptionSchema.index({ stripe_subscription_id: 1 }, { sparse: true });
+
+// ✅ Stripe customer ID lookup
+userSubscriptionSchema.index({ stripe_customer_id: 1 }, { sparse: true });
+
+// ✅ Status-based queries (active subscriptions, cancellations, etc.)
+userSubscriptionSchema.index({ status: 1 });
+
+// ✅ Compound index: user + status (most common query pattern)
+userSubscriptionSchema.index({ userId: 1, status: 1 });
+
+// ✅ Compound index: status + renewalDate (expiry monitoring)
+userSubscriptionSchema.index({ status: 1, renewalDate: 1 });
+
+// ✅ Subscription plan analytics
+userSubscriptionSchema.index({ subscriptionPlanId: 1 });
+
+// ✅ Cancellation tracking
+userSubscriptionSchema.index({ cancelledAt: 1 }, { sparse: true });
+
+// ✅ Auto-renewal queries
+userSubscriptionSchema.index({ isAutoRenewed: 1, status: 1 });
+
+// ✅ Payment gateway + platform analytics
+userSubscriptionSchema.index({ paymentGateway: 1, purchasePlatform: 1 });
+
+// ✅ TTL index for soft-deleted records (auto-cleanup after 90 days)
+userSubscriptionSchema.index(
+  { updatedAt: 1 },
+  {
+    expireAfterSeconds: 7776000, // 90 days
+    partialFilterExpression: { isDeleted: true },
+  },
+);
+
 // auto calculate the renewal date if its not provided ...
 // TODO : MUST ::: need to check this code is working or not .. 
 userSubscriptionSchema.pre('save', async function() {

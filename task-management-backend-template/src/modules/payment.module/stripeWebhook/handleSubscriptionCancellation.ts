@@ -1,3 +1,19 @@
+/*-─────────────────────────────────
+|  ⚠️ DEPRECATED - V1 Subscription Cancellation Handler
+|
+|  ❌ KNOWN ISSUES:
+|  - Uses console.log instead of structured logger
+|  - No Redis cache invalidation
+|  - No FailedWebhook logging
+|  - Finds user by stripe_subscription_id (should find by customer)
+|  - No validation on subscription state
+|
+|  ✅ FIX: Use handleSubscriptionCancellation.v2.ts instead
+|
+|  STATUS: Kept for reference, DO NOT USE in production
+|  @deprecated Use handleSubscriptionCancellation.v2.ts
+└──────────────────────────────────*/
+
 import { User } from "../../user.module/user/user.model";
 
 // 7. HANDLE SUBSCRIPTION CANCELLATION WEBHOOK

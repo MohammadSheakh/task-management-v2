@@ -125,6 +125,38 @@ const paymentTransactionSchema = new Schema<IPaymentTransaction>(
 
 paymentTransactionSchema.plugin(paginate);
 
+/*-─────────────────────────────────
+|  INDEXES — Optimized for payment tracking
+|  Rule: Every filter/sort/lookup field MUST have an index
+└──────────────────────────────────*/
+
+// ✅ User payment history
+paymentTransactionSchema.index({ userId: 1 });
+
+// ✅ Payment intent lookup (idempotency enforcement)
+paymentTransactionSchema.index({ paymentIntent: 1 }, { sparse: true, unique: true });
+
+// ✅ Transaction ID lookup
+paymentTransactionSchema.index({ transactionId: 1 }, { sparse: true });
+
+// ✅ Payment status filtering
+paymentTransactionSchema.index({ paymentStatus: 1 });
+
+// ✅ Payment gateway filtering
+paymentTransactionSchema.index({ paymentGateway: 1 });
+
+// ✅ Reference-based queries (orders, subscriptions, etc.)
+paymentTransactionSchema.index({ referenceFor: 1, referenceId: 1 });
+
+// ✅ Date-based analytics (revenue reports)
+paymentTransactionSchema.index({ createdAt: -1 });
+
+// ✅ Compound index: user + status + date (most common query)
+paymentTransactionSchema.index({ userId: 1, paymentStatus: 1, createdAt: -1 });
+
+// ✅ Revenue analytics: gateway + status + date
+paymentTransactionSchema.index({ paymentGateway: 1, paymentStatus: 1, createdAt: -1 });
+
 paymentTransactionSchema.pre('save', function(next) {
   // Rename _id to _projectId
   // this._taskId = this._id;

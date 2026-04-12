@@ -123,7 +123,7 @@ export const startNotificationWorker = () => {
           if (emitted) {
             logger.info(`🔔 Real-time notification sent to ${data.receiverRole}`);
           } else {
-            logger.info(`📴 ${data.receiverRole} is offline, notification saved in DB only`);
+            c
           }
 
         } else {

@@ -1,40 +1,46 @@
+/*-─────────────────────────────────
+|  ⚠️ DEPRECATED - V1 Payment Handler
+|
+|  ❌ KNOWN ISSUES:
+|  - Uses console.log instead of structured logger
+|  - No idempotency enforcement
+|  - No Redis cache invalidation
+|  - No FailedWebhook logging
+|  - Dates calculated incorrectly
+|  - billingCycle never incremented
+|  - subscriptionPlanId missing (TODO in production)
+|
+|  ✅ FIX: Use handleSuccessfulPayment.v2.ts instead
+|  - V2 has full idempotency, cache invalidation, error tracking
+|
+|  STATUS: Kept for reference, DO NOT USE in production
+|  MIGRATION: Update webhookHandler.ts to use handleSuccessfulPaymentV2()
+|
+|  @deprecated Use handleSuccessfulPayment.v2.ts
+└──────────────────────────────────*/
+
 //@ts-ignore
-import stripe from "../../../config/paymentGateways/stripe.config";
-import { IUser } from "../../user.module/user/user.interface";
-import { User } from "../../user.module/user/user.model";
-import { TPaymentGateway, TPaymentStatus } from "../paymentTransaction/paymentTransaction.constant";
-import { PaymentTransaction } from "../paymentTransaction/paymentTransaction.model";
+import stripe from '../../../config/paymentGateways/stripe.config';
+import { logger } from '../../../shared/logger';
+import { UserSubscriptionStatusType } from '../../subscription.module/userSubscription/userSubscription.constant';
+import { UserSubscription } from '../../subscription.module/userSubscription/userSubscription.model';
+import { IUser } from '../../user.module/user/user.interface';
+import { User } from '../../user.module/user/user.model';
+import {
+  TPaymentGateway,
+  TPaymentStatus,
+} from '../paymentTransaction/paymentTransaction.constant';
+import { PaymentTransaction } from '../paymentTransaction/paymentTransaction.model';
 
-// ✅ Safe date helper
-// const safeDate = (timestamp?: number) => 
-//   (timestamp ? new Date(timestamp * 1000) : null);
-
-// // ✅ Robust date calculator
-
-// const calculateSubscriptionDates = (subscription, invoice) => {
-//   const trialEnd   = safeDate(subscription.trial_end);
-//   const subStart   = safeDate(subscription.start_date);
-
-//   const currentPeriodStart = safeDate(invoice.period_start) || safeDate(subscription.current_period_start);
-//   const currentPeriodEnd   = safeDate(invoice.period_end)   || safeDate(subscription.current_period_end);
-
-//   return {
-//     subscriptionStartDate: subStart,                // first ever subscription date
-//     currentPeriodStartDate: currentPeriodStart,     // beginning of this billing cycle
-//     expirationDate: trialEnd || currentPeriodEnd,   // trial end OR billing cycle end
-//     renewalDate: trialEnd || currentPeriodEnd,      // trial end OR billing cycle end
-//     isInTrial: !!trialEnd && trialEnd > new Date()
-//   };
-// };
-
-export interface IMetadataForFreeTrial{
-    userId: string;
-    subscriptionType: string;
-    subscriptionPlanId?: string; // ⚡ we will add this in webhook for standard plan after free trial end
-    referenceId: string; // this is userSubscription._id
-    referenceFor: string; // TTransactionFor.UserSubscription
-    currency: string;
-    amount: string;
+// ✅ Interface moved to handleSuccessfulPayment.v2.ts — re-export for backward compatibility
+export interface IMetadataForFreeTrial {
+  userId: string;
+  subscriptionType: string;
+  subscriptionPlanId?: string;
+  referenceId: string;
+  referenceFor: string;
+  currency: string;
+  amount: string;
 }
 
 /*****
@@ -48,22 +54,28 @@ export interface IMetadataForFreeTrial{
  * 
  * ****** */
 
-export const handleSuccessfulPayment = async (invoice) => {
-  console.log("1️⃣ ℹ️ handleSuccessfulPayment ::: ", invoice);
+export const handleSuccessfulPayment = async invoice => {
+  console.log('1️⃣ ℹ️ handleSuccessfulPayment ::: ', invoice);
   try {
     // if (invoice.billing_reason !== 'subscription_cycle') {
     //   return; // Only handle recurring subscription payments
     // }
 
     // Handle both subscription creation and recurring payments
-    const validBillingReasons = ['subscription_create', 'subscription_cycle', 'subscription_update'];
-    
+    const validBillingReasons = [
+      'subscription_create',
+      'subscription_cycle',
+      'subscription_update',
+    ];
+
     if (!validBillingReasons.includes(invoice.billing_reason)) {
-      console.log(`Skipping invoice with billing_reason: ${invoice.billing_reason}`);
+      console.log(
+        `Skipping invoice with billing_reason: ${invoice.billing_reason}`,
+      );
       return;
     }
 
-/*
+    /*
 
 'subscription_create' -> First payment after trial ends (or immediate if no trial)
 'subscription_cycle'  -> Regular recurring billing cycle
@@ -74,78 +86,88 @@ export const handleSuccessfulPayment = async (invoice) => {
 */
 
     /******
-     * 
+     *
      * as we set metadata under subscription data ..
      * so first we have to get subscription from invoice.subscription
      * then we can get metadata from subscription object
-     * 
+     *
      * *** */
 
     const subscriptionId = invoice.subscription;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    
+
     // ✅ Access metadata from subscription, not invoice
-    const metadata:IMetadataForFreeTrial = subscription.metadata;
- 
+    const metadata: IMetadataForFreeTrial = subscription.metadata;
+
     const invoiceInfo = {
-      customer : invoice.customer,
-      payment_intent : invoice.payment_intent,
-      price_id : invoice.lines.data[0].price.id,
-      period_start : invoice.period_start,
-      period_end : invoice.period_end,
-      amount_paid : invoice.amount_paid,
-      billing_reason : invoice.billing_reason,
-      subscriptionId : invoice.subscription,
-      subscription_metadata :  {
+      customer: invoice.customer,
+      payment_intent: invoice.payment_intent,
+      price_id: invoice.lines.data[0].price.id,
+      period_start: invoice.period_start,
+      period_end: invoice.period_end,
+      amount_paid: invoice.amount_paid,
+      billing_reason: invoice.billing_reason,
+      subscriptionId: invoice.subscription,
+      subscription_metadata: {
         userId: metadata.userId,
         subscriptionType: metadata.subscriptionType,
-        referenceId : metadata.referenceId,
+        referenceId: metadata.referenceId,
         referenceFor: metadata.referenceFor,
         currency: metadata.currency,
-        amount: metadata.amount
-      }
-    }
+        amount: metadata.amount,
+      },
+    };
 
-    console.log("---------- invoice.billing_reason handleSuccessfulPayment :: ", invoice.billing_reason ) 
-    console.log("⚡⚡⚡ invoiceInfo from handleSuccessfulPayment -> amount paid :: ", invoiceInfo ) 
-
+    console.log(
+      '---------- invoice.billing_reason handleSuccessfulPayment :: ',
+      invoice.billing_reason,
+    );
+    console.log(
+      '⚡⚡⚡ invoiceInfo from handleSuccessfulPayment -> amount paid :: ',
+      invoiceInfo,
+    );
 
     // Find user by Stripe customer ID
-    const user:IUser = await User.findOne({ 
-      stripe_customer_id: subscription.customer 
+    const user: IUser = await User.findOne({
+      stripe_customer_id: subscription.customer,
     });
 
     if (!user) {
       console.error('User not found for customer:', subscription.customer);
       return;
     }
-   
+
+    logger.info(`💸❔⁉️ billing reason :  ${invoice.billing_reason}`);
+
     // ✅ Use proper Stripe dates instead of manual calculation
     // const dates = calculateSubscriptionDates(subscription, invoice);
-   
 
-    if(invoice.billing_reason === 'subscription_create'){
-        console.log("⚡ This is first payment after trial or immediate payment without trial");
+    if (invoice.billing_reason === 'subscription_create') {
+      console.log(
+        '⚡ This is first payment after trial or immediate payment without trial',
+      );
 
-        // ⭕ these dates are undifind ⭕ ⭕ ⭕  
-        // const { current_period_start, current_period_end } = subscription;
-        // console.log("⚡⚡ current_period_start :: current_period_end -> ", current_period_start, current_period_end)
+      // ⭕ these dates are undifind ⭕ ⭕ ⭕
+      // const { current_period_start, current_period_end } = subscription;
+      // console.log("⚡⚡ current_period_start :: current_period_end -> ", current_period_start, current_period_end)
 
+      const newPayment = await PaymentTransaction.create({
+        userId: user._id,
+        referenceFor: invoiceInfo.subscription_metadata.referenceFor, // If this is for Order .. we pass "Order" here
+        referenceId: invoiceInfo.subscription_metadata.referenceId, // If this is for Order .. then we pass OrderId here
+        paymentGateway: TPaymentGateway.stripe,
+        transactionId: invoiceInfo.charge,
+        paymentIntent: invoiceInfo.payment_intent,
+        amount: invoiceInfo.subscription_metadata.amount,
+        currency: invoiceInfo.subscription_metadata.currency,
+        paymentStatus: TPaymentStatus.completed,
+        gatewayResponse: invoiceInfo,
+      });
 
-        const newPayment = await PaymentTransaction.create({
-          userId: user._id,
-          referenceFor : invoiceInfo.subscription_metadata.referenceFor, // If this is for Order .. we pass "Order" here
-          referenceId :  invoiceInfo.subscription_metadata.referenceId, // If this is for Order .. then we pass OrderId here
-          paymentGateway: TPaymentGateway.stripe,
-          transactionId: invoiceInfo.charge,
-          paymentIntent: invoiceInfo.payment_intent,
-          amount: invoiceInfo.subscription_metadata.amount,
-          currency : invoiceInfo.subscription_metadata.currency,
-          paymentStatus: TPaymentStatus.completed,
-          gatewayResponse: invoiceInfo,
-        });
+      logger.info(`💳🪪 new payment :  ${newPayment}`);
 
-        /*********
+      /*********  
+       * *********** */
         // 1. Update UserSubscription with Stripe IDs
         await UserSubscription.findByIdAndUpdate(metadata.referenceId, {
           $set: {
@@ -160,6 +182,7 @@ export const handleSuccessfulPayment = async (invoice) => {
             isAutoRenewed : true,
             // renewalDate:  null, // 
             // Add other fields as needed
+            purchasePlatform : 'web'
           }
         });
 
@@ -171,12 +194,10 @@ export const handleSuccessfulPayment = async (invoice) => {
            }
         });
 
-        *********** */
-
-
-    }else if(invoice.billing_reason === 'subscription_cycle'){
-        console.log("⚡ This is recurring subscription payment");
-/*
+        
+    } else if (invoice.billing_reason === 'subscription_cycle') {
+      console.log('⚡ This is recurring subscription payment');
+      /*
         {
           customer: 'cus_SzzhhEPsNynY9B',
           payment_intent: 'pi_3SEvpURw9NX4Ne6p19BCN1jV',
@@ -196,24 +217,24 @@ export const handleSuccessfulPayment = async (invoice) => {
           }
         }
 */
-        const { current_period_start, current_period_end } = subscription;
+      const { current_period_start, current_period_end } = subscription;
 
-        const newPayment = await PaymentTransaction.create({
-          userId: invoiceInfo.subscription_metadata.userId,
-          referenceFor : invoiceInfo.subscription_metadata.referenceFor, // If this is for Order .. we pass "Order" here
-          referenceId :  invoiceInfo.subscription_metadata.referenceId, // If this is for Order .. then we pass OrderId here
-          paymentGateway: TPaymentGateway.stripe,
-          transactionId: null,  // TODO : need to think about this
-          paymentIntent: invoiceInfo.payment_intent,
-          amount: invoiceInfo.subscription_metadata.amount,
-          currency : invoiceInfo.subscription_metadata.currency,
-          paymentStatus: TPaymentStatus.completed,
-          gatewayResponse: invoiceInfo,
-        });
+      const newPayment = await PaymentTransaction.create({
+        userId: invoiceInfo.subscription_metadata.userId,
+        referenceFor: invoiceInfo.subscription_metadata.referenceFor, // If this is for Order .. we pass "Order" here
+        referenceId: invoiceInfo.subscription_metadata.referenceId, // If this is for Order .. then we pass OrderId here
+        paymentGateway: TPaymentGateway.stripe,
+        transactionId: null, // TODO : need to think about this
+        paymentIntent: invoiceInfo.payment_intent,
+        amount: invoiceInfo.subscription_metadata.amount,
+        currency: invoiceInfo.subscription_metadata.currency,
+        paymentStatus: TPaymentStatus.completed,
+        gatewayResponse: invoiceInfo,
+      });
 
+      /***********
 
-        /***********
-
+      ********* */
         // TODO : referenceFor theke Model ta select korte hobe Best practice
         // 1. Update UserSubscription with Stripe IDs
         await UserSubscription.findByIdAndUpdate(metadata.referenceId, {
@@ -240,19 +261,19 @@ export const handleSuccessfulPayment = async (invoice) => {
            }
         });
 
-        ********* */
-
-    }else if(invoice.billing_reason === 'subscription_update'){
-        console.log("⚡ This is subscription update payment (plan change, proration, etc.)");
-    
-    
-    }else if(invoice.billing_reason === 'trial_end'){
-        console.log("⚠️ This is trial end - usually triggers subscription_create invoice");
-    }else {
-        console.log("⚡ Other billing reason:", invoice.billing_reason);
+        
+    } else if (invoice.billing_reason === 'subscription_update') {
+      console.log(
+        '⚡ This is subscription update payment (plan change, proration, etc.)',
+      );
+    } else if (invoice.billing_reason === 'trial_end') {
+      console.log(
+        '⚠️ This is trial end - usually triggers subscription_create invoice',
+      );
+    } else {
+      console.log('⚡ Other billing reason:', invoice.billing_reason);
     }
 
-    
     return true;
   } catch (error) {
     console.error('⛔ Error handling successful payment:', error);
@@ -274,8 +295,7 @@ export const handleSuccessfulPayment = async (invoice) => {
     // 7. Re-throw to trigger Stripe retry (optional)
     // throw err; // only if you want Stripe to retry
   }
-}
-
+};
 
 /******
     // 🎯 CONVERT FROM TRIAL TO PAID SUBSCRIPTION
@@ -314,7 +334,7 @@ export const handleSuccessfulPayment = async (invoice) => {
 
     ****** */
 
-    /****** Chat GPT Idea .. Must to Implement this 
+/****** Chat GPT Idea .. Must to Implement this 
      * 
      * {
         userId: user._id,                                  // from metadata or customer lookup

@@ -1,3 +1,20 @@
+/*-─────────────────────────────────
+|  ⚠️ DEPRECATED - V1 Cancel User Subscription
+|
+|  ❌ KNOWN ISSUES:
+|  - Not exported (function not accessible)
+|  - Uses undefined stripe instance
+|  - Uses console.log instead of structured logger
+|  - No Redis cache invalidation
+|  - sendCancellationEmail not defined
+|  - No validation on subscription state
+|
+|  ✅ FIX: Use cancelUserSubscription.v2.ts instead
+|
+|  STATUS: Kept for reference, DO NOT USE in production
+|  @deprecated Use cancelUserSubscription.v2.ts
+└──────────────────────────────────*/
+
 import { User } from "../../user.module/user/user.model";
 
 // 6. CANCEL SUBSCRIPTION (USER REQUEST)
