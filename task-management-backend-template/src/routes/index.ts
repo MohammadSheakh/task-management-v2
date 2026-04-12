@@ -28,6 +28,7 @@ import { activationRoutes } from '../modules/childrenBusinessUser.module/activat
 // 🆕 RevenueCat Routes
 import revenueCatRoutes from '../modules/subscription.module/revenueCat/revenueCat.route';
 import { SubscriptionPlanRoute } from '../modules/subscription.module/subscriptionPlan/subscriptionPlan.route';
+import { UserSubscriptionRoute } from '../modules/subscription.module/userSubscription/userSubscription.route';
 
 // import { ChatRoutes } from '../modules/chat/chat.routes';
 // import { MessageRoutes } from '../modules/message/message.routes';
@@ -118,6 +119,12 @@ const apiRoutes = [
   {
     path: '/activitys',
     route: NotificationFixedRoute,
+  },
+
+
+  {
+    path: '/user-subs',
+    route: UserSubscriptionRoute,
   },
 
   {
