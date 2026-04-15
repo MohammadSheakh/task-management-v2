@@ -333,12 +333,14 @@ export const checkDailyTaskLimit = async (
 
     const DAILY_TASK_LIMIT = 5;
 
-    if (taskCount >= DAILY_TASK_LIMIT) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        `Daily task limit reached. You already have ${taskCount} tasks scheduled for this day (max: ${DAILY_TASK_LIMIT})`
-      );
-    }
+    // TODO : MUST : uncomment this line 
+    // 🔂 // TODO MUST : uncomment this 
+    // if (taskCount >= DAILY_TASK_LIMIT) {
+    //   throw new ApiError(
+    //     StatusCodes.BAD_REQUEST,
+    //     `Daily task limit reached. You already have ${taskCount} tasks scheduled for this day (max: ${DAILY_TASK_LIMIT})`
+    //   );
+    // }
 
     next();
   } catch (error) {
