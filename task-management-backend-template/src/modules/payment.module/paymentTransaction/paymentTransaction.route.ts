@@ -74,13 +74,51 @@ router.route('/paginate/dev').get(
   controller.getAllWithPaginationForDev
 );
 
-/*-───────────────────────────────── suplify - kaj bd 
+/*-───────────────────────────────── suplify - kaj bd
 |  Admin | Get Overview of Earnings
 └──────────────────────────────────*/
 router.route('/overview/admin').get(
   auth(TRole.admin),
   controller.getEarningsOverview
 );
+
+/*-───────────────────────────────── 🆕 V3
+|  Admin | Earnings | earning-flow.png | Get all earning list with filters
+|  @desc Get paginated list of all subscription payments with user details
+|  @desc Matches Figma "All Earning list" table columns
+|  @auth Admin only
+|  @query page - Page number (default: 1)
+|  @query limit - Items per page (default: 20)
+|  @query fromDate - Optional: Start date filter (YYYY-MM-DD)
+|  @query toDate - Optional: End date filter (YYYY-MM-DD)
+|  @query paymentGateway - Optional: Filter by gateway (stripe, revenuecat, etc.)
+|  @query paymentStatus - Optional: Filter by status
+|  @figma figma-asset/main-admin-dashboard/earning-flow.png
+|  @version 3.0.0
+└──────────────────────────────────*/
+router
+  .route('/earning-list')
+  .get(
+    auth(TRole.admin),
+    controller.getAllEarningListV3,
+  );
+
+/*-───────────────────────────────── 🆕 V3
+|  Admin | User Subscription | subscription-details-of-a-person.png | Get user subscription details
+|  @desc Get detailed subscription and personal information for a specific user
+|  @desc Matches Figma "User Details" page layout
+|  @auth Admin only
+|  @param userId - User ID to get subscription details for
+|  @response User info, profile info, subscription buying information
+|  @figma figma-asset/main-admin-dashboard/subscription-details-of-a-person.png
+|  @version 3.0.0
+└──────────────────────────────────*/
+router
+  .route('/user/:userId/subscription-details')
+  .get(
+    auth(TRole.admin),
+    controller.getUserSubscriptionDetailsV3,
+  );
 
 /*-─────────────────────────────────
 |  From kappes Backend For Stripe

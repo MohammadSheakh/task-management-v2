@@ -591,6 +591,23 @@ export class UserController extends GenericController<
 
   });
 
+  // as per nirob vai's request
+  updateProfileAndImageV2 = catchAsync(async (req: Request, res: Response) => {
+    const id = req.user.userId;
+    req.body.profileImage = req.uploadedFiles.profileImage; // it actually returns array of string
+
+    const data: IUpdateUserBody = req.body;
+
+    const result = await this.userService.updateProfileAndImageV2(id, data);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Profile and image updated successfully',
+      success: true,
+    });
+  });
+
   // ────────────────────────────────────────────────────────────────────────
   // Support Mode & Notification Preferences
   // ────────────────────────────────────────────────────────────────────────

@@ -4,10 +4,13 @@ import { Model, Types } from 'mongoose';
 
 import { GenericService } from '../../../common/generic/generic.service';
 import { ChildrenBusinessUser, ChildrenBusinessUserDocument, ChildrenBusinessUserStatus } from './childrenBusinessUser.schema';
+import { UserSubscription, UserSubscriptionDocument } from '../subscription.module/userSubscription/schemas/userSubscription.schema';
+import { SubscriptionPlan, SubscriptionPlanDocument } from '../subscription.module/subscriptionPlan/schemas/subscriptionPlan.schema';
+import { UserSubscriptionStatus } from '../subscription.module/userSubscription/constants/userSubscription.constants';
 
 /**
  * ChildrenBusinessUser Service
- * 
+ *
  * Manages parent-child relationships
  * Extends GenericService for CRUD operations
  */
@@ -15,6 +18,8 @@ import { ChildrenBusinessUser, ChildrenBusinessUserDocument, ChildrenBusinessUse
 export class ChildrenBusinessUserService extends GenericService<typeof ChildrenBusinessUser, ChildrenBusinessUserDocument> {
   constructor(
     @InjectModel(ChildrenBusinessUser.name) childrenModel: Model<ChildrenBusinessUserDocument>,
+    @InjectModel(UserSubscription.name) private userSubscriptionModel: Model<UserSubscriptionDocument>,
+    @InjectModel(SubscriptionPlan.name) private subscriptionPlanModel: Model<SubscriptionPlanDocument>,
   ) {
     super(childrenModel);
   }

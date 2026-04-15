@@ -341,6 +341,30 @@ router
     controller.getDailyProgressV2,
   );
 
+/*-───────────────────────────────── 🆕 V3
+|  Child | Business | Task | daily-progress.png | Get daily progress V3 (Fully Documented)
+|  @desc V3 ENHANCEMENT: Get daily task progress with comprehensive design thinking documentation
+|  @desc Returns: progress.display "1/5" format, statistics object, dynamic encouragement message
+|  @desc Includes step-by-step logic explanation and business rationale in code comments
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+|  @query date - Optional: Date in YYYY-MM-DD format (default: today)
+|  @example /tasks/daily-progress/v3?date=2026-04-13
+|  @figma figma-asset/app-user/individual-user/daily-progress.png
+|  @figma figma-asset/app-user/group-children-user/home-flow.png
+|  @version 3.0.0
+|  @author Engineering Team (V3: Enhanced documentation)
+|  @date 13-04-2026
+└──────────────────────────────────*/
+router
+  .route('/daily-progress/v3')
+  .get(
+    auth(TRole.commonUser),
+    taskLimiter,
+    validateFiltersForQuery(optionValidationChecking(['date'])),
+    controller.getDailyProgressV3,
+  );
+
 /*-───────────────────────────────── 🆕
 |  Individual User | Task | task-history-filter-by-date-range.png | Get task history with date range filtering
 |  @desc Get all completed tasks within a date range for task history view
@@ -415,6 +439,24 @@ router
     validateRequest(validation.updateTaskValidationSchema),
     validateTaskTypeConsistency,
     controller.updateById,
+  );
+
+/*-─────────────────────────────────
+|  Child | Business | Task | edit-update-task-flow.png | Update task + subtasks by ID
+|  @desc Update task details and manage subtasks (add/edit/delete) in one request
+|  @auth All authenticated users (child, business)
+|  @rateLimit 100 requests per minute
+|  @access Task creator or owner only
+└──────────────────────────────────*/
+router
+  .route('/:id/v2')
+  .put(
+    auth(TRole.commonUser),
+    taskLimiter,
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskAndSubtasksValidationSchema),
+    controller.updateTaskAndSubtasksV2,
   );
 
 /*-───────────────────────────────── ✔️

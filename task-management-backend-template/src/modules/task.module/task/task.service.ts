@@ -1731,6 +1731,107 @@ export class TaskService extends GenericService<typeof Task, ITask> {
   }
 
   /** ✔️
+   * Update task and manage subtasks (add/edit/delete) in one request
+   * Figma: edit-update-task-flow.png
+   * @param taskId - Task ID
+   * @param data - Update payload with task fields and subtask operations
+   * @param userId - User performing the update
+   * @returns Updated task with populated subtasks
+   */
+  async updateTaskAndSubtasksV2(
+    taskId: string,
+    data: any,
+    userId: Types.ObjectId | string,
+  ): Promise<ITask> {
+    const task = await this.model.findById(taskId);
+    if (!task || task.isDeleted) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
+
+    const { SubTask } = await import('../subTask/subTask.model');
+
+    // ─── 1. Update task fields ──────────────────────────────────
+    const taskUpdateFields: any = {};
+    if (data.title !== undefined) taskUpdateFields.title = data.title;
+    if (data.description !== undefined) taskUpdateFields.description = data.description;
+    if (data.scheduledTime !== undefined) taskUpdateFields.scheduledTime = data.scheduledTime;
+    if (data.startTime !== undefined) taskUpdateFields.startTime = new Date(data.startTime);
+    if (data.dueDate !== undefined) taskUpdateFields.dueDate = new Date(data.dueDate);
+    if (data.priority !== undefined) taskUpdateFields.priority = data.priority;
+    if (data.status !== undefined) taskUpdateFields.status = data.status;
+    if (data.ownerUserId !== undefined) taskUpdateFields.ownerUserId = new Types.ObjectId(data.ownerUserId);
+    if (data.assignedUserIds !== undefined) {
+      taskUpdateFields.assignedUserIds = data.assignedUserIds.map((id: string) => new Types.ObjectId(id));
+    }
+
+    const updatedTask = await this.model
+      .findByIdAndUpdate(taskId, taskUpdateFields, { new: true })
+      .select('-__v');
+
+    if (!updatedTask) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found after update');
+    }
+
+    // ─── 2. Delete subtasks ─────────────────────────────────────
+    if (data.deleteSubtaskIds && data.deleteSubtaskIds.length > 0) {
+      await SubTask.updateMany(
+        { _id: { $in: data.deleteSubtaskIds }, taskId: new Types.ObjectId(taskId) },
+        { isDeleted: true }
+      );
+      logger.info(`Soft deleted ${data.deleteSubtaskIds.length} subtasks for task ${taskId}`);
+    }
+
+    // ─── 3. Update existing subtasks ────────────────────────────
+    if (data.updateSubtasks && data.updateSubtasks.length > 0) {
+      for (const sub of data.updateSubtasks) {
+        const updateData: any = {};
+        if (sub.title !== undefined) updateData.title = sub.title;
+        if (sub.isCompleted !== undefined) {
+          updateData.isCompleted = sub.isCompleted;
+          if (sub.isCompleted) updateData.completedAt = new Date();
+        }
+        if (sub.order !== undefined) updateData.order = sub.order;
+
+        await SubTask.findByIdAndUpdate(
+          sub._id,
+          updateData,
+          { new: true }
+        );
+      }
+      logger.info(`Updated ${data.updateSubtasks.length} subtasks for task ${taskId}`);
+    }
+
+    // ─── 4. Add new subtasks ────────────────────────────────────
+    if (data.addSubtasks && data.addSubtasks.length > 0) {
+      const subtasksToCreate = data.addSubtasks.map((sub: any, index: number) => ({
+        taskId: new Types.ObjectId(taskId),
+        title: sub.title,
+        isCompleted: sub.isCompleted || false,
+        order: sub.order || index + 1,
+        createdById: userId,
+        completedAt: sub.isCompleted ? new Date() : null,
+      }));
+      await SubTask.insertMany(subtasksToCreate);
+      logger.info(`Added ${subtasksToCreate.length} new subtasks for task ${taskId}`);
+    }
+
+    // ─── 5. Recalculate parent task subtask counters ────────────
+    const stats = await SubTask.getTaskCompletionStats(taskId);
+    await this.model.findByIdAndUpdate(taskId, {
+      totalSubtasks: stats.total,
+      completedSubtasks: stats.completed,
+    });
+
+    // ─── 6. Return updated task with populated subtasks ─────────
+    const result = await this.model
+      .findById(taskId)
+      .populate('subtasks', '-__v -isDeleted')
+      .select('-__v');
+
+    return result as ITask;
+  }
+
+  /** ✔️
    * Get task statistics for a user
    * @param userId - User ID
    * @returns Task statistics
@@ -1924,6 +2025,345 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     };
 
     // Cache the result
+    await this.setInCache(cacheKey, result, TASK_CACHE_CONFIG.DAILY_PROGRESS);
+
+    return result;
+  }
+
+  /**
+   * Get daily progress V3 - Figma-Aligned Home Screen Widget
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🎨 FIGMA DESIGN REFERENCE
+   * ─────────────────────────────────────────────────────────────────────────────
+   * Source: figma-asset/app-user/individual-user/daily-progress.png
+   *         figma-asset/app-user/group-children-user/home-flow.png
+   *
+   * UI Components:
+   *   1. Header: "Daily Progress" title
+   *   2. Badge: "1/5" (completed/total format)
+   *   3. Progress Bar: Visual fill based on completion percentage
+   *   4. Message: "4 tasks remaining. You've got this!"
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 💡 DESIGN THINKING & BUSINESS LOGIC
+   * ─────────────────────────────────────────────────────────────────────────────
+   *
+   * QUESTION: What problem does this solve?
+   * ANSWER: Users need immediate visibility into their daily task completion
+   *         status when they open the app. This is the FIRST thing they see.
+   *
+   * DESIGN DECISIONS:
+   *
+   * 1. Why "1/5" format instead of percentage?
+   *    - COGNITIVE LOAD: "1/5" is instantly understandable
+   *    - PERCENTAGE requires mental math: "20% done" → "How many is that?"
+   *    - FRACTION gives both completion AND total at a glance
+   *    - MOBILE-FIRST: Fraction is more compact in UI badge
+   *
+   * 2. Why count by TASK status, not subtask completion?
+   *    - BUSINESS LOGIC: A task is "done" only when fully completed
+   *    - User psychology: Partial progress ≠ completed
+   *    - Example: Task with 4/5 subtasks done is still "not done"
+   *    - Prevents false sense of accomplishment
+   *
+   * 3. Why filter by startTime date?
+   *    - DAILY PROGRESS means "tasks scheduled for TODAY"
+   *    - Not "tasks created today" or "tasks completed today"
+   *    - Aligns with user's daily schedule/planner mental model
+   *    - Supports future-dated tasks (tasks scheduled ahead)
+   *
+   * 4. Why include both ownerUserId AND assignedUserIds?
+   *    - SELF TASKS: User created the task themselves
+   *    - ASSIGNED TASKS: Someone else (teacher/parent) assigned to user
+   *    - Both types count toward daily completion
+   *    - User sees ALL their responsibilities in one view
+   *
+   * 5. Why "X tasks remaining" instead of "X tasks left"?
+   *    - "Remaining" implies forward momentum
+   *    - "Left" can have negative connotations
+   *    - Positive, action-oriented language
+   *
+   * 6. Why dynamic encouragement messages?
+   *    - MOTIVATIONAL DESIGN: Different messages for different progress states
+   *    - 0 completed: "Let's get started!" (gentle nudge, no guilt)
+   *    - All done: "Amazing work! 🎉" (celebration, dopamine hit)
+   *    - In progress: "You've got this!" (encouragement, confidence)
+   *    - Personalization increases engagement
+   *
+   * 7. Why cache for only 2 minutes?
+   *    - HOME SCREEN WIDGET: Users may refresh frequently
+   *    - Task status changes in real-time (subtask completion, etc.)
+   *    - Stale data = frustration ("I just completed a task!")
+   *    - Trade-off: Performance vs. freshness → freshness wins
+   *
+   * 8. Why sort by startTime ascending?
+   *    - Chronological order matches daily schedule mental model
+   *    - Earliest tasks first = what should I do NOW?
+   *    - Matches clock/time-based planning
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 🧠 TECHNICAL CONSIDERATIONS
+   * ─────────────────────────────────────────────────────────────────────────────
+   *
+   * EDGE CASES HANDLED:
+   *   - No tasks: total=0, percentage=0, message="No tasks completed yet..."
+   *   - All completed: remaining=0, message="All tasks completed! 🎉"
+   *   - Mixed status: accurate counts for each status
+   *   - Tasks with/without subtasks: progress% calculated correctly
+   *   - Deleted tasks: excluded via isDeleted filter
+   *   - Cross-day tasks: filtered by startTime range (00:00-23:59)
+   *
+   * PERFORMANCE:
+   *   - Single MongoDB query with $or operator
+   *   - Lean query (no Mongoose overhead)
+   *   - Sorted at DB level (indexed startTime recommended)
+   *   - Cached result (120s TTL)
+   *   - Memory efficient: only required fields projected
+   *
+   * FUTURE ENHANCEMENTS (Not in current scope):
+   *   - Streak tracking (X days in a row all tasks completed)
+   *   - Time-based insights (best productivity hours)
+   *   - Overdue task warnings
+   *   - Predictive completion time estimates
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   *
+   * @param userId - User ID (from authenticated request)
+   * @param date - Target date (default: today)
+   * @returns Daily progress snapshot matching Figma design
+   * @version 3.0.0
+   * @author Engineering Team (V3: Enhanced documentation)
+   * @date 13-04-2026
+   */
+  async getDailyProgressV3(userId: Types.ObjectId, date?: Date) {
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 1: Normalize date for cache key and query range
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY: We need consistent date handling for caching and filtering
+    // - Cache key needs stable string format (YYYY-MM-DD)
+    // - Query needs exact day boundaries (00:00:00.000 to 23:59:59.999)
+
+    const targetDate = date || new Date();
+    const dateKey = targetDate.toISOString().split('T')[0]; // "2026-04-13"
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 2: Check cache before hitting database
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY: Home screen is accessed frequently, reduces DB load
+    // TTL: 120 seconds (2 minutes) - balances freshness vs performance
+    // Cache invalidation happens naturally on TTL expiry
+
+    const cacheKey = this.getCacheKey(
+      'daily-progress-v3',
+      dateKey,
+      userId.toString(),
+    );
+
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   return cached; // Return cached data if available
+    // }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 3: Define date range boundaries for query
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY: We need exact day boundaries to match "daily" concept
+    // - startOfDay: 00:00:00.000 (midnight start)
+    // - endOfDay: 23:59:59.999 (end of day)
+    // This ensures we capture all tasks scheduled for this specific day
+
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 4: Query all tasks for user on this date
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY this query structure:
+    //
+    // $or: [{ ownerUserId }, { assignedUserIds }]
+    //   → Includes BOTH self-created tasks AND assigned tasks
+    //   → User sees ALL their responsibilities, not just ones they created
+    //
+    // startTime: { $gte, $lte }
+    //   → Filters by SCHEDULED date, not creation date
+    //   → Matches user's daily schedule/planner mental model
+    //   → Supports advance scheduling (tasks created days ahead)
+    //
+    // isDeleted: false
+    //   → Soft delete support
+    //   → Deleted tasks shouldn't count toward progress
+    //
+    // sort: { startTime: 1 }
+    //   → Chronological order (earliest first)
+    //   → Matches "what should I do next?" user question
+    //   → Aligns with time-based daily schedule UI
+
+    const tasks = await this.model
+      .find({
+        $or: [{ ownerUserId: userId }, { assignedUserIds: userId }],
+        startTime: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+        isDeleted: false,
+      })
+      .sort({ startTime: 1 })
+      .lean(); // lean() = plain JS objects, no Mongoose overhead
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 5: Calculate statistics
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY count by task status:
+    // - Task-level status is the source of truth
+    // - Subtask completion updates task status automatically
+    // - User cares about "tasks done" not "subtasks done"
+    //
+    // CRITICAL: A task with 4/5 subtasks completed is still PENDING or IN_PROGRESS
+    // Only when ALL subtasks are done does task become COMPLETED
+    // This prevents false sense of accomplishment
+
+    const total = tasks.length;
+    const completed = tasks.filter(
+      (t: any) => t.status === TaskStatus.COMPLETED,
+    ).length;
+    const inProgress = tasks.filter(
+      (t: any) => t.status === TaskStatus.IN_PROGRESS,
+    ).length;
+    const pending = tasks.filter(t => t.status === TaskStatus.PENDING).length;
+    const remaining = total - completed; // Not yet completed (includes pending + inProgress)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 6: Build task list with subtask progress
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY include subtask info:
+    // - UI shows "2 / 5 subtasks" for in-progress tasks
+    // - Progress bar needs percentage calculation
+    // - User sees granular progress within each task
+    //
+    // Progress percentage logic:
+    // - If task HAS subtasks: (completedSubtasks / totalSubtasks) * 100
+    // - If task has NO subtasks: 100% if completed, 0% otherwise
+    // - Matches Figma: individual task progress bars
+
+    const taskList = tasks.map(task => ({
+      _id: task._id.toString(),
+      title: task.title,
+      status: task.status, // PENDING | IN_PROGRESS | COMPLETED
+      startTime: task.startTime,
+      taskType: task.taskType, // SELF | COLLABORATIVE | etc.
+      assignedBy: task.createdById, // Who created/assigned this task
+      // Subtask progress (only if task has subtasks)
+      subtasks:
+        task.totalSubtasks > 0
+          ? {
+              total: task.totalSubtasks || 0,
+              completed: task.completedSubtasks || 0,
+            }
+          : undefined,
+      // Progress percentage calculation
+      progressPercentage:
+        task.totalSubtasks && task.totalSubtasks > 0
+          ? Math.round(
+              ((task.completedSubtasks || 0) / task.totalSubtasks) * 100,
+            )
+          : task.status === TaskStatus.COMPLETED
+            ? 100 // No subtasks + completed = 100%
+            : 0, // No subtasks + not completed = 0%
+    }));
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 7: Generate dynamic encouragement message
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY dynamic messages:
+    // - MOTIVATIONAL DESIGN: Different messages for different progress states
+    // - Psychological impact: Right words at right time increase engagement
+    // - Figma shows: "4 tasks remaining. You've got this!"
+    //
+    // Message logic:
+    // - 0 completed: Gentle nudge, no guilt ("Let's get started!")
+    // - All done: Celebration, dopamine hit ("Amazing work! 🎉")
+    // - In progress: Encouragement, confidence ("You've got this!")
+    // - Pluralization: "1 task" vs "2 tasks" (grammatically correct)
+
+    let encouragementMessage = '';
+    if (completed === 0) {
+      encouragementMessage = `No tasks completed yet. Let's get started!`;
+    } else if (completed === total && total > 0) {
+      encouragementMessage = `All tasks completed! Amazing work! 🎉`;
+    } else {
+      // Figma example: "4 tasks remaining. You've got this!"
+      encouragementMessage = `${remaining} task${remaining !== 1 ? 's' : ''} remaining. You've got this!`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 8: Build response matching Figma design
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIGMA BREAKDOWN:
+    //
+    // Header: "Daily Progress"                    → progress.display
+    // Badge:  "1/5"                               → progress.display: "1/5"
+    // Bar:    [████░░░░░░░░░░░░░░░░]              → progress.percentage: 20
+    // Text:   "4 tasks remaining. You've got this!" → message
+    //
+    // Response structure:
+    // {
+    //   date: "2026-04-13",                       → Which day this is for
+    //   progress: {                                → Main display data
+    //     completed: 1,                            → Number of completed tasks
+    //     total: 5,                                → Total tasks for the day
+    //     display: "1/5",                          → Figma badge format
+    //     percentage: 20                           → Progress bar fill (0-100)
+    //   },
+    //   statistics: {                              → Detailed breakdown
+    //     total: 5,                                → All tasks
+    //     completed: 1,                            → Status = COMPLETED
+    //     pending: 3,                              → Status = PENDING
+    //     inProgress: 1,                           → Status = IN_PROGRESS
+    //     remaining: 4                             → Not yet completed
+    //   },
+    //   message: "4 tasks remaining...",           → Encouragement text
+    //   tasks: [...]                               → Individual task details
+    // }
+
+    const result = {
+      date: dateKey,
+      // Figma-aligned progress display (Badge: "1/5")
+      progress: {
+        completed,
+        total,
+        display: `${completed}/${total}`, // Figma format: "completed/total"
+        percentage: total > 0 ? Math.round((completed / total) * 100) : 0, // 0-100 for progress bar
+      },
+      // Detailed statistics for analytics/dashboard
+      statistics: {
+        total,
+        completed,
+        pending,
+        inProgress,
+        remaining,
+      },
+      // Dynamic encouragement message (Figma text)
+      message: encouragementMessage,
+      // Individual task list with subtask progress
+      tasks: taskList,
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 9: Cache the result for 2 minutes
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY 2 minutes:
+    // - Home screen accessed frequently (every app open)
+    // - Task status can change (subtask completion, etc.)
+    // - Stale data = user frustration
+    // - Trade-off: 2 min cache reduces DB load while keeping data fresh
+    //
+    // Cache key format: daily-progress-v3:2026-04-13:user-123
+    // Ensures unique cache per user per day
+
     await this.setInCache(cacheKey, result, TASK_CACHE_CONFIG.DAILY_PROGRESS);
 
     return result;

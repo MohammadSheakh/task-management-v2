@@ -16,6 +16,8 @@ import stripe from '../../../config/paymentGateways/stripe.config';
 import { User } from '../../user.module/user/user.model';
 import { IUser } from '../../user.module/user/user.interface';
 import { TTransactionFor } from '../../../constants/TTransactionFor';
+import {Types} from 'mongoose';
+import { errorLogger, logger } from '../../../shared/logger';
 
 export class UserSubscriptionService extends GenericService<
   typeof UserSubscription,
@@ -26,6 +28,511 @@ export class UserSubscriptionService extends GenericService<
   constructor() {
     super(UserSubscription);
     this.stripe = stripe;
+  }
+
+  /**
+   * Get user's subscription history (all purchased subscriptions)
+   * V3 ENHANCEMENT: Complete subscription list with populated plan details
+   * Figma: subscription-flow-v1.png (Subscription History Table)
+   *
+   * @param userId - User ID
+   * @returns Array of user's subscriptions with plan details
+   */
+  async getMySubscriptionHistory(userId: string): Promise<any[]> {
+    const subscriptions = await this.model
+      .find({
+        userId: new Types.ObjectId(userId),
+        isDeleted: false,
+        // Exclude processing status (incomplete purchases)
+        status: { $ne: UserSubscriptionStatusType.processing },
+      })
+      .populate('subscriptionPlanId', 'subscriptionName subscriptionType amount currency maxChildrenAccount')
+      .sort({ createdAt: -1 }) // Most recent first
+      .lean();
+
+    // Format response to match Figma table columns
+    return subscriptions.map(sub => ({
+      _id: sub._id,
+      userSubscriptionId: sub._id.toString().slice(-6).toUpperCase(), // Short ID for display (e.g., "ZZPP000")
+      subscriptionName: sub.subscriptionPlanId?.subscriptionName || 'Unknown Plan',
+      subscriptionType: sub.subscriptionPlanId?.subscriptionType || 'unknown',
+      startDate: sub.subscriptionStartDate,
+      currentPeriodDate: sub.currentPeriodStartDate,
+      expireDate: sub.expirationDate,
+      price: sub.subscriptionPlanId?.amount || '0',
+      currency: sub.subscriptionPlanId?.currency || 'usd',
+      status: sub.status,
+      billingCycle: sub.billingCycle,
+      isAutoRenewed: sub.isAutoRenewed,
+      cancelledAtPeriodEnd: sub.cancelledAtPeriodEnd,
+      stripe_subscription_id: sub.stripe_subscription_id,
+      maxChildrenAccount: sub.subscriptionPlanId?.maxChildrenAccount || 0,
+    }));
+  }
+
+  /**
+   * Get user's active subscription with full details
+   * V3 ENHANCEMENT: Returns active/trialing subscription with plan info
+   * Figma: subscription-flow-v1.png (Active Subscription Card)
+   *
+   * @param userId - User ID
+   * @returns Active subscription details or null
+   */
+  async getMyActiveSubscription(userId: string): Promise<any | null> {
+    const subscription = await this.model
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        status: { $in: [UserSubscriptionStatusType.active, UserSubscriptionStatusType.trialing] },
+        isDeleted: false,
+      })
+      .populate('subscriptionPlanId', 'subscriptionName subscriptionType amount currency maxChildrenAccount')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!subscription) {
+      return null;
+    }
+
+    // Format response to match Figma card layout
+    return {
+      _id: subscription._id,
+      userSubscriptionId: subscription._id.toString().slice(-6).toUpperCase(),
+      subscriptionName: subscription.subscriptionPlanId?.subscriptionName || 'Unknown Plan',
+      subscriptionType: subscription.subscriptionPlanId?.subscriptionType || 'unknown',
+      description: `${subscription.subscriptionPlanId?.subscriptionType === 'business_level1' ? 'Designed for teachers, parents, and business managers' : 'Premium'} subscription package`,
+      price: subscription.subscriptionPlanId?.amount || '0',
+      currency: subscription.subscriptionPlanId?.currency || 'usd',
+      billingInterval: 'month', // Default to monthly
+      status: subscription.status,
+      startDate: subscription.subscriptionStartDate,
+      currentPeriodStart: subscription.currentPeriodStartDate,
+      currentPeriodEnd: subscription.expirationDate,
+      renewalDate: subscription.renewalDate,
+      billingCycle: subscription.billingCycle,
+      isAutoRenewed: subscription.isAutoRenewed,
+      cancelledAtPeriodEnd: subscription.cancelledAtPeriodEnd,
+      maxChildrenAccount: subscription.subscriptionPlanId?.maxChildrenAccount || 0,
+      stripe_subscription_id: subscription.stripe_subscription_id,
+      stripe_customer_id: subscription.stripe_customer_id,
+      // Account structure info for Figma card
+      accountStructure: {
+        maxUsers: subscription.subscriptionPlanId?.maxChildrenAccount || 0,
+        primaryAccounts: 1,
+        secondaryAccounts: (subscription.subscriptionPlanId?.maxChildrenAccount || 0) - 1,
+      },
+    };
+  }
+
+  /**
+   * Cancel user's active subscription
+   * V3 ENHANCEMENT: Improved error handling and better response
+   * Figma: subscription-flow-v1.png (Cancel Subscription Button)
+   *
+   * @param userId - User ID
+   * @param subscriptionId - Optional: Specific subscription ID to cancel
+   * @returns Cancellation result
+   */
+  async cancelMySubscription(userId: string, subscriptionId?: string): Promise<any> {
+    // Check if user has any subscription in cancelling status
+    const isCancelling = await this.model.exists({
+      userId: new Types.ObjectId(userId),
+      status: UserSubscriptionStatusType.cancelling,
+      isDeleted: false,
+    });
+
+    if (isCancelling) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'You already have a pending subscription cancellation. It will be cancelled at the end of the billing cycle.',
+      );
+    }
+
+    // Find the subscription to cancel
+    let userSub: any;
+    
+    if (subscriptionId) {
+      // Cancel specific subscription
+      userSub = await this.model.findById(subscriptionId).lean();
+      
+      if (!userSub) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Subscription not found');
+      }
+      
+      if (userSub.userId.toString() !== userId) {
+        throw new ApiError(StatusCodes.FORBIDDEN, 'You can only cancel your own subscription');
+      }
+    } else {
+      // Cancel the most recent active subscription
+      userSub = await this.model
+        .findOne({
+          userId: new Types.ObjectId(userId),
+          status: { $in: [UserSubscriptionStatusType.active, UserSubscriptionStatusType.trialing] },
+          isDeleted: false,
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+    }
+
+    if (!userSub || !userSub.stripe_subscription_id) {
+      throw new ApiError(
+        StatusCodes.NOT_FOUND,
+        'No active subscription found to cancel. Please make sure you have an active subscription.',
+      );
+    }
+
+    // Check if already cancelled at period end
+    if (userSub.cancelledAtPeriodEnd) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'This subscription is already scheduled for cancellation at the end of the billing cycle.',
+      );
+    }
+
+    try {
+      // Cancel at period end via Stripe
+      const canceledSub = await stripe.subscriptions.update(userSub.stripe_subscription_id, {
+        cancel_at_period_end: true,
+      });
+
+      // Update local subscription record
+      await this.model.findByIdAndUpdate(userSub._id, {
+        $set: {
+          cancelledAtPeriodEnd: true,
+          status: UserSubscriptionStatusType.cancelling,
+        },
+      });
+
+      logger.info(`[Subscription Cancelled] User ${userId} cancelled subscription ${userSub._id}`);
+
+      return {
+        subscriptionId: userSub._id,
+        stripeSubscriptionId: userSub.stripe_subscription_id,
+        status: 'cancelling',
+        message: `Your subscription will remain active until ${userSub.expirationDate?.toLocaleDateString() || 'the end of the billing cycle'}. After that, it will be cancelled.`,
+        cancelledAt: new Date(),
+        effectiveCancellationDate: userSub.expirationDate,
+      };
+    } catch (error) {
+      errorLogger.error(`[Stripe Cancel Error] Failed to cancel subscription ${userSub.stripe_subscription_id}`, error);
+      throw new ApiError(
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Failed to cancel subscription with Stripe. Please try again or contact support.',
+      );
+    }
+  }
+
+  /**
+   * Get user subscription details for admin dashboard
+   * V3 ENHANCEMENT: Matches Figma subscription-details-of-a-person.png
+   * Figma: figma-asset/main-admin-dashboard/subscription-details-of-a-person.png
+   *
+   * @param userId - User ID to get subscription details for
+   * @returns User subscription details with personal information
+   */
+  async getUserSubscriptionDetailsForAdmin(userId: string): Promise<any> {
+    const { User } = await import('../../user.module/user/user.model');
+    const { UserProfile } = await import('../../user.module/userProfile/userProfile.model');
+    const { PaymentTransaction } = await import('../../payment.module/paymentTransaction/paymentTransaction.model');
+
+    // Get user's most recent subscription
+    const subscription = await this.model
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        isDeleted: false,
+      })
+      .populate('subscriptionPlanId', 'subscriptionName subscriptionType amount currency')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!subscription) {
+      return null;
+    }
+
+    // Get user details
+    const user = await User.findById(userId)
+      .select('name email phoneNumber profileImage profileId role')
+      .lean();
+
+    // Get user profile if exists
+    let userProfile = null;
+    if (user?.profileId) {
+      userProfile = await UserProfile.findById(user.profileId)
+        .select('address gender dateOfBirth location')
+        .lean();
+    }
+
+    // Calculate age from date of birth
+    let age = null;
+    if (userProfile?.dateOfBirth) {
+      const birthDate = new Date(userProfile.dateOfBirth);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
+
+    // Get payment transaction for this subscription
+    const paymentTransaction = await PaymentTransaction.findOne({
+      referenceId: subscription._id,
+      referenceFor: 'UserSubscription',
+      paymentStatus: 'completed',
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format response to match Figma layout
+    return {
+      user: {
+        _id: user?._id,
+        name: user?.name,
+        email: user?.email,
+        profileImage: user?.profileImage,
+        phoneNumber: user?.phoneNumber,
+        role: user?.role,
+      },
+      userProfile: {
+        address: userProfile?.address || userProfile?.location || null,
+        gender: userProfile?.gender || null,
+        dateOfBirth: userProfile?.dateOfBirth || null,
+        age: age,
+      },
+      subscriptionBuyingInformation: {
+        _id: subscription._id,
+        userSubscriptionId: subscription._id.toString().slice(-6).toUpperCase(),
+        subscriptionType: subscription.subscriptionPlanId?.subscriptionType || subscription.subscriptionType || 'unknown',
+        subscriptionName: subscription.subscriptionPlanId?.subscriptionName || 'Unknown Plan',
+        buyingDate: subscription.subscriptionStartDate || subscription.createdAt,
+        currentPeriodStartDate: subscription.currentPeriodStartDate,
+        currentPeriodEndDate: subscription.expirationDate,
+        transactionId: paymentTransaction?.transactionId || paymentTransaction?.paymentIntent || subscription.stripe_subscription_id || 'N/A',
+        withdrawAmount: paymentTransaction?.amount || subscription.subscriptionPlanId?.amount || 0,
+        currency: paymentTransaction?.currency || 'usd',
+        subscriptionExpired: subscription.expirationDate,
+        cancelledAtPeriodEnd: subscription.cancelledAtPeriodEnd || false,
+        cancelDate: subscription.cancelledAt || null,
+        status: subscription.status,
+        billingCycle: subscription.billingCycle,
+        isAutoRenewed: subscription.isAutoRenewed,
+        stripe_subscription_id: subscription.stripe_subscription_id,
+        paymentGateway: paymentTransaction?.paymentGateway || 'stripe',
+      },
+    };
+  }
+
+  /**
+   * Get user subscription details for admin dashboard
+   * V3 ENHANCEMENT: Matches Figma subscription-details-of-a-person.png
+   * Figma: figma-asset/main-admin-dashboard/subscription-details-of-a-person.png
+   *
+   * @param userId - User ID to get subscription details for
+   * @returns User subscription details with personal information
+   */
+  async getUserSubscriptionDetailsForAdmin(userId: string): Promise<any> {
+    const { User } = await import('../../user.module/user/user.model');
+    const { UserProfile } = await import('../../user.module/userProfile/userProfile.model');
+    const { PaymentTransaction } = await import('../../payment.module/paymentTransaction/paymentTransaction.model');
+
+    // Get user's most recent subscription
+    const subscription = await this.model
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        isDeleted: false,
+      })
+      .populate('subscriptionPlanId', 'subscriptionName subscriptionType amount currency')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!subscription) {
+      return null;
+    }
+
+    // Get user details
+    const user = await User.findById(userId)
+      .select('name email phoneNumber profileImage profileId role')
+      .lean();
+
+    // Get user profile if exists
+    let userProfile = null;
+    if (user?.profileId) {
+      userProfile = await UserProfile.findById(user.profileId)
+        .select('address gender dateOfBirth location')
+        .lean();
+    }
+
+    // Calculate age from date of birth
+    let age = null;
+    if (userProfile?.dateOfBirth) {
+      const birthDate = new Date(userProfile.dateOfBirth);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
+
+    // Get payment transaction for this subscription
+    const paymentTransaction = await PaymentTransaction.findOne({
+      referenceId: subscription._id,
+      referenceFor: 'UserSubscription',
+      paymentStatus: 'completed',
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Format response to match Figma layout
+    return {
+      user: {
+        _id: user?._id,
+        name: user?.name,
+        email: user?.email,
+        profileImage: user?.profileImage,
+        phoneNumber: user?.phoneNumber,
+        role: user?.role,
+      },
+      userProfile: {
+        address: userProfile?.address || userProfile?.location || null,
+        gender: userProfile?.gender || null,
+        dateOfBirth: userProfile?.dateOfBirth || null,
+        age: age,
+      },
+      subscriptionBuyingInformation: {
+        _id: subscription._id,
+        userSubscriptionId: subscription._id.toString().slice(-6).toUpperCase(),
+        subscriptionType: subscription.subscriptionPlanId?.subscriptionType || subscription.subscriptionType || 'unknown',
+        subscriptionName: subscription.subscriptionPlanId?.subscriptionName || 'Unknown Plan',
+        buyingDate: subscription.subscriptionStartDate || subscription.createdAt,
+        currentPeriodStartDate: subscription.currentPeriodStartDate,
+        currentPeriodEndDate: subscription.expirationDate,
+        transactionId: paymentTransaction?.transactionId || paymentTransaction?.paymentIntent || subscription.stripe_subscription_id || 'N/A',
+        withdrawAmount: paymentTransaction?.amount || subscription.subscriptionPlanId?.amount || 0,
+        currency: paymentTransaction?.currency || 'usd',
+        subscriptionExpired: subscription.expirationDate,
+        cancelledAtPeriodEnd: subscription.cancelledAtPeriodEnd || false,
+        cancelDate: subscription.cancelledAt || null,
+        status: subscription.status,
+        billingCycle: subscription.billingCycle,
+        isAutoRenewed: subscription.isAutoRenewed,
+        stripe_subscription_id: subscription.stripe_subscription_id,
+        paymentGateway: paymentTransaction?.paymentGateway || 'stripe',
+      },
+    };
+  }
+
+  /**
+   * Get all subscribed users with current active subscriptions
+   * V3 ENHANCEMENT: Matches Figma earning-flow.png filters
+   * Figma: figma-asset/main-admin-dashboard/earning-flow.png
+   *
+   * @param filters - Query filters
+   * @param options - Pagination options
+   * @returns Paginated list of subscribed users
+   */
+  async getSubscribedUsersV3(
+    filters: any,
+    options: any,
+  ): Promise<any> {
+    const { page = 1, limit = 20 } = options;
+    const skip = (page - 1) * limit;
+
+    // Build match query for active subscriptions
+    const matchQuery: any = {
+      isDeleted: false,
+      status: filters.status || { $in: ['active', 'trialing'] },
+    };
+
+    // Apply filters
+    if (filters.subscriptionType) {
+      matchQuery.subscriptionType = filters.subscriptionType;
+    }
+    if (filters.userId) {
+      matchQuery.userId = new Types.ObjectId(filters.userId);
+    }
+
+    // Aggregation pipeline
+    const pipeline = [
+      { $match: matchQuery },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'subscriptionplans',
+          localField: 'subscriptionPlanId',
+          foreignField: '_id',
+          as: 'plan',
+        },
+      },
+      { $unwind: { path: '$plan', preserveNullAndEmptyArrays: true } },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 1,
+          userSubscriptionId: '$_id',
+          user: {
+            _id: '$user._id',
+            name: '$user.name',
+            email: '$user.email',
+            profileImage: '$user.profileImage',
+          },
+          subscriptionType: {
+            $ifNull: ['$plan.subscriptionType', '$subscriptionType'],
+          },
+          subscriptionName: {
+            $ifNull: ['$plan.subscriptionName', 'Unknown Plan'],
+          },
+          price: {
+            $ifNull: ['$plan.amount', 0],
+          },
+          currency: {
+            $ifNull: ['$plan.currency', 'usd'],
+          },
+          status: '$status',
+          subscriptionStartDate: '$subscriptionStartDate',
+          currentPeriodStartDate: '$currentPeriodStartDate',
+          expirationDate: '$expirationDate',
+          billingCycle: '$billingCycle',
+          isAutoRenewed: '$isAutoRenewed',
+          createdAt: '$createdAt',
+        },
+      },
+    ];
+
+    // Get total count
+    const countPipeline = [
+      { $match: matchQuery },
+      { $count: 'total' },
+    ];
+
+    const [data, countResult] = await Promise.all([
+      this.model.aggregate(pipeline),
+      this.model.aggregate(countPipeline),
+    ]);
+
+    const total = countResult[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages,
+      },
+    };
   }
 
   startFreeTrial = async (

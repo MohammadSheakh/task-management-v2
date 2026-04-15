@@ -355,7 +355,7 @@ export class UserService extends GenericService<typeof User, IUser> {
 
 
   async updateProfileImageSeperately(userId: string, data: any): Promise<any> {
-    
+
     const user:IUser = await User.findById(userId).select("name profileImage");
 
     console.log("data service  data?.profileImage[0] -> ", data?.profileImage[0]);
@@ -366,14 +366,14 @@ export class UserService extends GenericService<typeof User, IUser> {
 
     const attachmentUrl:IAttachment | null = await Attachment.findById(data?.profileImage[0]);
     // console.log("user -> ", user);
-  
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
         profileImage : {
           imageUrl: attachmentUrl?.attachment ? attachmentUrl?.attachment : user?.profileImage?.imageUrl,
         }
-      }, 
+      },
       { new: true }
     );
 
@@ -385,6 +385,68 @@ export class UserService extends GenericService<typeof User, IUser> {
       updatedUser
     }
 
+  }
+
+  async updateProfileAndImageV2(userId: string, data: any): Promise<any> {
+    //-- Updates name, phoneNumber (User), dob, location (UserProfile) AND profileImage in one call
+
+    const user: IUser = await User.findById(userId).select("name profileImage");
+
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+    }
+
+    // Handle profile image update if a new image was uploaded
+    let profileImageUpdate: any = {};
+    if (data?.profileImage && data?.profileImage[0]) {
+      const attachmentUrl: IAttachment | null = await Attachment.findById(data.profileImage[0]);
+      profileImageUpdate.profileImage = {
+        imageUrl: attachmentUrl?.attachment || user.profileImage?.imageUrl,
+      };
+    } else {
+      profileImageUpdate.profileImage = user.profileImage;
+    }
+
+    // Update User model fields
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        name: data.name || user.name,
+        phoneNumber: data.phoneNumber || user.phoneNumber,
+        profileImage: profileImageUpdate.profileImage,
+      },
+      { new: true }
+    ).lean();
+
+    // Update UserProfile model fields
+    const updateUserProfile: IUserProfile | any = await UserProfile.findOne({ userId });
+
+    if (!updateUserProfile) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User profile not found');
+    }
+
+    if (data.dob) {
+      updateUserProfile.dob = data.dob;
+    }
+    if (data.location) {
+      updateUserProfile.location = data.location;
+    }
+
+    await updateUserProfile.save();
+
+    // Invalidate cache
+    try {
+      const cacheKey = `user:${userId}:profile`;
+      await redisClient.del(cacheKey);
+      logger.info(`User profile cache invalidated: ${cacheKey}`);
+    } catch (error) {
+      errorLogger.error('Cache invalidation error:', error);
+    }
+
+    return {
+      ...updatedUser,
+      ...updateUserProfile.toObject(),
+    };
   }
 
 

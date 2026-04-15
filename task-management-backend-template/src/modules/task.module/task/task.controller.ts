@@ -253,6 +253,42 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   };
 
+  /** ✔️ V3
+   * Get daily progress V3 - Figma-Aligned Home Screen Widget
+   * Figma: figma-asset/app-user/individual-user/daily-progress.png
+   *       figma-asset/app-user/group-children-user/home-flow.png
+   *
+   * V3 Enhancements:
+   * - Comprehensive documentation with design thinking
+   * - Step-by-step logic explanation
+   * - Business rationale for each decision
+   * - Edge cases and performance considerations
+   * - Same logic as V2, better documented
+   *
+   * @route GET /tasks/daily-progress/v3
+   * @version 3.0.0
+   * @date 13-04-2026
+   */
+  getDailyProgressV3 = async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    const date = req.query.date
+      ? new Date(req.query.date as string)
+      : new Date();
+    const result = await this.taskService.getDailyProgressV3(userId, date);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Daily progress retrieved successfully (V3)',
+      success: true,
+    });
+  };
+
   /** ✔️
    * Update task status
    * Specialized endpoint for status changes
@@ -485,6 +521,28 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       success: true,
     });
   };
+
+  /** ----------------------------------------------
+   * @role Child | Business
+   * @Section Task
+   * @module Task|SubTask
+   * @figmaIndex edit-update-task-flow.png
+   * @desc Update task details and manage subtasks (add/edit/delete) in one request
+   *----------------------------------------------*/
+  updateTaskAndSubtasksV2 = catchAsync(async (req: Request, res: Response) => {
+    const taskId = req.params.id;
+    const userId = req.user.userId;
+    const data = req.body;
+
+    const result = await this.taskService.updateTaskAndSubtasksV2(taskId, data, userId);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task and subtasks updated successfully',
+      success: true,
+    });
+  });
 
   /**
    * Get a single task by ID with ownership validation

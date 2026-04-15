@@ -475,11 +475,11 @@ export class ChildrenBusinessUserService extends GenericService<
    * Create child account V3 - Uses BullMQ queue for userProfile.userId linking
    * Figma: create-child-flow.png (Create Member screen)
    * This is the V3 method that uses BullMQ instead of event emitter
-   *
+   * 
    * @param businessUserId - The business user creating the child
    * @param childData - Child account details (all fields from Figma)
    * @returns Created child user and relationship
-   *
+   * 
    * @description
    * Creates UserProfile first
    * Creates User account with role 'child' and profileId
@@ -517,7 +517,71 @@ export class ChildrenBusinessUserService extends GenericService<
     }
 
     /*-─────────────────────────────────
-    |  Step 2: Check if email already exists
+    |  Step 2: Validate subscription and child account limits
+    |  V3 ENHANCEMENT: Check active subscription and maxChildrenAccount limit
+    └──────────────────────────────────*/
+    
+    // 2.1: Check if business user has an active subscription
+    const activeSubscription = await UserSubscription.findOne({
+      userId: new Types.ObjectId(businessUserId),
+      status: { $in: [UserSubscriptionStatusType.active, UserSubscriptionStatusType.trialing] },
+      isDeleted: false,
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    if (!activeSubscription) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'No active subscription found. Please subscribe to a plan before creating child accounts.',
+      );
+    }
+
+    // 2.2: Get subscription plan details (including maxChildrenAccount)
+    let subscriptionPlan = null;
+    if (activeSubscription.subscriptionPlanId) {
+      subscriptionPlan = await SubscriptionPlan.findById(activeSubscription.subscriptionPlanId).lean();
+    }
+
+    // Fallback: If plan not found, use individual plan
+    if (!subscriptionPlan) {
+      throw new ApiError(
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Subscription plan not found. Please contact support.',
+      );
+    }
+
+    const maxChildrenAllowed = subscriptionPlan.maxChildrenAccount || 0;
+
+    logger.info(`[Child Account Validation] Plan: ${subscriptionPlan.subscriptionName}, Max children allowed: ${maxChildrenAllowed}`);
+
+    // 2.3: Count existing active children
+    const currentChildrenCount = await this.model.countDocuments({
+      parentBusinessUserId: new Types.ObjectId(businessUserId),
+      status: CHILDREN_BUSINESS_USER_STATUS.ACTIVE,
+      isDeleted: false,
+    });
+
+    logger.info(`[Child Account Validation] Current children count: ${currentChildrenCount}`);
+
+    // 2.4: Check if adding one more child would exceed the limit
+    if (currentChildrenCount >= maxChildrenAllowed) {
+      const errorMessage = `You have reached the maximum limit of ${maxChildrenAllowed} child account${maxChildrenAllowed > 1 ? 's' : ''} for your ${subscriptionPlan.subscriptionName} plan. Please upgrade your plan to add more children. (Current: ${currentChildrenCount}/${maxChildrenAllowed})`;
+      
+      logger.warn(`[Child Account Validation] Limit exceeded: ${errorMessage}`);
+      
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        errorMessage,
+      );
+    }
+
+    // 2.5: Log remaining slots
+    const remainingSlots = maxChildrenAllowed - currentChildrenCount - 1;
+    logger.info(`[Child Account Validation] Remaining slots after creation: ${remainingSlots}`);
+
+    /*-─────────────────────────────────
+    |  Step 3: Check if email already exists
     └──────────────────────────────────*/
     const existingUser = await User.findOne({
       email: childData.email.toLowerCase(),
@@ -529,12 +593,12 @@ export class ChildrenBusinessUserService extends GenericService<
     }
 
     /*-─────────────────────────────────
-    |  Step 3: Hash password
+    |  Step 4: Hash password
     └──────────────────────────────────*/
     const hashedPassword = await bcryptjs.hash(childData.password, 12);
 
     /*-─────────────────────────────────
-    |  Step 4: Create UserProfile first (WITHOUT userId)
+    |  Step 5: Create UserProfile first (WITHOUT userId)
     |  Contains: supportMode, location, dob, gender
     └──────────────────────────────────*/
     const { UserProfile } = await import('../user.module/userProfile/userProfile.model');
@@ -549,9 +613,9 @@ export class ChildrenBusinessUserService extends GenericService<
     });
 
     /*-─────────────────────────────────
-    |  Step 5: Create child user account
+    |  Step 6: Create child user account
     |  Sets accountCreatorId = businessUserId (as per your requirement)
-    |  Links profileId to the userProfile created in Step 4
+    |  Links profileId to the userProfile created in Step 5
     └──────────────────────────────────*/
     const childUser = await User.create({
       name: childData.name,
@@ -567,7 +631,7 @@ export class ChildrenBusinessUserService extends GenericService<
     });
 
     /*-─────────────────────────────────
-    |  Step 6: Queue UserProfile update via BullMQ (V3 Pattern)
+    |  Step 7: Queue UserProfile update via BullMQ (V3 Pattern)
     |  More reliable than event emitter:
     |  - Persistent jobs (survives restarts)
     |  - Automatic retries with backoff
@@ -581,7 +645,7 @@ export class ChildrenBusinessUserService extends GenericService<
     );
 
     /*-─────────────────────────────────
-    |  Step 7: Create parent-child relationship record
+    |  Step 8: Create parent-child relationship record
     └──────────────────────────────────*/
     const relationship = await this.model.create({
       parentBusinessUserId: new Types.ObjectId(businessUserId),
@@ -592,7 +656,7 @@ export class ChildrenBusinessUserService extends GenericService<
     });
 
     /*-─────────────────────────────────
-    |  Step 8: Send email with login credentials
+    |  Step 9: Send email with login credentials
     |  Figma: create-child-flow.png
     └──────────────────────────────────*/
     try {
@@ -616,12 +680,12 @@ export class ChildrenBusinessUserService extends GenericService<
     }
 
     /*-─────────────────────────────────
-    |  Step 9: Invalidate cache
+    |  Step 10: Invalidate cache
     └──────────────────────────────────*/
     await this.invalidateCache(businessUserId);
 
     /*-─────────────────────────────────
-    |  Step 10: Return result
+    |  Step 11: Return result
     └──────────────────────────────────*/
     return {
       childUser: {
@@ -640,7 +704,7 @@ export class ChildrenBusinessUserService extends GenericService<
         status: relationship.status,
         isSecondaryUser: relationship.isSecondaryUser,
       },
-      message: 'Child account created successfully. Login credentials have been sent to the child\'s email.',
+      message: `Child account created successfully. You now have ${currentChildrenCount + 1}/${maxChildrenAllowed} child accounts. Login credentials have been sent to the child's email.`,
     };
   }
 

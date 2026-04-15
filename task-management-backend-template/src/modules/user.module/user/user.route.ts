@@ -243,6 +243,19 @@ router.route('/profile-picture').put(
   controller.updateProfileImageSeparately
 )
 
+/** ----------------------------------------------
+ * @role User
+ * @Section Profile
+ * @module User|UserProfile
+ * @figmaIndex 06-02
+ * @desc Update both profile info and profile image in a single request
+ *----------------------------------------------*/
+router.route('/update/v2').put(
+  auth(TRole.common),
+  ...imageUploadPipelineForUpdateUserProfile,
+  controller.updateProfileAndImageV2
+)
+
 /*-─────────────────────────────────
 |  User | Profile | 06-03 | Get support mode preference
 |  @module UserProfile

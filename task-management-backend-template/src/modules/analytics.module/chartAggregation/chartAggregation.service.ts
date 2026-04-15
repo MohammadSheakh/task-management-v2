@@ -381,7 +381,7 @@ export class ChartAggregationService {
     return result;
   }
 
-  /** ✔️✔️
+  /** ✔️✔️🚩🔍
    * Child Progress Comparison (Radar/Bar Chart) [ NOT NEEDED FOR PARENT DASHBOARD ]
    * Compare all children's task completion rates
    *
@@ -406,6 +406,20 @@ export class ChartAggregationService {
       children.map(async child => {
         const childId = child.childUserId;
         const childUser = child.childUserId as any;
+
+        if (!childUser) {
+          return {
+            childName: 'Child',
+            profileImage: null,
+            email: null,
+            isSecondaryUser: child.isSecondaryUser || false,
+            totalTasks: 0,
+            pendingTasks: 0,
+            inProgressTasks: 0,
+            completedTasks: 0,
+            completionRate: 0,
+          };
+        }
 
         // Get task status distribution for this child
         const stats = await Task.aggregate([
@@ -480,9 +494,9 @@ export class ChartAggregationService {
       stats.find((s: any) => s._id === TaskStatus.COMPLETED)?.count || 0;
 
     const parentInfo = {
-      childName: parentBasicInfo.name,
-      profileImage: parentBasicInfo.profileImage,
-      email: parentBasicInfo.email,
+      childName: parentBasicInfo?.name || 'Parent',
+      profileImage: parentBasicInfo?.profileImage || null,
+      email: parentBasicInfo?.email || null,
       isPrimaryUser: true,
       totalTasks: total,
       pendingTasks: pending,

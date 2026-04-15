@@ -213,8 +213,8 @@ export class PaymentTransactionController extends GenericController<
     });
   });
 
-  //--------------------------- suplify - kaj bd 
-  // Admin | Get comprehensive earnings overview 
+  //--------------------------- suplify - kaj bd
+  // Admin | Get comprehensive earnings overview
   //----------------------------
   getEarningsOverview = catchAsync(async (req: Request, res: Response) => {
     const result = await this.paymentTransactionService.getEarningsOverview();
@@ -227,5 +227,65 @@ export class PaymentTransactionController extends GenericController<
     });
   });
 
-  // add more methods here if needed or override the existing ones 
+  /**
+   * Admin | Get all earning list with enhanced filters (V3)
+   * Figma: earning-flow.png (All Earning list table)
+   * @route GET /payment-transactions/earning-list
+   */
+  getAllEarningListV3 = catchAsync(async (req: Request, res: Response) => {
+    const filters = omit(req.query, ['sortBy', 'limit', 'page', 'populate', 'fromDate', 'toDate', 'userName', 'email', 'subscriptionType', 'minPrice', 'maxPrice']);
+    const options = pick(req.query, ['sortBy', 'limit', 'page', 'populate']);
+
+    // Add all filter params
+    if (req.query.fromDate) filters.fromDate = req.query.fromDate;
+    if (req.query.toDate) filters.toDate = req.query.toDate;
+    if (req.query.userName) filters.userName = req.query.userName;
+    if (req.query.email) filters.email = req.query.email;
+    if (req.query.subscriptionType) filters.subscriptionType = req.query.subscriptionType;
+    if (req.query.minPrice) filters.minPrice = req.query.minPrice;
+    if (req.query.maxPrice) filters.maxPrice = req.query.maxPrice;
+
+    const result = await this.paymentTransactionService.getAllEarningListV3(filters, options);
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Earning list retrieved successfully',
+      success: true,
+    });
+  });
+
+  /**
+   * Admin | Get user subscription details (V3)
+   * Figma: subscription-details-of-a-person.png
+   * @route GET /payment-transactions/user/:userId/subscription-details
+   */
+  getUserSubscriptionDetailsV3 = catchAsync(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'User ID is required');
+    }
+
+    const result = await this.paymentTransactionService.getUserSubscriptionDetailsV3(userId);
+
+    if (!result) {
+      sendResponse(res, {
+        code: StatusCodes.OK,
+        data: null,
+        message: 'No subscription found for this user',
+        success: true,
+      });
+      return;
+    }
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'User subscription details retrieved successfully',
+      success: true,
+    });
+  });
+
+  // add more methods here if needed or override the existing ones
 }

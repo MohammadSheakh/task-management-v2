@@ -147,11 +147,43 @@ const retrieveSubscription = async (
   }
 };
 
-// ✅ Find user by Stripe customer ID
-const findUserByCustomerId = async (
+// ✅ Find user - V3 ENHANCEMENT: Try multiple strategies
+// Strategy 1: Find by stripe_customer_id (if already set)
+// Strategy 2: Find from UserSubscription via metadata.referenceId
+const findUser = async (
   customerId: string,
+  metadata: IMetadataForFreeTrial,
 ): Promise<IUser | null> => {
-  return User.findOne({ stripe_customer_id: customerId }).lean() as Promise<IUser | null>;
+  // Try finding by stripe_customer_id first
+  let user = await User.findOne({ stripe_customer_id: customerId }).lean() as Promise<IUser | null>;
+  
+  if (user) {
+    logger.info(`[Stripe] Found user by stripe_customer_id: ${customerId}`);
+    return user;
+  }
+
+  // Fallback: Find user from UserSubscription using referenceId
+  if (metadata.referenceId) {
+    const subscription = await UserSubscription.findById(metadata.referenceId).lean();
+    if (subscription && subscription.userId) {
+      user = await User.findById(subscription.userId).lean() as Promise<IUser | null>;
+      if (user) {
+        logger.info(`[Stripe] Found user via UserSubscription.referenceId: ${metadata.referenceId}`);
+        return user;
+      }
+    }
+  }
+
+  // Fallback: Try from metadata.userId directly
+  if (metadata.userId) {
+    user = await User.findById(metadata.userId).lean() as Promise<IUser | null>;
+    if (user) {
+      logger.info(`[Stripe] Found user by metadata.userId: ${metadata.userId}`);
+      return user;
+    }
+  }
+
+  return null;
 };
 
 // ✅ Create payment transaction record
@@ -501,20 +533,40 @@ export const handleSuccessfulPaymentV2 = async (
 
     const subscription = await retrieveSubscription(subscriptionId);
 
-    // ✅ Extract and validate metadata
+    // ✅ Extract and validate metadata (V3 ENHANCEMENT: Handle user JSON field)
     const metadata: IMetadataForFreeTrial = subscription.metadata as IMetadataForFreeTrial;
 
+    // If userId is not directly in metadata, try to extract from user JSON field
+    if (!metadata?.userId && subscription.metadata?.user) {
+      try {
+        const userData = JSON.parse(subscription.metadata.user);
+        if (userData.userId) {
+          logger.info('[Stripe] Extracted userId from user JSON field in metadata');
+          // Create a merged metadata object with userId
+          Object.assign(metadata, { userId: userData.userId });
+        }
+      } catch (err) {
+        logger.warn('[Stripe] Failed to parse user JSON from metadata:', err);
+      }
+    }
+
     if (!metadata?.userId || !metadata?.referenceId) {
+      logger.error('[Stripe] Metadata validation failed', {
+        subscriptionId: subscription.id,
+        hasUserId: !!metadata?.userId,
+        hasReferenceId: !!metadata?.referenceId,
+        rawMetadata: JSON.stringify(subscription.metadata).substring(0, 200),
+      });
       throw new Error(
         'Missing required metadata: userId and referenceId are required',
       );
     }
 
-    // ✅ Find user
-    const user = await findUserByCustomerId(subscription.customer);
+    // ✅ Find user using enhanced strategy (V3)
+    const user = await findUser(subscription.customer, metadata);
     if (!user) {
       throw new Error(
-        `User not found for Stripe customer: ${subscription.customer}`,
+        `User not found for Stripe customer: ${subscription.customer}. Metadata: ${JSON.stringify(metadata)}`,
       );
     }
 

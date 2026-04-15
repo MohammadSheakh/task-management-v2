@@ -171,6 +171,109 @@ export const updateTaskValidationSchema = z.object({
 });
 
 /**
+ * Update Task + Subtasks Validation Schema (V2)
+ * Handles task updates and subtask CRUD operations in one request
+ */
+export const updateTaskAndSubtasksValidationSchema = z.object({
+  body: z.object({
+    // ─── Task Fields ─────────────────────────────────────────────
+    title: z
+      .string()
+      .min(1, 'Title cannot be empty')
+      .max(200, 'Title cannot exceed 200 characters')
+      .optional(),
+
+    description: z
+      .string()
+      .max(2000, 'Description cannot exceed 2000 characters')
+      .optional(),
+
+    scheduledTime: z.string().optional(),
+
+    startTime: z
+      .string()
+      .refine((val) => !isNaN(Date.parse(val)), {
+        message: 'Invalid date format for startTime',
+      })
+      .optional(),
+
+    dueDate: z
+      .string()
+      .refine((val) => !isNaN(Date.parse(val)), {
+        message: 'Invalid date format for dueDate',
+      })
+      .optional(),
+
+    priority: z
+      .nativeEnum(TaskPriority)
+      .optional(),
+
+    status: z
+      .nativeEnum(TaskStatus)
+      .optional(),
+
+    ownerUserId: z
+      .string()
+      .refine((val) => val.match(/^[0-9a-fA-F]{24}$/), {
+        message: 'Invalid ownerUserId format',
+      })
+      .optional(),
+
+    assignedUserIds: z
+      .array(
+        z.string().refine((val) => val.match(/^[0-9a-fA-F]{24}$/), {
+          message: 'Invalid userId format in assignedUserIds',
+        })
+      )
+      .optional(),
+
+    // ─── Subtasks Operations ────────────────────────────────────
+    // Subtasks to update (must have _id)
+    updateSubtasks: z
+      .array(
+        z.object({
+          _id: z.string().refine((val) => val.match(/^[0-9a-fA-F]{24}$/), {
+            message: 'Invalid subtask _id format',
+          }),
+          title: z
+            .string()
+            .min(1, 'Title cannot be empty')
+            .max(200, 'Title cannot exceed 200 characters')
+            .optional(),
+          isCompleted: z.boolean().optional(),
+          order: z.number().optional(),
+        })
+      )
+      .optional(),
+
+    // Subtasks to add (no _id)
+    addSubtasks: z
+      .array(
+        z.object({
+          title: z
+            .string({
+              required_error: 'Subtask title is required',
+            })
+            .min(1, 'Title cannot be empty')
+            .max(200, 'Title cannot exceed 200 characters'),
+          isCompleted: z.boolean().default(false).optional(),
+          order: z.number().optional(),
+        })
+      )
+      .optional(),
+
+    // Subtask IDs to delete
+    deleteSubtaskIds: z
+      .array(
+        z.string().refine((val) => val.match(/^[0-9a-fA-F]{24}$/), {
+          message: 'Invalid subtask ID format',
+        })
+      )
+      .optional(),
+  }),
+});
+
+/**
  * Update Task Status Validation Schema
  * Specifically for status updates
  */

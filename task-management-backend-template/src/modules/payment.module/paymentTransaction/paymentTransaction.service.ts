@@ -102,7 +102,7 @@ export class PaymentTransactionService extends GenericService<
 
   }
 
-   // Get comprehensive earnings overview
+  // Get comprehensive earnings overview
   async getEarningsOverview() {
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -149,7 +149,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // This week earnings
+      // This week's earnings
       this.model.aggregate([
         { $match: { ...baseQuery, createdAt: { $gte: weekStart } } },
         {
@@ -161,7 +161,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // This month earnings
+      // This month's earnings
       this.model.aggregate([
         { $match: { ...baseQuery, createdAt: { $gte: monthStart } } },
         {
@@ -173,7 +173,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // Last week earnings
+      // Last week's earnings
       this.model.aggregate([
         {
           $match: {
@@ -190,7 +190,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // Last month earnings
+      // Last month's earnings
       this.model.aggregate([
         {
           $match: {
@@ -207,7 +207,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // This quarter earnings
+      // This quarter's earnings
       this.model.aggregate([
         { $match: { ...baseQuery, createdAt: { $gte: quarterStart } } },
         {
@@ -219,7 +219,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // This year earnings
+      // This year's earnings
       this.model.aggregate([
         { $match: { ...baseQuery, createdAt: { $gte: yearStart } } },
         {
@@ -231,10 +231,10 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // Total transactions count
-      this.model.countDocuments(baseQuery),
+      // Total transaction count
+      this.model.countDocuments({ isDeleted: false }),
 
-      // Pending amount
+      // Pending payments
       this.model.aggregate([
         {
           $match: {
@@ -251,7 +251,7 @@ export class PaymentTransactionService extends GenericService<
         },
       ]),
 
-      // Processing amount
+      // Processing payments
       this.model.aggregate([
         {
           $match: {
@@ -269,87 +269,284 @@ export class PaymentTransactionService extends GenericService<
       ]),
     ]);
 
-    // Calculate growth percentages
-    const thisWeekTotal = thisWeekEarnings[0]?.total || 0;
-    const lastWeekTotal = lastWeekEarnings[0]?.total || 0;
-    const weeklyGrowth =
-      lastWeekTotal > 0
-        ? ((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100
-        : 0;
-
-    const thisMonthTotal = thisMonthEarnings[0]?.total || 0;
-    const lastMonthTotal = lastMonthEarnings[0]?.total || 0;
-    const monthlyGrowth =
-      lastMonthTotal > 0
-        ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100
-        : 0;
-
-    // Get month name
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const currentMonth = monthNames[now.getMonth()];
-    const lastMonth = monthNames[lastMonthStart.getMonth()];    
-
-    // Format date range for last week
-    const formatDate = (date: Date) => {
-      return `${date.getDate()} ${monthNames[date.getMonth()].slice(0, 3)}`;
-    };
-
     return {
       totalEarnings: totalEarnings[0]?.total || 0,
       todayEarnings: {
-        label: 'Today earning',
         amount: todayEarnings[0]?.total || 0,
         count: todayEarnings[0]?.count || 0,
       },
       thisWeekEarnings: {
-        amount: thisWeekTotal,
+        amount: thisWeekEarnings[0]?.total || 0,
         count: thisWeekEarnings[0]?.count || 0,
-        growth: weeklyGrowth.toFixed(2),
-        dateRange: `${formatDate(lastWeekStart)} - ${formatDate(lastWeekEnd)}`,
-        label: 'This week earning',
       },
       thisMonthEarnings: {
-        amount: thisMonthTotal,
+        amount: thisMonthEarnings[0]?.total || 0,
         count: thisMonthEarnings[0]?.count || 0,
-        growth: monthlyGrowth.toFixed(2),
-        month: currentMonth,
-        label: 'This month earning',
       },
       lastWeekEarnings: {
-        amount: lastWeekTotal,
+        amount: lastWeekEarnings[0]?.total || 0,
         count: lastWeekEarnings[0]?.count || 0,
-        label: 'Last week earning',
-        dateRange: `${formatDate(lastWeekStart)} - ${formatDate(lastWeekEnd)}`,
       },
       lastMonthEarnings: {
-        amount: lastMonthTotal,
+        amount: lastMonthEarnings[0]?.total || 0,
         count: lastMonthEarnings[0]?.count || 0,
-        label: 'Previous month earning',
-        month: lastMonth,
       },
       thisQuarterEarnings: {
         amount: thisQuarterEarnings[0]?.total || 0,
         count: thisQuarterEarnings[0]?.count || 0,
-        label: 'This quarter earning',
       },
       thisYearEarnings: {
         amount: thisYearEarnings[0]?.total || 0,
         count: thisYearEarnings[0]?.count || 0,
-        label: 'This year earning',
       },
-      totalTransactions,
+      totalTransactions: totalTransactions,
       pendingPayments: {
         amount: pendingAmount[0]?.total || 0,
         count: pendingAmount[0]?.count || 0,
-        label: 'Pending payments',
       },
       processingPayments: {
         amount: processingAmount[0]?.total || 0,
         count: processingAmount[0]?.count || 0,
-        label: 'Processing payments',
+      },
+    };
+  }
+
+  /**
+   * Get all earning list with enhanced filters for admin dashboard
+   * V3 ENHANCEMENT: Matches Figma earning-flow.png table columns
+   * Figma: figma-asset/main-admin-dashboard/earning-flow.png (All Earning list)
+   *
+   * @param filters - Query filters
+   * @param options - Pagination options
+   * @returns Paginated earning list with user details
+   */
+  async getAllEarningListV3(
+    filters: any,
+    options: any,
+  ): Promise<any> {
+    const { page = 1, limit = 20, sortBy = '-createdAt' } = options;
+    const skip = (page - 1) * limit;
+
+    // Build match query
+    const matchQuery: any = {
+      isDeleted: false,
+      paymentStatus: TPaymentStatus.completed, // Only show completed payments
+      referenceFor: 'UserSubscription', // Only subscription payments
+    };
+
+    // Apply additional filters
+    if (filters.userId) {
+      matchQuery.userId = new Types.ObjectId(filters.userId);
+    }
+    if (filters.paymentGateway) {
+      matchQuery.paymentGateway = filters.paymentGateway;
+    }
+    if (filters.paymentStatus) {
+      matchQuery.paymentStatus = filters.paymentStatus;
+    }
+    if (filters.fromDate && filters.toDate) {
+      matchQuery.createdAt = {
+        $gte: new Date(filters.fromDate),
+        $lte: new Date(filters.toDate),
+      };
+    }
+
+    // Aggregation pipeline
+    const pipeline = [
+      { $match: matchQuery },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'usersubscriptions',
+          localField: 'referenceId',
+          foreignField: '_id',
+          as: 'subscription',
+        },
+      },
+      { $unwind: { path: '$subscription', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'subscriptionplans',
+          localField: 'subscription.subscriptionPlanId',
+          foreignField: '_id',
+          as: 'plan',
+        },
+      },
+      { $unwind: { path: '$plan', preserveNullAndEmptyArrays: true } },
+      // Sort
+      { $sort: { createdAt: sortBy.startsWith('-') ? -1 : 1 } },
+      // Skip & Limit
+      { $skip: skip },
+      { $limit: limit },
+      // Project fields matching Figma table
+      {
+        $project: {
+          _id: 1,
+          userSubscriptionId: {
+            $ifNull: ['$referenceId', '$_id'],
+          },
+          user: {
+            _id: '$user._id',
+            name: '$user.name',
+            email: '$user.email',
+            profileImage: '$user.profileImage',
+            role: '$user.role',
+          },
+          subscriptionType: {
+            $ifNull: ['$plan.subscriptionType', '$subscription.subscriptionType'],
+          },
+          price: '$amount',
+          currency: '$currency',
+          buyingDate: '$createdAt',
+          paymentGateway: '$paymentGateway',
+          paymentStatus: '$paymentStatus',
+          transactionId: '$transactionId',
+        },
+      },
+    ];
+
+    // Get total count
+    const countPipeline = [
+      { $match: matchQuery },
+      { $count: 'total' },
+    ];
+
+    const [data, countResult] = await Promise.all([
+      this.model.aggregate(pipeline),
+      this.model.aggregate(countPipeline),
+    ]);
+
+    const total = countResult[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages,
+      },
+    };
+  }
+
+  /**
+   * Get user subscription details for admin dashboard
+   * V3 ENHANCEMENT: Matches Figma subscription-details-of-a-person.png
+   * Figma: figma-asset/main-admin-dashboard/subscription-details-of-a-person.png
+   *
+   * @param userId - User ID to get subscription details for
+   * @returns User subscription details with personal information
+   */
+  async getUserSubscriptionDetailsV3(userId: string): Promise<any> {
+    const { UserSubscription } = await import(
+      '../../subscription.module/userSubscription/userSubscription.model'
+    );
+    const { SubscriptionPlan } = await import(
+      '../../subscription.module/subscriptionPlan/subscriptionPlan.model'
+    );
+
+    // Get user's most recent active/trialing subscription
+    const subscription = await UserSubscription.findOne({
+      userId: new Types.ObjectId(userId),
+      status: { $in: ['active', 'trialing', 'processing', 'cancelling'] },
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!subscription) {
+      return null;
+    }
+
+    // Get subscription plan details
+    const plan = await SubscriptionPlan.findById(subscription.subscriptionPlanId).lean();
+
+    // Get payment transaction for this subscription
+    const paymentTransaction = await this.model.findOne({
+      referenceId: subscription._id,
+      referenceFor: 'UserSubscription',
+      paymentStatus: TPaymentStatus.completed,
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Get user details
+    const { User } = await import('../../user.module/user/user.model');
+    const user = await User.findById(userId)
+      .select('name email phoneNumber profileImage profileId')
+      .lean();
+
+    // Get user profile if exists
+    let userProfile = null;
+    if (user?.profileId) {
+      const { UserProfile } = await import(
+        '../../user.module/userProfile/userProfile.model'
+      );
+      userProfile = await UserProfile.findById(user.profileId)
+        .select('address gender dateOfBirth location')
+        .lean();
+    }
+
+    // Calculate age from date of birth
+    let age = null;
+    if (userProfile?.dateOfBirth) {
+      const birthDate = new Date(userProfile.dateOfBirth);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
+        age--;
+      }
+    }
+
+    // Format response to match Figma layout
+    return {
+      user: {
+        _id: user?._id,
+        name: user?.name,
+        email: user?.email,
+        profileImage: user?.profileImage,
+        phoneNumber: user?.phoneNumber,
+        role: user?.role,
+      },
+      userProfile: {
+        address: userProfile?.address || userProfile?.location || null,
+        gender: userProfile?.gender || null,
+        dateOfBirth: userProfile?.dateOfBirth || null,
+        age: age,
+      },
+      subscriptionBuyingInformation: {
+        _id: subscription._id,
+        userSubscriptionId: subscription._id.toString().slice(-6).toUpperCase(),
+        subscriptionType: plan?.subscriptionType || subscription.subscriptionType || 'unknown',
+        subscriptionName: plan?.subscriptionName || 'Unknown Plan',
+        buyingDate: subscription.subscriptionStartDate || subscription.createdAt,
+        currentPeriodStartDate: subscription.currentPeriodStartDate,
+        currentPeriodEndDate: subscription.expirationDate,
+        transactionId: paymentTransaction?.transactionId || paymentTransaction?.paymentIntent || subscription.stripe_transaction_id || 'N/A',
+        withdrawAmount: paymentTransaction?.amount || subscription.amount || plan?.amount || 0,
+        currency: paymentTransaction?.currency || 'usd',
+        subscriptionExpired: subscription.expirationDate,
+        cancelledAtPeriodEnd: subscription.cancelledAtPeriodEnd || false,
+        cancelDate: subscription.cancelledAt || null,
+        status: subscription.status,
+        billingCycle: subscription.billingCycle,
+        isAutoRenewed: subscription.isAutoRenewed,
+        stripe_subscription_id: subscription.stripe_subscription_id,
+        paymentGateway: paymentTransaction?.paymentGateway || 'stripe',
       },
     };
   }
