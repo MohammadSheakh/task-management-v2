@@ -497,6 +497,74 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     });
   });
 
+  /** 🔍
+   * Update task status (Unified V5)
+   * PUT /tasks/:id/status/v5
+   * 
+   * @description
+   * Enhanced V5 version that calculates creative responses based on 
+   * OVERALL DAILY progress instead of single task subtasks.
+   * 
+   * @access Task creator, owner, or assigned users only
+   * @returns Unified response with creative messaging and daily stats
+   * @version 5.0.0
+   */
+  updateStatusV5 = catchAsync(async (req: Request, res: Response) => {
+    const taskId = req.params.id;
+    const { status, note } = req.body as IUpdateTaskStatusBody;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+    }
+
+    if (!status) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Status is required');
+    }
+
+    const result = await this.taskService.updateTaskStatusV5(
+      taskId,
+      status,
+      userId,
+      note,
+    );
+
+    // ⏰ Trigger preferred time calculation if task is completed
+    if (status === TaskStatus.COMPLETED) {
+      try {
+        // Import dynamically to avoid circular dependency
+        const { preferredTimeQueue } =
+          await import('../../../helpers/bullmq/bullmq');
+
+        // Add job to queue (async, don't wait)
+        preferredTimeQueue.add(
+          'calculatePreferredTime',
+          {
+            userId: userId.toString(),
+          },
+          {
+            jobId: `preferred-time:${userId}:${Date.now()}`,
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        );
+
+        // Don't wait for completion - fire and forget
+        logger.info(`⏰ Queued preferred time calculation for user ${userId}`);
+      } catch (error) {
+        errorLogger.error('Failed to queue preferred time calculation:', error);
+        // Don't fail the request - preferred time calculation is non-critical
+      }
+    }
+
+    sendResponse(res, {
+      code: StatusCodes.OK,
+      data: result,
+      message: 'Task status updated successfully with daily progress milestone',
+      success: true,
+    });
+  });
+
   /** ✔️
    * Update subtask progress
    * Automatically recalculates completion percentage

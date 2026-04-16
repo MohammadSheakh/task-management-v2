@@ -19,6 +19,7 @@ import { logger, errorLogger } from '../../../shared/logger';
 import { NotificationService } from '../../notification.module/notification/notification.service';
 import { ACTIVITY_TYPE } from '../../notification.module/notification/notification.constant';
 import { TaskProgressService } from '../../taskProgress.module/taskProgress.service';
+import { ITaskProgressDocument } from '../../taskProgress.module/taskProgress.interface';
 import { socketService } from '../../../helpers/socket/socketForChatV3';
 import { UserProfile } from '../../user.module/userProfile/userProfile.model';
 import { SupportMode, TSupportMode } from '../../user.module/userProfile/userProfile.constant';
@@ -1328,7 +1329,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     return updatedTask;
   }
 
-  /**
+  /** 🔍
    * Update task status with creative response based on support mode
    * @param taskId - Task ID
    * @param status - New status
@@ -1482,7 +1483,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     return result;
   }
 
-  /**
+  /** 🔍
    * Update Task Status V4 - Unified endpoint for ALL task types
    * PUT /tasks/:id/status/v4
    *
@@ -1611,6 +1612,171 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         ...(autoCompletedSubtasksCount > 0 && { autoCompletedSubtasks: autoCompletedSubtasksCount }),
       };
     }
+  }
+
+  /** 🔍
+   * Update Task Status V5 - Unified endpoint for ALL task types with DAILY progress tracking
+   * PUT /tasks/:id/status/v5
+   *
+   * @description
+   * This V5 endpoint enhances V4 by calculating creative responses based on 
+   * the user's OVERALL DAILY PROGRESS instead of just the single task's subtasks.
+   *
+   * 1. Updates task/progress status (Personal/Collaborative)
+   * 2. Calculates total tasks and completed tasks for the current day
+   * 3. Returns creative response based on daily milestone (50%, 100%)
+   *
+   * @param taskId - Task ID
+   * @param status - New status (pending, inProgress, completed)
+   * @param userId - User ID
+   * @param note - Optional note
+   */
+  async updateTaskStatusV5(
+    taskId: string,
+    status: TTaskStatus,
+    userId: Types.ObjectId,
+    note?: string,
+  ): Promise<{
+    task?: ITask;
+    progress?: ITaskProgressDocument;
+    creativeResponse: ICreativeResponse;
+    milestone: 'started' | '50_percent' | '100_percent';
+    taskType: TTaskType;
+    autoCompletedSubtasks?: number;
+    isParentTaskCompleted?: boolean;
+    dailyStats: {
+      total: number;
+      completed: number;
+      percentage: number;
+    };
+  }> {
+    // 1. Get task to determine type
+    const task = await this.model.findById(taskId).lean();
+
+    if (!task) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
+    }
+
+    const taskType = task.taskType as TTaskType;
+
+    let updatedTaskResult: any;
+    let autoCompletedSubtasksCount = 0;
+    let isParentTaskCompleted = false;
+
+    // 2. Handle based on task type
+    if (taskType === TaskType.COLLABORATIVE) {
+      // ── COLLABORATIVE TASK ─────────────────────────────────────────
+      const { TaskProgressService } = await import('../../taskProgress.module/taskProgress.service');
+      const taskProgressService = new TaskProgressService();
+
+      const progressResult = await taskProgressService.updateProgressStatusV2(
+        taskId,
+        userId.toString(),
+        status as any, // TaskProgressStatus
+        note,
+      );
+
+      updatedTaskResult = progressResult.progress;
+      isParentTaskCompleted = !!progressResult.isParentTaskCompleted;
+    } else {
+      // ── PERSONAL / SINGLE ASSIGNMENT TASK ──────────────────────────
+      // Auto-complete subtasks if task is being completed
+      if (status === TaskStatus.COMPLETED) {
+        const { SubTask } = await import('../subTask/subTask.model');
+
+        const incompleteSubtasks = await SubTask.find({
+          taskId: new Types.ObjectId(taskId),
+          isCompleted: false,
+          isDeleted: false,
+        });
+
+        if (incompleteSubtasks.length > 0) {
+          const now = new Date();
+          await SubTask.updateMany(
+            {
+              taskId: new Types.ObjectId(taskId),
+              isCompleted: false,
+              isDeleted: false,
+            },
+            {
+              $set: {
+                isCompleted: true,
+                completedAt: now,
+              },
+            },
+          );
+
+          autoCompletedSubtasksCount = incompleteSubtasks.length;
+          logger.info(
+            `[updateStatusV5] Auto-completed ${autoCompletedSubtasksCount} subtasks for task ${taskId}`,
+          );
+        }
+      }
+
+      // Update task status (reuse base logic)
+      updatedTaskResult = await this.updateTaskStatus(taskId, status, userId);
+    }
+
+    // 3. Calculate OVERALL DAILY progress
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const dailyTasks = await this.model.find({
+      $or: [{ ownerUserId: userId }, { assignedUserIds: userId }],
+      startTime: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+      isDeleted: false,
+    }).lean();
+
+    const dailyTotal = dailyTasks.length;
+    const dailyCompleted = dailyTasks.filter(
+      (t: any) => t.status === TaskStatus.COMPLETED,
+    ).length;
+    
+    const dailyPercentage = dailyTotal > 0 ? (dailyCompleted / dailyTotal) * 100 : 0;
+
+    // 4. Get user's support mode for creative response
+    const userProfile = await UserProfile.findOne({ userId }).lean();
+    const supportMode: TSupportMode = 
+      userProfile?.supportMode || SupportMode.LOGICAL;
+
+    // 5. Determine milestone based on DAILY progress
+    let milestone: 'started' | '50_percent' | '100_percent' = 'started';
+    
+    if (dailyPercentage >= 100 && dailyTotal > 0) {
+      milestone = '100_percent';
+    } else if (dailyPercentage >= 50 && dailyTotal > 0) {
+      milestone = '50_percent';
+    }
+
+    // 6. Generate creative response based on daily milestone
+    const creativeResponse = this.generateCreativeResponse(
+      supportMode,
+      milestone
+    );
+
+    // 7. Return unified response with daily stats
+    return {
+      ...(taskType === TaskType.COLLABORATIVE 
+        ? { progress: updatedTaskResult } 
+        : { task: updatedTaskResult }
+      ),
+      creativeResponse,
+      milestone,
+      taskType,
+      ...(autoCompletedSubtasksCount > 0 && { autoCompletedSubtasks: autoCompletedSubtasksCount }),
+      ...(isParentTaskCompleted && { isParentTaskCompleted: true }),
+      dailyStats: {
+        total: dailyTotal,
+        completed: dailyCompleted,
+        percentage: Math.round(dailyPercentage),
+      },
+    };
   }
 
   /**

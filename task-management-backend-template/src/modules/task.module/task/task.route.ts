@@ -542,6 +542,27 @@ router
     controller.updateStatusV4,
   );
 
+/*-───────────────────────────────── 🆕 V5
+|  Child | Business | Task | edit-update-task-flow.png, response-based-on-mode.png | Update task status V5 - DAILY PROGRESS BASED
+|  @desc V5 ENHANCEMENT: Unified endpoint that calculates creative responses based on OVERALL DAILY progress
+|  @desc Returns milestone (50%, 100%) and personalized messages based on total daily tasks completion
+|  @auth All authenticated users (child, business)
+|  @access Task creator, owner, or assigned users only
+|  @returns Unified response: { task/progress, creativeResponse, milestone, taskType, autoCompletedSubtasks?, dailyStats }
+|  @version 5.0.0
+|  @author Senior Engineering Team
+└──────────────────────────────────*/
+router
+  .route('/:id/status/v5')
+  .put(
+    auth(TRole.commonUser),
+    verifyTaskAccess,
+    verifyTaskOwnership,
+    validateRequest(validation.updateTaskStatusValidationSchema),
+    validateStatusTransition,
+    controller.updateStatusV5,
+  );
+
 /*-───────────────────────────────── ✔️
 |  Child | Business | Task | edit-update-task-flow.png | Update subtask progress
 |  @desc Update subtask list and auto-calculate completion percentage
