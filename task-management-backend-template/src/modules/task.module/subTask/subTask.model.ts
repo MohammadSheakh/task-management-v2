@@ -106,7 +106,7 @@ subTaskSchema.set('toJSON', {
 });
 
 // ─── Static Methods ──────────────────────────────────────────────────
-/**
+/** 🔍
  * Get completion statistics for a task
  */
 subTaskSchema.statics.getTaskCompletionStats = async function (taskId: string) {
@@ -125,8 +125,8 @@ subTaskSchema.statics.getTaskCompletionStats = async function (taskId: string) {
     },
   ]);
 
-  const total = stats.reduce((sum, stat) => sum + stat.count, 0);
-  const completed = stats.find((s) => s._id === true)?.count || 0;
+  const total = stats.reduce((sum:any, stat:any) => sum + stat.count, 0);
+  const completed = stats.find((s:any) => s._id === true)?.count || 0;
 
   return {
     total,

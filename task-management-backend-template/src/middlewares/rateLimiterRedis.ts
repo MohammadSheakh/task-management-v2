@@ -61,7 +61,7 @@ export const RATE_LIMIT_PRESETS = {
 
   strict: {
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 3 requests per hour // TODO : 
+    max: 100, // 3 requests per hour // TODO : 
     message: {
       success: false,
       message: 'Too many sensitive operations, please try again later',

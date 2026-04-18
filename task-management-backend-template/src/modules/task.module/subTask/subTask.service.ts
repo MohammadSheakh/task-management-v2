@@ -1,8 +1,9 @@
+//@ts-ignore
 import { StatusCodes } from 'http-status-codes';
-
 import { ISubTask } from './subTask.interface';
 import { GenericService } from '../../_generic-module/generic.services';
 import ApiError from '../../../errors/ApiError';
+//@ts-ignore
 import { Types } from 'mongoose';
 import { Task } from '../task/task.model';
 import { SubTask } from './subTask.model';
@@ -21,7 +22,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     super(SubTask);
   }
 
-  /**
+  /** 🔍
    * Create a subtask and update parent task progress
    * @param data - SubTask data
    * @param userId - User creating the subtask
@@ -46,7 +47,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return subtask;
   }
 
-  /** ✔️
+  /** ✔️ 🔍
    * Get all subtasks for a task
    * @param taskId - Parent task ID
    * @param filters - Query filters
@@ -71,6 +72,11 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
   }
 
   /** ✔️
+   * 
+   * //@deprecated ⚠️ Use toggleSubTaskStatusV2 instead
+   * 
+   * ℹ️ V2 available: toggleSubTaskStatusV2
+   * 
    * Toggle subtask completion status
    * @param subtaskId - SubTask ID
    * @param isCompleted - New completion status
@@ -86,8 +92,6 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     isCompleted: boolean,
     userId: Types.ObjectId
   ): Promise<ISubTask> {
-
-    console.log("hit service 🪄🪄");
 
     // 🆕 NEW: ONLY create/update SubTaskProgress for this child
     // Do NOT update the global SubTask document
@@ -116,8 +120,6 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     if (!updatedSubtask) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Subtask not found');
     }
-
-    console.log("updatedSubtask :: 🧪 ", updatedSubtask);
 
     return updatedSubtask;
   }
@@ -154,7 +156,6 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
       throw new ApiError(StatusCodes.BAD_REQUEST, errorMsg);
     }
 
-    console.log("toggleSubTaskStatusV2 hit service 🪄🪄");
     console.log(`Toggling subtask ${subtaskId} to ${isCompleted} for user ${userId}`);
 
     // 2. Create/update SubTaskProgress for this child (with error handling)
@@ -252,7 +253,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return deletedSubtask;
   }
 
-  /** ✔️ 🔂
+  /** ✔️ 🔂 🔍
    * Update parent task's subtask statistics
    * @param taskId - Parent task ID
    */
@@ -602,7 +603,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     }
   }
 
-  /**
+  /** 🔍
    * Create or update SubTaskProgress for a child - V2 with better error handling
    * Tracks per-child subtask completion independently
    * @param subtaskId - SubTask ID
@@ -658,7 +659,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     }
   }
 
-  /**
+  /**🔍
    * Create or update SubTaskProgress for a child
    * Tracks per-child subtask completion independently
    * @param subtaskId - SubTask ID
@@ -684,7 +685,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
           userId: userId,
           isDeleted: false,
         },
-        {
+        { 
           taskId: new Types.ObjectId(subtask.taskId),
           subtaskId: new Types.ObjectId(subtaskId),
           userId: userId,
@@ -703,7 +704,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     }
   }
 
-  /**
+  /** 🔍
    * Update parent task progress based on child's subtask completion
    * @param subtaskId - SubTask ID
    * @param userId - Child user ID who completed the subtask
@@ -776,8 +777,9 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     }
   }
 
-  /**
+  /** 🔍
    * Old method for non-collaborative tasks
+   * 📍 Called in: updateParentTaskProgressFromChildProgress
    * @param taskId - Parent task ID
    * @private
    */

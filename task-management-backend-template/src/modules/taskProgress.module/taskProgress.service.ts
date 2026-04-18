@@ -1,5 +1,6 @@
 //@ts-ignore
 import { StatusCodes } from 'http-status-codes';
+//@ts-ignore
 import { Types } from 'mongoose';
 import { GenericService } from '../_generic-module/generic.services';
 import { TaskProgress } from './taskProgress.model';
@@ -246,7 +247,7 @@ export class TaskProgressService extends GenericService<
     return progress;
   }
 
-  /** ✔️
+  /** ✔️🔍
    * Check if all children completed a collaborative task
    * If yes, auto-complete the parent task
    * Also checks if ANY child started → update parent to "inProgress"

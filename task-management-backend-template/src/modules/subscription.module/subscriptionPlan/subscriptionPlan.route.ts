@@ -42,7 +42,7 @@ const controller = new SubscriptionController();
  *----------------------------------------------*/
 router.route('/paginate').get(
   //auth('common'),
-  validateFiltersForQuery(optionValidationChecking(['_id', ...paginationOptions])),
+  validateFiltersForQuery(optionValidationChecking(['_id', 'isActive', 'subscriptionType', ...paginationOptions])),
   setRequestFiltersV2({
     isActive: true,
   }),

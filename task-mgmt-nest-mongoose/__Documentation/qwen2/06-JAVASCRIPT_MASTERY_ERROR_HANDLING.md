@@ -305,7 +305,7 @@ class AppError extends Error {
     this.statusCode = statusCode; // HTTP status code
     this.isOperational = true; // Distinguish from programming errors
 
-    Error.captureStackTrace(this, this.constructor);
+    Error.captureStackTrace(this, this.constructor);  //🎯🎯
   }
 }
 
@@ -369,7 +369,7 @@ class DatabaseError extends BaseAppError {
 function getUser(userId) {
   if (!userId) {
     throw new ValidationError("User ID is required", "userId");
-  }
+  } 
 
   const user = database.find(userId);
 
