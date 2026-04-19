@@ -399,7 +399,7 @@ export class ChildrenBusinessUserController {
     /*-─────────────────────────────────
     |  Step 3: Get subscription limit
     └──────────────────────────────────*/
-    const { UserSubscription } = await import('../../modules/subscription.module/userSubscription/userSubscription.model');
+    const { UserSubscription } = await import('../subscription.module/userSubscription/userSubscription.model');
 
     const subscription = await UserSubscription.findOne({
       userId: businessUserId,

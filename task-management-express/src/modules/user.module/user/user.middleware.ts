@@ -56,7 +56,7 @@ export const verifyChildBelongsToBusinessUser = async (
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Child user ID is required');
     }
 
-    const { User } = await import('../user/user.model');
+    const { User } = await import('./user.model');
     const businessUser = await User.findById(businessUserId).select('role').lean();
 
     if (!businessUser) {

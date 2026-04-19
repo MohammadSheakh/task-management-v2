@@ -21,7 +21,7 @@ import { welcome } from './utils/welcome';
 /*-─────────────────────────────────
 |  This payment.bootstrap.ts import is important for payment by stripe
 └──────────────────────────────────*/
-import './modules/payment.module/payment/payment.bootstrap.ts';
+import './modules/payment.module/payment/payment.bootstrap';
 
 const app = express();
 

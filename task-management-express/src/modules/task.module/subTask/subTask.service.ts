@@ -203,7 +203,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return updatedSubtask;
   }
 
-  /** ✔️
+  /** ✔️🔍
    * Update subtask and recalculate parent task progress
    * @param subtaskId - SubTask ID
    * @param data - Update data
@@ -231,7 +231,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return updatedSubtask;
   }
 
-  /**
+  /** 🔍
    * Delete a subtask and update parent task
    * @param subtaskId - SubTask ID
    * @returns Deleted subtask
@@ -269,7 +269,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     });
   }
 
-  /** 🔂
+  /** 🔂 🔍
    * Get subtask statistics for a user
    * @param userId - User ID
    * @returns Subtask statistics
@@ -304,7 +304,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     };
   }
 
-  /** ✔️
+  /** ✔️🔍
    * Get subtasks with pagination
    * @param taskId - Parent task ID
    * @param filters - Query filters
@@ -334,7 +334,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
   // These methods provide a consistent API for task.controller.ts
   // ────────────────────────────────────────────────────────────────────────
 
-  /**
+  /** 🔍
    * Add a subtask to a task (wrapper for createSubTask)
    * @param taskId - Parent task ID
    * @param data - Subtask data (title, duration)
@@ -349,7 +349,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return this.createSubTask({ ...data, taskId }, userId);
   }
 
-  /**
+  /** 🔍
    * Get all subtasks for a task (alias for getSubTasksByTaskId)
    * @param taskId - Parent task ID
    * @returns Array of subtasks
@@ -358,7 +358,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return this.getSubTasksByTaskId(taskId, {});
   }
 
-  /**
+  /** 🔍
    * Get a single subtask by ID
    * @param taskId - Parent task ID (for validation)
    * @param subtaskId - Subtask ID
@@ -378,7 +378,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return subtask;
   }
 
-  /**
+  /** 🔍
    * Update a subtask (alias for updateSubTask)
    * @param taskId - Parent task ID (for validation)
    * @param subtaskId - Subtask ID
@@ -404,7 +404,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return this.updateSubTask(subtaskId, updateData);
   }
 
-  /**
+  /** 🔍
    * Toggle subtask completion (wrapper for toggleSubTaskStatus)
    * @param taskId - Parent task ID (for validation)
    * @param subtaskId - Subtask ID
@@ -426,7 +426,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return this.toggleSubTaskStatus(subtaskId, !subtask.isCompleted, userId);
   }
 
-  /**
+  /** 🔍
    * Delete a subtask (alias for deleteSubTask)
    * @param taskId - Parent task ID (for validation)
    * @param subtaskId - Subtask ID
@@ -447,7 +447,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     return this.deleteSubTask(subtaskId);
   }
 
-  /**
+  /** 🔍
    * Bulk update subtasks (replaces entire list)
    * @param taskId - Parent task ID
    * @param subtasks - Array of subtask updates
@@ -506,7 +506,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     };
   }
 
-  /**
+  /** 🔍
    * Check if child completed all subtasks of a collaborative task
    * If yes, update their TaskProgress to "completed"
    * @param taskId - Parent task ID
