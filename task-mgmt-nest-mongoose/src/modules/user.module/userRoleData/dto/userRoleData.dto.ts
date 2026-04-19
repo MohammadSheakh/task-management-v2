@@ -1,51 +1,32 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsEnum, IsMongoId } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsMongoId, IsNotEmpty, IsOptional } from 'class-validator';
+import { TAdminStatus, TProviderApprovalStatus } from '../userRoleData.schema';
 
-/**
- * User Role Data Type Enum
- */
-export enum UserRoleDataType {
-  VERIFIED = 'verified',
-  PENDING = 'pending',
-  REJECTED = 'rejected',
-}
-
-/**
- * DTO for creating user role data
- */
 export class CreateUserRoleDataDto {
-  @ApiProperty({ description: 'User ID', example: '507f1f77bcf86cd799439011' })
-  @IsNotEmpty({ message: 'User ID is required' })
-  @IsMongoId({ message: 'Invalid user ID format' })
+  @ApiProperty({ description: 'User ID' })
+  @IsNotEmpty()
+  @IsMongoId()
   userId: string;
 
-  @ApiProperty({
-    description: 'Role data type',
-    enum: UserRoleDataType,
-    example: UserRoleDataType.VERIFIED,
-  })
-  @IsNotEmpty({ message: 'Role data type is required' })
-  @IsEnum(UserRoleDataType, { message: 'Invalid role data type' })
-  type: UserRoleDataType;
+  @ApiPropertyOptional({ enum: TAdminStatus })
+  @IsOptional()
+  @IsEnum(TAdminStatus)
+  adminStatus?: TAdminStatus;
 
-  @ApiProperty({ description: 'Role data content', example: 'Verified user data' })
-  @IsNotEmpty({ message: 'Data is required' })
-  @IsString({ message: 'Data must be a string' })
-  data: string;
+  @ApiPropertyOptional({ enum: TProviderApprovalStatus })
+  @IsOptional()
+  @IsEnum(TProviderApprovalStatus)
+  providerApprovalStatus?: TProviderApprovalStatus;
 }
 
-/**
- * DTO for updating user role data
- */
 export class UpdateUserRoleDataDto {
-  @ApiPropertyOptional({ description: 'Role data content' })
-  @IsString()
-  data?: string;
+  @ApiPropertyOptional({ enum: TAdminStatus })
+  @IsOptional()
+  @IsEnum(TAdminStatus)
+  adminStatus?: TAdminStatus;
 
-  @ApiPropertyOptional({
-    description: 'Role data type',
-    enum: UserRoleDataType,
-  })
-  @IsEnum(UserRoleDataType)
-  type?: UserRoleDataType;
+  @ApiPropertyOptional({ enum: TProviderApprovalStatus })
+  @IsOptional()
+  @IsEnum(TProviderApprovalStatus)
+  providerApprovalStatus?: TProviderApprovalStatus;
 }

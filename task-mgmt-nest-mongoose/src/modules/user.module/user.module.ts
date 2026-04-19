@@ -17,6 +17,10 @@ import { OAuthAccountController } from './oauthAccount/oauthAccount.controller';
 import { OAuthAccountService } from './oauthAccount/oauthAccount.service';
 import { OAuthAccount, OAuthAccountSchema } from './oauthAccount/oauthAccount.schema';
 
+import { UserRoleDataController } from './userRoleData/userRoleData.controller';
+import { UserRoleDataService } from './userRoleData/userRoleData.service';
+import { UserRoleData, UserRoleDataSchema } from './userRoleData/userRoleData.schema';
+
 import { RedisModule } from '../../../helpers/redis/redis.module';
 
 /**
@@ -42,11 +46,14 @@ import { RedisModule } from '../../../helpers/redis/redis.module';
     // MongoDB - OAuthAccount collection
     MongooseModule.forFeature([{ name: OAuthAccount.name, schema: OAuthAccountSchema }]),
 
+    // MongoDB - UserRoleData collection
+    MongooseModule.forFeature([{ name: UserRoleData.name, schema: UserRoleDataSchema }]),
+
     // Redis Module (for caching)
     RedisModule,
   ],
-  controllers: [UserController, UserProfileController, UserDevicesController, OAuthAccountController],
-  providers: [UserService, UserProfileService, UserDevicesService, OAuthAccountService],
-  exports: [UserService, UserProfileService, UserDevicesService, OAuthAccountService],
+  controllers: [UserController, UserProfileController, UserDevicesController, OAuthAccountController, UserRoleDataController],
+  providers: [UserService, UserProfileService, UserDevicesService, OAuthAccountService, UserRoleDataService],
+  exports: [UserService, UserProfileService, UserDevicesService, OAuthAccountService, UserRoleDataService],
 })
 export class UserModule {}
