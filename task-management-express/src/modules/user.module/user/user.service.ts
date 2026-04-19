@@ -283,6 +283,8 @@ export class UserService extends GenericService<typeof User, IUser> {
     //-- name, email, phoneNumber from User table ..
     //-- location, dob and gender from UserProfile table
 
+    console.log("before save -> ", data);
+
     const updateUser:IUser | null  = await User.findByIdAndUpdate(id, {
       name: data.name,
       // email: data.email, // email can not be updated

@@ -91,7 +91,7 @@ const registerV2 = catchAsync(async (req: Request, res: Response) => {
   const userProfile: IUserProfile = await UserProfile.create({
     acceptTOC: data.acceptTOC,
     age: data.age,
-    dob: data.dob ? new Date(data.dob) : undefined,
+    dob: data.dob ? new Date(data.dob) : null,
     gender : data.gender,
   });
 
@@ -107,6 +107,7 @@ const registerV2 = catchAsync(async (req: Request, res: Response) => {
     password: req.body.password,
     role: data.role,
     profileId: userProfile._id,
+    phoneNumber : req.body.phoneNumber
   };
 
   const result = await AuthService.createUserV2(userDTO, userProfile._id);
