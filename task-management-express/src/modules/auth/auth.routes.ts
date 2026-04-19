@@ -132,13 +132,13 @@ router.post(
 // ------ Logout endpoint - supports both authenticated and unauthenticated logout -----
 // Can logout with token (authenticated) or without token (just blacklist refresh token)
 router.post('/logout',
-  auth(TRole.common),  // Optional - can logout without being authenticated
+  // auth(TRole.common),  // Optional - can logout without being authenticated
   AuthController.logout);
 
 // -- for nerob vai
 router.post('/logout/v2',
-  auth(TRole.common),  // Optional - can logout without being authenticated
-  AuthController.logoutWithOutRefreshToken);
+  // auth(TRole.common),  
+  AuthController.logout);
 
 
 

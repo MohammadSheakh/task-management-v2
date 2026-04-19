@@ -584,7 +584,7 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
     }
   }
 
-  /**
+  /** 🔍
    * Sync parent task status based on all children's TaskProgress
    * @param taskId - Parent task ID
    * @private
@@ -660,6 +660,9 @@ export class SubTaskService extends GenericService<typeof SubTask, ISubTask> {
   }
 
   /**🔍
+   * 
+   * 
+   * 
    * Create or update SubTaskProgress for a child
    * Tracks per-child subtask completion independently
    * @param subtaskId - SubTask ID

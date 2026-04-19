@@ -1,4 +1,6 @@
+//@ts-ignore
 import { Request, Response } from 'express';
+//@ts-ignore
 import { StatusCodes } from 'http-status-codes';
 import { GenericController } from '../../_generic-module/generic.controller';
 import { SubTask } from './subTask.model';

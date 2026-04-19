@@ -726,7 +726,8 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
 });
 
 const logout = catchAsync(async (req: Request, res: Response) => {
-  const { refreshToken, fcmToken, logoutFromAllDevices } = req.body as ILogoutBody;
+  const refreshToken = req.cookies.refreshToken;
+  const { /*refreshToken,*/ fcmToken, logoutFromAllDevices } = req.body as ILogoutBody;
   const userId = (req.user as IUser)?.userId;
 
   await AuthService.logout(refreshToken, userId, fcmToken, logoutFromAllDevices);

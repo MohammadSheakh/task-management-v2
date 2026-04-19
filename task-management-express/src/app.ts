@@ -38,7 +38,11 @@ app.use(Morgan.errorHandler);
 // body parser
 app.use(
   cors({
-    origin: '*',
+    // origin: '*',
+    origin :[
+       'https://nimur3000.sobhoy.com',
+       'https://nimur5000.sobhoy.com'
+    ],
     credentials: true,
     exposedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   })
