@@ -627,7 +627,7 @@ export class ChildrenBusinessUserService extends GenericService<
       profileId: userProfile._id, // ✅ Link to userProfile
       subscriptionType: 'none', // Children don't need individual subscription
       isEmailVerified: true, // Child should verify email
-      preferredTime: '07:00', // Default preferred time
+      preferredTime: '00:00', // Default preferred time
     });
 
     /*-─────────────────────────────────

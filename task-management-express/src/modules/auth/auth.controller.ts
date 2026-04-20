@@ -107,7 +107,8 @@ const registerV2 = catchAsync(async (req: Request, res: Response) => {
     password: req.body.password,
     role: data.role,
     profileId: userProfile._id,
-    phoneNumber : req.body.phoneNumber
+    phoneNumber : req.body.phoneNumber,
+    preferredTime: '00:00', // Default preferred time
   };
 
   const result = await AuthService.createUserV2(userDTO, userProfile._id);
