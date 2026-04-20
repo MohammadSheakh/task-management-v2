@@ -37,7 +37,7 @@ router.get(
   controller.getAllChildrenProgress,
 );
 
-/*-─────────────────────────────────
+/*-─────────────────────────────────🔍
 |  Child | SubTaskProgress | task-details-with-subTasks.png | Toggle my subtask completion
 |  @desc Mark a subtask as completed or not completed by me
 |  @auth Child user (task assignee)

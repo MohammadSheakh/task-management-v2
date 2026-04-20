@@ -538,130 +538,7 @@ const appleAuthCallback = catchAsync(async (req: Request, res: Response) => {
 //   isDeleted: false,
 // });
 
-/*
-export const appleLogin = async (idToken: string, fcmToken?: string) => {
-  try {
-    // 🔐 Verify Apple ID token
-    const applePayload = await appleSignin.verifyIdToken(idToken, {
-      clientId: APPLE_CLIENT_ID,
-      teamId: APPLE_TEAM_ID,
-      keyId: APPLE_KEY_ID,
-      privateKey: APPLE_PRIVATE_KEY,
-    });
 
-    const { sub: providerId, email, email_verified: isEmailVerified } = applePayload;
-
-    if (!email || !providerId) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Email or provider ID missing');
-    }
-
-    // 🔍 Check if Apple account already exists
-    let appleAccount = await OAuthAccount.findOne({
-      authProvider: 'apple',
-      providerId,
-    }).populate('userId');
-
-    if (appleAccount && appleAccount.userId) {
-      // ✅ Existing Apple user → log in
-      const user = await User.findById(appleAccount.userId);
-      if (!user || user.isDeleted) {
-        throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not found or deactivated');
-      }
-
-      // Save FCM token
-      if (fcmToken) {
-        user.fcmToken = fcmToken;
-        await user.save();
-      }
-
-      const tokens = await TokenService.accessAndRefreshToken(user);
-      const { hashedPassword, ...userWithoutPassword } = user.toObject();
-
-      return {
-        user: userWithoutPassword,
-        tokens,
-      };
-    }
-
-    // 🔍 Check for existing LOCAL account with same email
-    const localUser = await User.findOne({
-      email: email.toLowerCase(),
-      hashedPassword: { $ne: null }, // has password → local account
-    });
-
-    if (localUser) {
-      // 🔄 Auto-link if email is verified by Apple AND user
-      if (isEmailVerified && localUser.isEmailVerified) {
-        // 🔗 Link Apple to existing local user
-        const newOAuthAccount = await OAuthAccount.create({
-          userId: localUser._id,
-          authProvider: 'apple',
-          providerId,
-          email: email.toLowerCase(),
-          isVerified: true,
-        });
-
-        // Save FCM token
-        if (fcmToken) {
-          localUser.fcmToken = fcmToken;
-          await localUser.save();
-        }
-
-        const tokens = await TokenService.accessAndRefreshToken(localUser);
-        const { hashedPassword, ...userWithoutPassword } = localUser.toObject();
-
-        return {
-          user: userWithoutPassword,
-          tokens,
-        };
-      } else {
-        // 🛑 Don't auto-link if email isn't verified
-        throw new ApiError(
-          StatusCodes.CONFLICT,
-          'An account with this email exists. Please log in with your password or verify your email.'
-        );
-      }
-    }
-
-    // ➕ No existing account → create new user
-    const newUser = await User.create({
-      email: email.toLowerCase(),
-      name: applePayload.name || email.split('@')[0],
-      isEmailVerified: isEmailVerified,
-      role: 'user', // default role
-      profileId: await UserProfile.create({ acceptTOC: true }).then(p => p._id),
-      
-    });
-
-    // Create OAuthAccount record
-    await OAuthAccount.create({
-      userId: newUser._id,
-      authProvider: 'apple',
-      providerId,
-      email: email.toLowerCase(),
-      isVerified: isEmailVerified,
-    });
-
-    // Save FCM token
-    if (fcmToken) {
-      newUser.fcmToken = fcmToken;
-      await newUser.save();
-    }
-
-    const tokens = await TokenService.accessAndRefreshToken(newUser);
-    const { hashedPassword, ...userWithoutPassword } = newUser.toObject();
-
-    return {
-      user: userWithoutPassword,
-      tokens,
-    };
-
-  } catch (error) {
-    console.error('Apple login error:', error);
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Something went wrong during Apple login');
-  }
-};
-*/
 
 //[🚧][‍💻✅][]  // 🆗
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
@@ -743,10 +620,10 @@ const logout = catchAsync(async (req: Request, res: Response) => {
 
 
 const logoutWithOutRefreshToken = catchAsync(async (req: Request, res: Response) => {
-  const { fcmToken, logoutFromAllDevices } = req.body as ILogoutBody;
+  const {refreshToken, fcmToken, logoutFromAllDevices } = req.body as ILogoutBody;
   const userId = (req.user as IUser)?.userId;
 
-  await AuthService.logoutWithOutRefreshToken( userId, fcmToken, logoutFromAllDevices);
+  await AuthService.logout(refreshToken, userId, fcmToken, logoutFromAllDevices);
 
   sendResponse(res, {
     code: StatusCodes.OK,

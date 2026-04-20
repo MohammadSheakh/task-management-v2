@@ -138,7 +138,7 @@ router.post('/logout',
 // -- for nerob vai
 router.post('/logout/v2',
   // auth(TRole.common),  
-  AuthController.logout);
+  AuthController.logoutWithOutRefreshToken);
 
 
 

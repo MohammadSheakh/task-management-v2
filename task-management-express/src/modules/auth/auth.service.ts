@@ -169,6 +169,8 @@ const createUser = async (userData: ICreateUser, userProfileId:string) => {
   ---------------------------------*/
 const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
 
+  console.log("🚦createUserV2 before ->", userData)
+
   const existingUser = await User.findOne({ email: userData.email });
 
   if (existingUser) {
@@ -193,7 +195,11 @@ const createUserV2 = async (userData: ICreateUser, userProfileId:string) => {
 
   userData.password = await bcryptjs.hash(userData.password, 12);
 
+  console.log("userData after hashing ->", userData)
+
   const user = await User.create(userData);
+
+  console.log("🚦user after user create ->", user)
 
   /*-─────────────────────────────────
   | TODO : use redis bullmq
@@ -629,6 +635,9 @@ const logout = async (
   logoutFromAllDevices: boolean = false
 ) => {
   try {
+
+    console.log("🚦logout ->", refreshToken, userId, fcmToken, logoutFromAllDevices)
+
     // Step 1: Verify the refresh token and add to blacklist
     if (refreshToken) {
       const decoded = jwt.verify(
@@ -1199,7 +1208,7 @@ const loginIndividualUser = async (
           purchasePlatform: activeSubscription.purchasePlatform,
         }
       : {
-          isSubscribed: false,
+          isSubscribed: true,  // ============= 🚩🚩 eta false korte hobe
           status: null,
           plan: null,
           message: 'No active subscription found',
