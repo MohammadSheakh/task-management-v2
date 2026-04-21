@@ -83,7 +83,7 @@ const taskSchema = new Schema<ITask>(
     // ─── Timestamps ────────────────────────────────────────────────────
     startTime: {
       type: Date,
-      required: [true, 'Start time is required'],
+      required: [false, 'Start time is not required'],
     },
 
     completedTime: {

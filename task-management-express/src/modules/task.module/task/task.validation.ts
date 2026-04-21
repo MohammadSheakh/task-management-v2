@@ -20,13 +20,13 @@ export const createTaskValidationSchema = z.object({
         required_error: 'Task type is required',
       }),
 
-    startTime: z
-      .string({
-        required_error: 'Start time is required',
-      })
-      .refine((val) => !isNaN(Date.parse(val)), {
-        message: 'Invalid date format for startTime',
-      }),
+    // startTime: z
+    //   .string({
+    //     required_error: 'Start time is required',
+    //   })
+    //   .refine((val) => !isNaN(Date.parse(val)), {
+    //     message: 'Invalid date format for startTime',
+    //   }),
 
     // ─── Optional Fields ─────────────────────────────────────────────
     description: z

@@ -436,7 +436,7 @@ void _showTimePicker() async {
 preferredTime: "08:30"
 
 // Future: Store timezone for smart conversion
-preferredTimezone: "Asia/Dhaka"
+preferredTimezone: "Africa/Lagos"
 
 // When user travels to London:
 // System converts 08:30 Dhaka → 03:30 London

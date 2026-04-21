@@ -14,6 +14,7 @@ import { Types } from 'mongoose';
 import sendResponse from '../../../shared/sendResponse';
 import { TaskStatus } from './task.constant';
 import catchAsync from '../../../shared/catchAsync';
+import { toLocalTime } from '../../../utils/timezone';
 
 /**
  * Task Controller
@@ -295,8 +296,10 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateStatus = async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { status, completedTime } = req.body as IUpdateTaskStatusBody;
+    const { status, startTime, completedTime } = req.body as IUpdateTaskStatusBody;
     const userId = req.user?.userId;
+
+    console.log("status -- startTime ", status, startTime);
 
     if (!userId) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
@@ -310,7 +313,10 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       taskId,
       status,
       userId,
+      startTime //🆕
     );
+
+    console.log("result :: ", result);
 
     // ⏰ Trigger preferred time calculation if task is completed
     if (status === TaskStatus.COMPLETED) {
@@ -511,7 +517,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
    */
   updateStatusV5 = catchAsync(async (req: Request, res: Response) => {
     const taskId = req.params.id;
-    const { status, note } = req.body as IUpdateTaskStatusBody;
+    const { status, startTime, note } = req.body as IUpdateTaskStatusBody;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -527,6 +533,7 @@ export class TaskController extends GenericController<typeof Task, ITask> {
       status,
       userId,
       note,
+      startTime //🆕
     );
 
     // ⏰ Trigger preferred time calculation if task is completed
@@ -641,9 +648,12 @@ export class TaskController extends GenericController<typeof Task, ITask> {
     ];
 
     const select = '-__v';
-    const result = await this.service.getById(taskId, populateOptions, select);
+    let result = await this.service.getById(taskId, populateOptions, select);
 
 
+    const userTimeZone = 'Africa/Lagos'; //TODO: Timezone must from env file
+
+  
     if (!result) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
     }
@@ -753,9 +763,20 @@ export class TaskController extends GenericController<typeof Task, ITask> {
         ? Math.round((completedSubtasks / totalSubtasks) * 100)
         : 0;
 
+    console.log("result :Africa/Lagos: startTime --",result, toLocalTime(result.startTime, userTimeZone));
+
+    console.log("result :Asia/Dhaka: startTime --", toLocalTime(result.startTime, "Asia/Dhaka"));
+
+
     // Build response
     const responseData = {
       ...result.toObject(),
+      startTime: toLocalTime(result.startTime, userTimeZone),
+      dueDate: toLocalTime(result.dueDate, userTimeZone),
+      createdAt: toLocalTime(result?.createdAt, userTimeZone),
+      updatedAt: toLocalTime(result?.updatedAt, userTimeZone),
+      completedTime: toLocalTime(result?.completedTime, userTimeZone),
+      
       subtasks: formattedSubtasks,
       subtaskProgress: {
         total: totalSubtasks,

@@ -859,7 +859,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
         path: 'assignedUserIds createdById',
         select: 'name profileImage',
       })
-      .sort({ startTime: -1 })
+      .sort({ createdAt: -1 }) //🎯🆕
       .lean();
 
     // ✅ Populate subtasks for each task using virtual populate
@@ -1247,6 +1247,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     taskId: string,
     status: TTaskStatus,
     userId: Types.ObjectId,
+    startTime?: Date //🆕
   ): Promise<ITask> {
     const updateData: any = { status };
 
@@ -1255,9 +1256,17 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       updateData.completedTime = new Date();
     }
 
+    //🆕 startTime
+    if (startTime) {
+      updateData.startTime = startTime;
+    }
+
     const updatedTask = await this.model
       .findByIdAndUpdate(taskId, updateData, { new: true })
       .select('-__v');
+
+
+    console.log("updatedTask :: ", updatedTask);
 
     if (!updatedTask) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
@@ -1636,6 +1645,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     status: TTaskStatus,
     userId: Types.ObjectId,
     note?: string,
+    startTime?: Date //🆕
   ): Promise<{
     task?: ITask;
     progress?: ITaskProgressDocument;
@@ -1714,7 +1724,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
       }
 
       // Update task status (reuse base logic)
-      updatedTaskResult = await this.updateTaskStatus(taskId, status, userId);
+      updatedTaskResult = await this.updateTaskStatus(taskId, status, userId, startTime); //🆕
     }
 
     // 3. Calculate OVERALL DAILY progress
@@ -2372,14 +2382,38 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     const tasks = await this.model
       .find({
         $or: [{ ownerUserId: userId }, { assignedUserIds: userId }],
-        startTime: {
+        
+        //startTime: {
+         createdAt: {
           $gte: startOfDay,
           $lte: endOfDay,
         },
+
+      //  $or: [
+      // // Has startDate and it's today
+      // {
+      //   startDate: { $exists: true, $gte: startOfDay, $lte: endOfDay }
+      // },
+      // // No startDate, but dueDate is today
+      // {
+      //   startDate: { $exists: false },
+      //   dueDate: { $gte: startOfDay, $lte: endOfDay }
+      // },
+      // // No startDate or dueDate, but created today
+      // {
+      //   startDate: { $exists: false },
+      //   dueDate: { $exists: false },
+      //   createdAt: { $gte: startOfDay, $lte: endOfDay }
+      // }
+      // ],
+        
         isDeleted: false,
       })
-      .sort({ startTime: 1 })
+      .sort({ createdAt: 1 }) // startTime createdAt
       .lean(); // lean() = plain JS objects, no Mongoose overhead
+
+
+      console.log("tasks --> get daily progress V3 ->>📝📝 ", tasks);
 
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 5: Calculate statistics

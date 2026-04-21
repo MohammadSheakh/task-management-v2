@@ -88,7 +88,7 @@ export const verifyTaskOwnership = async (
       throw new ApiError(StatusCodes.NOT_FOUND, 'Task not found');
     }
 
-    console.log("task in ownership middleware", task);
+    // console.log("task in ownership middleware", task);
 
     // Only creator or owner can modify
     // Handle both populated and non-populated fields

@@ -125,6 +125,7 @@ export interface IUpdateTaskStatusBody {
   status: string;
   completedTime?: Date;
   note?: string;
+  startTime ? :Date;
 }
 
 export type IUpdateSubtaskProgressBody = {
