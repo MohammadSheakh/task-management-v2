@@ -139,11 +139,11 @@ graph TB
 
 **Strategy Comparison**:
 
-| Strategy | Pros | Cons | Best For |
-|----------|------|------|----------|
-| **Single Server** | Simple, cheap | Single point of failure | Development, MVP |
-| **Separated Services** | Better reliability, scalable | More complex | Production (10K users) |
-| **Microservices** | Highly scalable, independent | Very complex | Enterprise (100K+ users) |
+|        Strategy        |             Pros             |          Cons           |         Best For         |
+| ---------------------- | ---------------------------- | ----------------------- | ------------------------ |
+| **Single Server**      | Simple, cheap                | Single point of failure | Development, MVP         |
+| **Separated Services** | Better reliability, scalable | More complex            | Production (10K users)   |
+| **Microservices**      | Highly scalable, independent | Very complex            | Enterprise (100K+ users) |
 
 ---
 
