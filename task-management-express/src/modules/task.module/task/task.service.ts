@@ -13,6 +13,7 @@ import {
   TASK_CACHE_CONFIG,
   TTaskStatus,
   DAILY_TASK_LIMIT,
+  TTaskType,
 } from './task.constant';
 import { redisClient } from '../../../helpers/redis/redis';
 import { logger, errorLogger } from '../../../shared/logger';
@@ -1950,17 +1951,32 @@ export class TaskService extends GenericService<typeof Task, ITask> {
     }
 
     // ─── 2. Delete subtasks ─────────────────────────────────────
-    if (data.deleteSubtaskIds && data.deleteSubtaskIds.length > 0) {
-      await SubTask.updateMany(
-        { _id: { $in: data.deleteSubtaskIds }, taskId: new Types.ObjectId(taskId) },
-        { isDeleted: true }
-      );
-      logger.info(`Soft deleted ${data.deleteSubtaskIds.length} subtasks for task ${taskId}`);
+    // if (data.deleteSubtaskIds && data.deleteSubtaskIds.length > 0) {
+    //   await SubTask.updateMany(
+    //     { _id: { $in: data.deleteSubtaskIds }, taskId: new Types.ObjectId(taskId) },
+    //     { isDeleted: true }
+    //   );
+    //   logger.info(`Soft deleted ${data.deleteSubtaskIds.length} subtasks for task ${taskId}`);
+    // }
+
+    
+
+    if (data.deletedSubtaskIds && data.deletedSubtaskIds.length > 0) {
+      const result = await SubTask.deleteMany({
+        _id: { $in: data.deletedSubtaskIds },
+        taskId: new Types.ObjectId(taskId),
+      });
+
+      logger.info(`Hard deleted ${result.deletedCount} subtasks for task ${taskId}`);
     }
 
+
+    console.log("data.updateSubTasks :: ",data.updatedSubTasks)
+
+
     // ─── 3. Update existing subtasks ────────────────────────────
-    if (data.updateSubtasks && data.updateSubtasks.length > 0) {
-      for (const sub of data.updateSubtasks) {
+    if (data.updatedSubTasks && data.updatedSubTasks.length > 0) {
+      for (const sub of data.updatedSubTasks) {
         const updateData: any = {};
         if (sub.title !== undefined) updateData.title = sub.title;
         if (sub.isCompleted !== undefined) {
@@ -1975,7 +1991,7 @@ export class TaskService extends GenericService<typeof Task, ITask> {
           { new: true }
         );
       }
-      logger.info(`Updated ${data.updateSubtasks.length} subtasks for task ${taskId}`);
+      logger.info(`Updated ${data.updatedSubTasks.length} subtasks for task ${taskId}`);
     }
 
     // ─── 4. Add new subtasks ────────────────────────────────────

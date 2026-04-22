@@ -14,8 +14,8 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  📦 You'll design:                                               │
-│     • REST/GraphQL APIs that scale to millions of requests      │
-│     • Real-time applications (chat, notifications, live updates)│
+│     • REST/GraphQL APIs that scale to millions of requests      │ 
+│     • Real-time applications (chat, notifications, live updates)│ 
 │     • Microservices architecture                                │
 │     • Caching layers for performance                            │
 │     • Database sharding strategies                              │

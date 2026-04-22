@@ -113,4 +113,19 @@ export class AttachmentService extends GenericService<typeof Attachment, IAttach
     await attachment.save();
     return attachment;
   }
+
+  /**
+   * Generate presigned URL (RECOMMENDED For videos)
+   * @description
+   * client uploads directly to S3 - much faster
+   * 
+   * @returns { uploadUrl, fileUrl, key }
+   */
+  // async generatePresignedUrl (
+  //   fileName: string,
+  //   fileType : string,
+  //   folder : string
+  // ) {
+  //   const key = 
+  // }
 }
