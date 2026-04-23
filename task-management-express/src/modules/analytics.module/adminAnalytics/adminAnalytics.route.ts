@@ -120,6 +120,7 @@ router.get('/admin/income-summary',
 router.get('/admin/user-registration-chart',
   auth(TRole.admin),
   controller.getUserRegistrationChart
+
 );
 
 export const AdminAnalyticsRoutes = router;

@@ -439,126 +439,8 @@ export class AdminAnalyticsService {
     };
   }
 
-  /**
-   * Get user registration data for chart
-   * @param type - 'monthly' or 'yearly'
-   * @param year - Optional year filter (defaults to current year for monthly)
-   * @returns User count data for bar chart
-   */
-  async getUserRegistrationChartData(
-    type: 'monthly' | 'yearly' = 'monthly',
-    year?: number
-  ): Promise<{
-    type: 'monthly' | 'yearly';
-    data: {
-      period: string;
-      label: string;
-      count: number;
-    }[];
-    totalUsers: number;
-    growthRate: number;
-  }> {
-    const now = new Date();
-    const currentYear = year || now.getFullYear();
-
-    if (type === 'monthly') {
-      // Get monthly data for current year (or specified year)
-      const yearStart = new Date(currentYear, 0, 1);
-      const yearEnd = new Date(currentYear, 11, 31);
-
-      const monthlyData = await User.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: yearStart, $lte: yearEnd },
-            isDeleted: false,
-          },
-        },
-        {
-          $group: {
-            _id: {
-              month: { $month: '$createdAt' },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { '_id.month': 1 } },
-      ]);
-
-      // Fill in missing months with 0
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const dataMap = new Map(monthlyData.map((d: any) => [d._id.month, d.count]));
-      
-      const data = monthNames.map((name, index) => ({
-        period: (index + 1).toString(),
-        label: name,
-        count: dataMap.get(index + 1) || 0,
-      }));
-
-      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
-      
-      // Calculate growth rate (this year vs last year)
-      const lastYearStart = new Date(currentYear - 1, 0, 1);
-      const lastYearEnd = new Date(currentYear - 1, 11, 31);
-      const lastYearTotal = await User.countDocuments({
-        createdAt: { $gte: lastYearStart, $lte: lastYearEnd },
-        isDeleted: false,
-      });
-      
-      const growthRate = lastYearTotal > 0 
-        ? ((totalUsers - lastYearTotal) / lastYearTotal) * 100 
-        : 0;
-
-      return {
-        type: 'monthly',
-        data,
-        totalUsers,
-        growthRate,
-      };
-    } else {
-      // Get yearly data (last 5 years)
-      const fiveYearsAgo = subYears(now, 5);
-
-      const yearlyData = await User.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: fiveYearsAgo },
-            isDeleted: false,
-          },
-        },
-        {
-          $group: {
-            _id: {
-              year: { $year: '$createdAt' },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { '_id.year': 1 } },
-      ]);
-
-      const data = yearlyData.map((d: any) => ({
-        period: d._id.year.toString(),
-        label: d._id.year.toString(),
-        count: d.count,
-      }));
-
-      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
-      
-      // Calculate growth rate (this year vs last year)
-      const thisYear = data.find(d => d.period === now.getFullYear().toString())?.count || 0;
-      const lastYear = data.find(d => d.period === (now.getFullYear() - 1).toString())?.count || 0;
-      const growthRate = lastYear > 0 ? ((thisYear - lastYear) / lastYear) * 100 : 0;
-
-      return {
-        type: 'yearly',
-        data,
-        totalUsers,
-        growthRate,
-      };
-    }
-  }
-
+  
+  
   /**
    * Get income/revenue data for chart
    * @param type - 'monthly' or 'yearly'
@@ -1156,6 +1038,8 @@ export class AdminAnalyticsService {
    * 
    * @see Figma: dashboard-section-flow.png (User ratio bar chart)
    */
+  // 🎯
+  /*----------------------------
   async getUserRegistrationChartData(
     type: 'monthly' | 'yearly' = 'monthly',
     year?: number
@@ -1170,10 +1054,10 @@ export class AdminAnalyticsService {
     const cacheKey = this.getCacheKey(`user-registration-${type}-${year || 'current'}`);
 
     // Try cache first
-    const cached = await this.getFromCache(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    // const cached = await this.getFromCache(cacheKey);
+    // if (cached) {
+    //   return cached;
+    // }
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -1218,7 +1102,7 @@ export class AdminAnalyticsService {
       };
 
       // Cache for 15 minutes
-      await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.CHART_DATA);
+      // await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.CHART_DATA);
       return result;
 
     } else {
@@ -1261,10 +1145,135 @@ export class AdminAnalyticsService {
       };
 
       // Cache for 15 minutes
-      await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.CHART_DATA);
+      // await this.setInCache(cacheKey, result, ANALYTICS_CACHE_CONFIG.CHART_DATA);
       return result;
     }
   }
+======================================*/
+  /** 🎯
+   * Get user registration data for chart
+   * @param type - 'monthly' or 'yearly'
+   * @param year - Optional year filter (defaults to current year for monthly)
+   * @returns User count data for bar chart
+   */
+  /*----------------------------======================================*/
+  
+  async getUserRegistrationChartData(
+    type: 'monthly' | 'yearly' = 'monthly',
+    year?: number
+  ): Promise<{
+    type: 'monthly' | 'yearly';
+    data: {
+      period: string;
+      label: string;
+      count: number;
+    }[];
+    totalUsers: number;
+    growthRate: number;
+  }> {
+    const now = new Date();
+    const currentYear = year || now.getFullYear();
+
+    if (type === 'monthly') {
+      // Get monthly data for current year (or specified year)
+      const yearStart = new Date(currentYear, 0, 1);
+      const yearEnd = new Date(currentYear, 11, 31);
+
+      const monthlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: yearStart, $lte: yearEnd },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.month': 1 } },
+      ]);
+
+      // Fill in missing months with 0
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dataMap = new Map(monthlyData.map((d: any) => [d._id.month, d.count]));
+      
+      const data = monthNames.map((name, index) => ({
+        period: (index + 1).toString(),
+        label: name,
+        count: dataMap.get(index + 1) || 0,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate (this year vs last year)
+      const lastYearStart = new Date(currentYear - 1, 0, 1);
+      const lastYearEnd = new Date(currentYear - 1, 11, 31);
+      const lastYearTotal = await User.countDocuments({
+        createdAt: { $gte: lastYearStart, $lte: lastYearEnd },
+        isDeleted: false,
+      });
+      
+      const growthRate = lastYearTotal > 0 
+        ? ((totalUsers - lastYearTotal) / lastYearTotal) * 100 
+        : 0;
+
+      return {
+        type: 'monthly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    } else {
+      // Get yearly data (last 5 years)
+      const fiveYearsAgo = subYears(now, 5);
+
+      const yearlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: fiveYearsAgo },
+            isDeleted: false,
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.year': 1 } },
+      ]);
+
+      const data = yearlyData.map((d: any) => ({
+        period: d._id.year.toString(),
+        label: d._id.year.toString(),
+        count: d.count,
+      }));
+
+      const totalUsers = data.reduce((sum, d) => sum + d.count, 0);
+      
+      // Calculate growth rate (this year vs last year)
+      const thisYear = data.find(d => d.period === now.getFullYear().toString())?.count || 0;
+      const lastYear = data.find(d => d.period === (now.getFullYear() - 1).toString())?.count || 0;
+      const growthRate = lastYear > 0 ? ((thisYear - lastYear) / lastYear) * 100 : 0;
+
+      return {
+        type: 'yearly',
+        data,
+        totalUsers,
+        growthRate,
+      };
+    }
+  }
+
+  
+  
 }
 
 export const adminAnalyticsService = new AdminAnalyticsService();
