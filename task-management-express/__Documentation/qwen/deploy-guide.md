@@ -55,17 +55,17 @@ From grep search: **2,587 Redis references** in codebase
 7. **Distributed Locks** — Cron job coordination (future use)
 
 **Conclusion:** Redis is **THE MOST CRITICAL** infrastructure after MongoDB. Must be sized correctly.
-
+ 
 ---
-
+ 
 ## 2. INFRASTRUCTURE DECISION: EC2 vs Fargate vs Managed Services
-
+ 
 ### 2.1 Recommendation: Hybrid Approach
 
 For your scale targets (100K concurrent users, 10M tasks), **DO NOT put everything on one EC2 instance**.
 
 **Recommended Architecture:**
-
+ 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    AWS Infrastructure                    │
