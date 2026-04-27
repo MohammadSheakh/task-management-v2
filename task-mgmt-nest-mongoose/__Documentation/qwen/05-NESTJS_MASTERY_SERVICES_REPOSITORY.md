@@ -390,12 +390,59 @@ export class UserServiceWithCache {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
+    // With jitter (keys expire at different times)
+    const baseTTL = this.CACHE_TTL * 1000;
+    const jitter = Math.random() * 1000;  // 0-10 seconds
+    const ttl2 = baseTTL + jitter;  // 30-40 seconds
     
     // Step 3: Store in cache
-    await this.cacheManager.set(cacheKey, user, this.CACHE_TTL * 1000);
+    await this.cacheManager.set(cacheKey, user, ttl2);
     
     return user;
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // Pattern 4: Cache Stampede Prevention (Locking)
+  // ─────────────────────────────────────────────────────────────
+  async function getTaskWithLockPrevention(taskId: string) {
+    const cache = new CacheService();
+    const cacheKey = `task:${taskId}`;
+    const lockKey = `${cacheKey}:lock`;
+
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) return cached;
+
+    // Try to acquire lock
+    const lock = await redis.set(lockKey, '1', 'NX', 'EX', 10);
+    
+    if (!lock) {
+      // Another request is fetching - wait and retry
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return getTaskWithLockPrevention(taskId);
+    }
+
+    try {
+      // Double-check cache (another request might have populated it)
+      const cachedRetry = await cache.get(cacheKey);
+      if (cachedRetry) return cachedRetry;
+
+      // Fetch from database
+      const task = await prisma.task.findUnique({
+        where: { id: taskId },
+      });
+
+      // Cache the result
+      await cache.set(cacheKey, task, 300);
+
+      return task;
+    } finally {
+      // Release lock
+      await redis.del(lockKey);
+    }
+  }
+
 
   // ─────────────────────────────────────────────
   // CREATE with Cache Invalidation
